@@ -24,7 +24,10 @@ async function fetchAllPages(path: string, key: string) {
 
     const res = await fetch(url.toString(), { headers: gcHeaders() });
     if (!res.ok) {
-      throw new Error(`GoCardless ${path} fetch failed: ${res.status}`);
+      const errorBody = await res.text();
+      throw new Error(
+        `GoCardless ${path} fetch failed: ${res.status} — ${errorBody}`
+      );
     }
     const data = await res.json();
     items = items.concat(data[key]);
