@@ -98,7 +98,7 @@ export default function HomePage() {
               <div className="hv-card">
                 <div className="row">
                   <span>Agreement</span>
-                  <span>HP113</span>
+                  <span>HP5962</span>
                 </div>
                 <div className="row">
                   <span>Asset</span>
@@ -106,11 +106,11 @@ export default function HomePage() {
                 </div>
                 <div className="row">
                   <span>Paid</span>
-                  <span>27 / 48</span>
+                  <span>24 / 48</span>
                 </div>
                 <div className="total">
                   <span className="l">Settlement</span>
-                  <span className="v">£8,214</span>
+                  <span className="v">£6,738</span>
                 </div>
               </div>
             </div>
@@ -120,19 +120,16 @@ export default function HomePage() {
         <section className="stats-strip">
           <div className="stats-grid">
             <div className="stat">
-              <div className="num">[ X ]</div>
+              <div className="num">2.5%</div>
               <div className="lbl">Rates from</div>
-              <div className="placeholder">add figure</div>
             </div>
             <div className="stat">
-              <div className="num">£[X]K–£[X]M</div>
+              <div className="num">£7.5K–£10M</div>
               <div className="lbl">Lending range</div>
-              <div className="placeholder">add figure</div>
             </div>
             <div className="stat">
-              <div className="num">[X] hrs</div>
+              <div className="num">24 hrs</div>
               <div className="lbl">Average turnaround</div>
-              <div className="placeholder">add figure</div>
             </div>
             <div className="stat">
               <div className="num">HP &middot; FL &middot; L</div>
