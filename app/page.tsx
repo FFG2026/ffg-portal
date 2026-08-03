@@ -35,7 +35,7 @@ export default function HomePage() {
       <nav>
         <div className="nav-inner">
           <div className="wordmark">
-            <span className="dot"></span>
+            <img src="/logo-icon.png" alt="Future FG" className="logo-mark" />
             <div>
               FUTURE FG
               <small>ASSET &amp; HIRE PURCHASE FINANCE</small>
@@ -345,7 +345,7 @@ export default function HomePage() {
           <div className="footer-top">
             <div className="footer-brand">
               <div className="wordmark" style={{ marginBottom: 14 }}>
-                <span className="dot"></span>
+                <img src="/logo-icon.png" alt="Future FG" className="logo-mark" />
                 <div>
                   FUTURE FG
                   <small>ASSET &amp; HIRE PURCHASE FINANCE</small>
