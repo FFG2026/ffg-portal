@@ -1,505 +1,270 @@
-"use client";
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-import { useState } from "react";
-import Link from "next/link";
+:root{
+  --paper:#F7F8FA; --paper-raised:#FFFFFF; --ink:#101B2D; --ink-soft:#48566B; --slate:#7C8AA0;
+  --blue:#0E8CF5; --blue-deep:#0A6FCB; --blue-pale:#E9F4FE; --navy:#0B1F3A; --gold:#C4933B;
+  --gold-pale:#FBF6EC; --gold-border:#EBD9AE; --rule:#E3E7EC; --green:#1F9254; --green-pale:#E9F7EF;
+}
 
-const mockCompanies = [
-  { name: "Medway Plant Hire Ltd", number: "09214563" },
-  { name: "Anderson Groundworks Ltd", number: "11087742" },
-  { name: "Kent Logistics Solutions Ltd", number: "08765310" },
-  { name: "Greenfield Agri Services Ltd", number: "12456709" },
-  { name: "Rochester Vehicle Rentals Ltd", number: "10983221" },
-  { name: "Medway Engineering Ltd", number: "07659912" },
-];
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;}
+h1,h2,h3{font-family:'Fraunces', serif; letter-spacing:-0.01em;}
+.mono{font-family:'IBM Plex Mono', monospace;}
+a{color:inherit; text-decoration:none;}
+ul{list-style:none;}
+.wrap{max-width:1180px; margin:0 auto; padding:0 clamp(24px, 6vw, 96px);}
 
-export default function HomePage() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [amount, setAmount] = useState(50000);
-  const [bizType, setBizType] = useState<"ltd" | "sole">("ltd");
-  const [companyQuery, setCompanyQuery] = useState("");
-  const [companySelected, setCompanySelected] = useState("");
+/* NAV (shared) */
+nav{position:sticky; top:0; z-index:50; background:rgba(247,248,250,0.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--rule);}
+.nav-inner{display:flex; align-items:center; justify-content:space-between; max-width:1180px; margin:0 auto; padding:16px clamp(20px, 3vw, 48px); gap:20px;}
+.wordmark{display:flex; align-items:center; gap:10px; font-family:'Fraunces', serif; font-weight:700; font-size:20px; flex-shrink:0;}
+.wordmark .dot{width:9px; height:9px; border-radius:50%; background:var(--blue);}
+.logo-mark{height:32px; width:auto; display:block;}
+.wordmark small{display:block; font-family:'IBM Plex Mono', monospace; font-size:9.5px; font-weight:400; letter-spacing:0.13em; color:var(--slate); margin-top:2px; white-space:nowrap;}
+.nav-links{display:flex; align-items:center; gap:26px; white-space:nowrap;}
+.nav-links a{font-size:14.5px; font-weight:500; color:var(--ink-soft); transition:color .15s; white-space:nowrap;}
+.nav-links a:hover{color:var(--blue-deep);}
+.nav-right{display:flex; align-items:center; gap:16px; font-size:13.5px; color:var(--ink-soft); flex-shrink:0; white-space:nowrap;}
+.nav-right a:hover{color:var(--blue-deep);}
+.avatar{width:34px; height:34px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; font-family:'IBM Plex Mono', monospace;}
 
-  const formatAmount = (n: number) => `£${n.toLocaleString("en-GB")}`;
-  const stepAmount = (delta: number) =>
-    setAmount((prev) => Math.max(10000, Math.min(1000000, prev + delta)));
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 22px; border-radius:6px; font-size:14.5px; font-weight:600; cursor:pointer; border:1px solid transparent; transition:all .15s; white-space:nowrap;}
+.btn-solid{background:var(--blue); color:#fff;}
+.btn-solid:hover{background:var(--blue-deep);}
+.btn-outline{border-color:var(--rule); color:var(--ink); background:var(--paper-raised);}
+.btn-outline:hover{border-color:var(--blue); color:var(--blue-deep);}
+.btn-navy{background:var(--navy); color:#fff;}
+.btn-navy:hover{background:#132747;}
+.btn-white{background:#fff; color:var(--navy);}
+.btn-white:hover{background:#EDF4FC;}
+.btn-ghost{border-color:rgba(255,255,255,0.28); color:#fff;}
+.btn-ghost:hover{background:rgba(255,255,255,0.08);}
 
-  const matches =
-    companyQuery.trim().length >= 2
-      ? mockCompanies.filter((c) =>
-          c.name.toLowerCase().includes(companyQuery.trim().toLowerCase())
-        )
-      : [];
+/* HERO */
+.hero{padding:80px 0 0; text-align:center;}
+.hero-tag{display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono', monospace; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--blue-deep); background:var(--blue-pale); padding:7px 14px; border-radius:20px; margin-bottom:26px;}
+.hero h1{font-size:54px; line-height:1.08; color:var(--navy); max-width:780px; margin:0 auto 20px;}
+.hero h1 em{font-style:normal; color:var(--blue);}
+.hero p{font-size:17.5px; line-height:1.6; color:var(--ink-soft); max-width:520px; margin:0 auto 36px;}
+.hero-ctas{display:flex; gap:14px; justify-content:center; margin-bottom:64px;}
 
-  return (
-    <>
-      <nav>
-        <div className="nav-inner">
-          <div className="wordmark">
-            <img src="/logo-icon.png" alt="Future FG" className="logo-mark" />
-            <div>
-              FUTURE FG
-              <small>BUSINESS &amp; ASSET FINANCE SPECIALISTS</small>
-            </div>
-          </div>
-          <div className="nav-links">
-            <a href="#products">Funding solutions</a>
-            <a href="#specialities">Specialities</a>
-            <a href="#why">Why Future FG</a>
-            <a href="#portal">Customer portal</a>
-          </div>
-          <div className="nav-right">
-            <Link href="/portal" className="btn btn-outline">
-              Customer login
-            </Link>
-            <button
-              className="btn btn-solid"
-              style={{ border: "none" }}
-              onClick={() => setDrawerOpen(true)}
-            >
-              Apply now
-            </button>
-          </div>
-        </div>
-      </nav>
+.hero-visual{max-width:920px; margin:0 auto; border-radius:14px; overflow:hidden; background:linear-gradient(135deg, var(--navy) 0%, #163358 55%, var(--blue-deep) 100%); aspect-ratio:16/6.2; position:relative; display:flex; align-items:center; justify-content:center;}
+.hero-visual::before{content:''; position:absolute; inset:0; background:radial-gradient(circle at 75% 30%, rgba(14,140,245,0.35), transparent 55%);}
+.hero-visual-inner{position:relative; color:#fff; text-align:left; display:flex; align-items:center; gap:40px; padding:0 48px; width:100%;}
+.hero-visual-inner .hv-label{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.14em; color:#8FC6F7; text-transform:uppercase; margin-bottom:10px;}
+.hero-visual-inner h3{font-size:24px; font-weight:500; max-width:340px; line-height:1.3;}
+.hv-card{background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); border-radius:10px; padding:20px 24px; margin-left:auto; min-width:230px;}
+.hv-card .row{display:flex; justify-content:space-between; font-size:12.5px; color:#C3CCDA; padding:6px 0; border-bottom:1px dashed rgba(255,255,255,0.14);}
+.hv-card .row span:last-child{font-family:'IBM Plex Mono', monospace; color:#fff;}
+.hv-card .total{margin-top:10px; padding-top:12px; display:flex; justify-content:space-between; align-items:baseline;}
+.hv-card .total .l{font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:#8FC6F7;}
+.hv-card .total .v{font-family:'IBM Plex Mono', monospace; font-size:21px; font-weight:500;}
 
-      <div className="wrap">
-        <section className="hero">
-          <div className="hero-tag">Rochester, Kent &middot; Business asset finance</div>
-          <h1>
-            Finance for the assets that keep your business <em>moving</em>.
-          </h1>
-          <p>
-            Hire purchase, finance lease and loan agreements for vehicles,
-            plant and equipment — arranged directly with a lender who still
-            answers the phone.
-          </p>
-          <div className="hero-ctas">
-            <button
-              className="btn btn-solid"
-              style={{ border: "none" }}
-              onClick={() => setDrawerOpen(true)}
-            >
-              Apply for finance
-            </button>
-            <a href="#portal" className="btn btn-outline">
-              Get your settlement figure
-            </a>
-          </div>
+/* STATS STRIP */
+.stats-strip{padding:52px 0; border-bottom:1px solid var(--rule);}
+.stats-grid{display:grid; grid-template-columns:repeat(4,1fr); text-align:center;}
+.stat{padding:0 20px; border-left:1px solid var(--rule);}
+.stat:first-child{border-left:none;}
+.stat .num{font-family:'Fraunces', serif; font-size:32px; color:var(--navy); font-weight:600;}
+.stat .lbl{font-size:12.5px; color:var(--slate); margin-top:6px;}
+.stat .placeholder{font-size:10.5px; color:var(--gold); margin-top:4px; font-family:'IBM Plex Mono', monospace;}
 
-          <div className="hero-visual">
-            <div className="hero-visual-inner">
-              <div>
-                <div className="hv-label">Settlement, on demand</div>
-                <h3>
-                  See exactly what it costs to settle early — any time you
-                  need it.
-                </h3>
-              </div>
-              <div className="hv-card">
-                <div className="row">
-                  <span>Agreement</span>
-                  <span>HP5962</span>
-                </div>
-                <div className="row">
-                  <span>Asset</span>
-                  <span>Ford Transit</span>
-                </div>
-                <div className="row">
-                  <span>Paid</span>
-                  <span>24 / 48</span>
-                </div>
-                <div className="total">
-                  <span className="l">Settlement</span>
-                  <span className="v">£6,738</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+/* SECTION generic */
+.section{padding:88px 0;}
+.section-head{text-align:center; max-width:560px; margin:0 auto 52px;}
+.section-head .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--blue-deep); margin-bottom:14px;}
+.section-head h2{font-size:34px; color:var(--navy); line-height:1.2;}
+.section-head p{font-size:15.5px; color:var(--ink-soft); margin-top:14px; line-height:1.6;}
 
-        <section className="stats-strip">
-          <div className="stats-grid">
-            <div className="stat">
-              <div className="num">2.5%</div>
-              <div className="lbl">Rates from</div>
-            </div>
-            <div className="stat">
-              <div className="num">£7.5K–£10M</div>
-              <div className="lbl">Lending range</div>
-            </div>
-            <div className="stat">
-              <div className="num">24 hrs</div>
-              <div className="lbl">Average turnaround</div>
-            </div>
-            <div className="stat">
-              <div className="num">HP &middot; FL &middot; L</div>
-              <div className="lbl">Agreement types</div>
-            </div>
-          </div>
-        </section>
-      </div>
+/* PRODUCTS */
+.products-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:24px;}
+.product-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:12px; padding:32px; transition:all .2s;}
+.product-card:hover{border-color:var(--blue); box-shadow:0 16px 40px -20px rgba(14,140,245,0.35); transform:translateY(-3px);}
+.p-icon{width:46px; height:46px; border-radius:10px; background:var(--blue-pale); display:flex; align-items:center; justify-content:center; margin-bottom:20px;}
+.p-icon svg{width:22px; height:22px; stroke:var(--blue-deep);}
+.product-card h3{font-size:19px; color:var(--navy); margin-bottom:10px;}
+.product-card p{font-size:14.5px; line-height:1.6; color:var(--ink-soft); margin-bottom:16px;}
+.product-card .learn{font-size:13.5px; font-weight:600; color:var(--blue-deep);}
 
-      <div className="wrap" id="products">
-        <section className="section">
-          <div className="section-head">
-            <div className="eyebrow">Funding solutions</div>
-            <h2>Three ways to fund the asset.</h2>
-            <p>
-              Whichever structure suits your business, you deal with the
-              same team from application through to settlement.
-            </p>
-          </div>
-          <div className="products-grid">
-            <div className="product-card">
-              <div className="p-icon">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
-                  <path d="M3 12h18M3 6h18M3 18h18" />
-                </svg>
-              </div>
-              <h3>Hire Purchase</h3>
-              <p>
-                Fixed monthly instalments, with ownership of the asset
-                transferring to you once the agreement is settled in full.
-              </p>
-              <span className="learn">HP agreements &rarr;</span>
-            </div>
-            <div className="product-card">
-              <div className="p-icon">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
-                  <rect x="4" y="4" width="16" height="16" rx="2" />
-                  <path d="M4 10h16" />
-                </svg>
-              </div>
-              <h3>Finance Lease</h3>
-              <p>
-                Use the asset for an agreed term without tying up capital in
-                ownership — suited to equipment you update regularly.
-              </p>
-              <span className="learn">FL agreements &rarr;</span>
-            </div>
-            <div className="product-card">
-              <div className="p-icon">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 3" />
-                </svg>
-              </div>
-              <h3>Business Loan</h3>
-              <p>
-                A structured loan secured against the asset being financed,
-                repaid on a schedule agreed at the outset.
-              </p>
-              <span className="learn">Loan agreements &rarr;</span>
-            </div>
-          </div>
-        </section>
-      </div>
+/* SPECIALITIES */
+.spec-strip{display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+.spec-item{flex:1; min-width:150px; text-align:center; padding:26px 16px; background:var(--paper-raised); border:1px solid var(--rule); border-radius:10px;}
+.spec-item .s-icon{width:34px; height:34px; margin:0 auto 12px; border-radius:8px; background:var(--blue-pale); display:flex; align-items:center; justify-content:center;}
+.spec-item .s-icon svg{width:17px; height:17px; stroke:var(--blue-deep);}
+.spec-item span{font-size:13.5px; font-weight:600; color:var(--ink);}
 
-      <div className="wrap" id="specialities">
-        <section className="section" style={{ paddingTop: 0 }}>
-          <div className="section-head">
-            <div className="eyebrow">Specialities</div>
-            <h2>Assets we finance</h2>
-          </div>
-          <div className="spec-strip">
-            <div className="spec-item">
-              <div className="s-icon">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
-                  <rect x="2" y="8" width="14" height="8" rx="1" />
-                  <path d="M16 11h3l3 3v2h-6z" />
-                  <circle cx="6.5" cy="18.5" r="1.5" />
-                  <circle cx="17.5" cy="18.5" r="1.5" />
-                </svg>
-              </div>
-              <span>Vehicles</span>
-            </div>
-            <div className="spec-item">
-              <div className="s-icon">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
-                  <rect x="1" y="10" width="12" height="7" rx="1" />
-                  <path d="M13 12h4l4 3v2h-8z" />
-                  <circle cx="5" cy="19" r="1.6" />
-                  <circle cx="16" cy="19" r="1.6" />
-                </svg>
-              </div>
-              <span>Commercial vehicles</span>
-            </div>
-            <div className="spec-item">
-              <div className="s-icon">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
-                  <path d="M3 20h6l2-9-5 2v7" />
-                  <path d="M11 20l3-12 4 3v9" />
-                </svg>
-              </div>
-              <span>Plant &amp; construction</span>
-            </div>
-            <div className="spec-item">
-              <div className="s-icon">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
-                  <circle cx="7" cy="17" r="3" />
-                  <circle cx="17" cy="17" r="2" />
-                  <path d="M4 17V9l6-2 4 4h4" />
-                </svg>
-              </div>
-              <span>Agriculture</span>
-            </div>
-            <div className="spec-item">
-              <div className="s-icon">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
-                  <rect x="4" y="4" width="16" height="16" rx="2" />
-                  <path d="M9 9h6v6H9z" />
-                </svg>
-              </div>
-              <span>Machinery &amp; equipment</span>
-            </div>
-          </div>
-        </section>
-      </div>
+/* WHY US */
+.why-grid{display:grid; grid-template-columns:0.9fr 1.1fr; gap:56px; align-items:center;}
+.why-visual{background:var(--navy); border-radius:14px; aspect-ratio:4/3.4; position:relative; overflow:hidden; background-size:cover; background-position:center 62%;}
+.why-visual::before{content:''; position:absolute; inset:0; background:linear-gradient(to top, rgba(11,31,58,0.85) 0%, rgba(11,31,58,0.15) 45%, rgba(11,31,58,0) 65%);}
+.why-visual .tag-caption{position:absolute; bottom:24px; left:24px; right:24px; background:rgba(255,255,255,0.1); backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:14px 18px; color:#fff; font-size:13px;}
+.why-copy .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--blue-deep); margin-bottom:14px;}
+.why-copy h2{font-size:30px; color:var(--navy); line-height:1.2; margin-bottom:16px;}
+.why-copy p{font-size:15.5px; line-height:1.7; color:var(--ink-soft); margin-bottom:24px;}
+.why-points{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.why-point{display:flex; gap:10px; align-items:flex-start; font-size:14px; color:var(--ink-soft);}
+.why-point svg{width:17px; height:17px; stroke:var(--blue); flex-shrink:0; margin-top:2px;}
 
-      <div className="wrap" id="why">
-        <section className="section">
-          <div className="why-grid">
-            <div
-              className="why-visual"
-              style={{ backgroundImage: "url('/office.jpg')" }}
-            >
-              <div className="tag-caption">
-                Our office at Ordnance Yard, Upnor Road, Rochester
-              </div>
-            </div>
-            <div className="why-copy">
-              <div className="eyebrow">Why Future FG</div>
-              <h2>A finance company that still deals with you directly.</h2>
-              <p>
-                We&apos;re based in Rochester, Kent, and we arrange
-                business-purpose finance for companies and sole traders
-                who&apos;d rather speak to the person making the decision
-                than work through a call centre.
-              </p>
-              <div className="why-points">
-                <div className="why-point">
-                  <svg viewBox="0 0 24 24" fill="none" strokeWidth={2}>
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  Direct contact throughout
-                </div>
-                <div className="why-point">
-                  <svg viewBox="0 0 24 24" fill="none" strokeWidth={2}>
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  Plain, fixed figures
-                </div>
-                <div className="why-point">
-                  <svg viewBox="0 0 24 24" fill="none" strokeWidth={2}>
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  Settlement figures on demand
-                </div>
-                <div className="why-point">
-                  <svg viewBox="0 0 24 24" fill="none" strokeWidth={2}>
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  Kent-based, UK-wide
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
+/* PORTAL TEASER BAND (on homepage) */
+.portal-band{background:var(--navy); color:#fff; padding:72px 0; border-radius:20px; max-width:1116px; margin:0 auto; position:relative; overflow:hidden;}
+.portal-band::before{content:''; position:absolute; top:-30%; right:-6%; width:460px; height:460px; background:radial-gradient(circle, rgba(14,140,245,0.28) 0%, transparent 70%);}
+.portal-inner{display:grid; grid-template-columns:1.2fr 0.8fr; gap:40px; align-items:center; position:relative; padding:0 56px;}
+.portal-band .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; color:#8FC6F7; margin-bottom:14px;}
+.portal-band h2{font-size:28px; color:#fff; margin-bottom:14px; max-width:420px; line-height:1.25;}
+.portal-band p{font-size:15px; line-height:1.65; color:#C3CCDA; max-width:400px;}
+.portal-actions{display:flex; flex-direction:column; gap:12px; align-items:flex-end;}
+.portal-actions .btn{width:100%; max-width:250px;}
+.portal-hint{font-size:12px; color:#8393AA; text-align:right; max-width:250px;}
 
-      <div className="wrap" id="portal">
-        <section className="section" style={{ paddingTop: 0 }}>
-          <div className="portal-band">
-            <div className="portal-inner">
-              <div>
-                <div className="eyebrow">For existing customers</div>
-                <h2>
-                  Check your settlement figure without picking up the phone.
-                </h2>
-                <p>
-                  Log in to see your current balance, your up-to-date
-                  settlement figure and our bank details — or apply for
-                  finance on another asset using the details we already
-                  hold.
-                </p>
-              </div>
-              <div className="portal-actions">
-                <Link href="/portal" className="btn btn-white">
-                  Log in to your account
-                </Link>
-                <a href="#contact" className="btn btn-ghost">
-                  Request by phone instead
-                </a>
-                <div className="portal-hint">
-                  Portal access is being rolled out — call us if yours
-                  isn&apos;t set up yet.
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
+/* FOOTER */
+footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); background:var(--paper-raised);}
+.footer-top{display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr; gap:36px; margin-bottom:44px;}
+.footer-brand p{font-size:13.5px; color:var(--slate); line-height:1.6; max-width:270px;}
+.footer-col h4{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--slate); margin-bottom:16px;}
+.footer-col a, .footer-col p{display:block; font-size:14px; color:var(--ink-soft); margin-bottom:10px;}
+.footer-col a:hover{color:var(--blue-deep);}
+.footer-bottom{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px 24px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--slate);}
+.footer-bottom > div{flex-shrink:0;}
 
-      <div className="wrap" id="contact">
-        <footer>
-          <div className="footer-top">
-            <div className="footer-brand">
-              <div className="wordmark" style={{ marginBottom: 14 }}>
-                <img src="/logo-icon.png" alt="Future FG" className="logo-mark" />
-                <div>
-                  FUTURE FG
-                  <small>BUSINESS &amp; ASSET FINANCE SPECIALISTS</small>
-                </div>
-              </div>
-              <p>
-                Future F G Limited is a hire purchase and finance company
-                based in Rochester, Kent, arranging business-purpose
-                finance for vehicles, plant and equipment.
-              </p>
-            </div>
-            <div className="footer-col">
-              <h4>Contact</h4>
-              <a href="tel:07525823547">07525 823547</a>
-              <a href="mailto:olb@ffg.finance">olb@ffg.finance</a>
-              <p>
-                No. 9 Magazine B
-                <br />
-                Ordnance Yard, Upnor Road
-                <br />
-                Rochester, Kent, ME2 4UY
-              </p>
-            </div>
-            <div className="footer-col">
-              <h4>Funding</h4>
-              <a href="#products">Hire Purchase</a>
-              <a href="#products">Finance Lease</a>
-              <a href="#products">Business Loan</a>
-            </div>
-            <div className="footer-col">
-              <h4>Company</h4>
-              <a href="#why">Why Future FG</a>
-              <a href="#portal">Customer portal</a>
-              <a href="#contact">Get in touch</a>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <div>&copy; 2026 Future F G Limited. Company No. 13707744.</div>
-            <div>Registered in England &amp; Wales</div>
-          </div>
-        </footer>
-      </div>
+/* APPLY DRAWER */
+.overlay{position:fixed; inset:0; background:rgba(11,31,58,0.45); backdrop-filter:blur(2px); opacity:0; pointer-events:none; transition:opacity .35s ease; z-index:100;}
+.overlay.open{opacity:1; pointer-events:auto;}
+.drawer{position:fixed; top:0; right:0; height:100%; width:480px; max-width:92vw; background:var(--paper-raised); box-shadow:-20px 0 60px -20px rgba(11,31,58,0.35); transform:translateX(100%); transition:transform .4s cubic-bezier(.16,1,.3,1); z-index:101; display:flex; flex-direction:column;}
+.drawer.open{transform:translateX(0);}
+.drawer-progress{height:3px; background:var(--rule); position:relative; flex-shrink:0;}
+.drawer-progress .fill{position:absolute; left:0; top:0; height:100%; width:33%; background:var(--blue); transition:width .3s;}
+.drawer-head{display:flex; align-items:center; justify-content:space-between; padding:22px 28px 0;}
+.drawer-head .step-lbl{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--slate);}
+.drawer-close{width:34px; height:34px; border-radius:50%; border:1px solid var(--rule); background:var(--paper); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-soft); font-size:16px; transition:all .15s;}
+.drawer-close:hover{background:var(--rule); color:var(--ink);}
+.drawer-body{padding:26px 28px 28px; overflow-y:auto; flex:1;}
+.drawer-body h3{font-size:20px; color:var(--navy); margin-bottom:22px; font-weight:600;}
+.field-label{font-size:14px; font-weight:600; color:var(--ink); margin-bottom:12px; display:flex; align-items:center; gap:8px;}
+.field-label .ok{width:17px; height:17px; border-radius:50%; background:var(--blue); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px;}
+.amount-row{display:flex; align-items:stretch; border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin-bottom:14px;}
+.amt-btn{width:46px; background:var(--paper); border:none; font-size:18px; color:var(--ink-soft); cursor:pointer; transition:background .15s;}
+.amt-btn:hover{background:var(--blue-pale); color:var(--blue-deep);}
+.amount-row input{flex:1; border:none; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:17px; color:var(--ink); outline:none; background:var(--paper-raised);}
+.amount-minmax{display:flex; justify-content:space-between; font-size:11.5px; color:var(--slate); margin-bottom:16px;}
+.chip-row{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:30px;}
+.chip{padding:7px 13px; border:1px solid var(--rule); border-radius:6px; font-size:12.5px; font-weight:500; color:var(--ink-soft); cursor:pointer; background:var(--paper); transition:all .15s;}
+.chip:hover{border-color:var(--blue); color:var(--blue-deep);}
+.biz-toggle{display:flex; gap:10px; margin-bottom:28px;}
+.biz-opt{flex:1; padding:14px; border:1.5px solid var(--rule); border-radius:8px; text-align:center; font-size:13.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; transition:all .15s;}
+.biz-opt.selected{border-color:var(--blue); background:var(--blue-pale); color:var(--blue-deep);}
+.company-field{position:relative; margin-bottom:8px;}
+.company-field input{width:100%; padding:13px 40px 13px 14px; border:1px solid var(--rule); border-radius:8px; font-size:14.5px; outline:none; transition:border-color .15s;}
+.company-field input:focus{border-color:var(--blue);}
+.company-field .search-ic{position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--slate); font-size:14px;}
+.company-results{border:1px solid var(--rule); border-top:none; border-radius:0 0 8px 8px; overflow:hidden; display:none; margin-bottom:22px;}
+.company-results.show{display:block;}
+.company-result{padding:12px 14px; font-size:13.5px; color:var(--ink); cursor:pointer; border-top:1px solid var(--rule); transition:background .12s;}
+.company-result:hover{background:var(--blue-pale);}
+.company-result .num{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--slate); margin-top:2px;}
+.drawer-hint{font-size:12px; color:var(--slate); margin-bottom:22px;}
+.drawer-cta{width:100%; padding:15px; border-radius:8px; background:var(--blue); color:#fff; font-size:15px; font-weight:600; border:none; cursor:pointer; transition:background .15s;}
+.drawer-cta:hover{background:var(--blue-deep);}
 
-      {/* APPLY DRAWER */}
-      <div
-        className={`overlay ${drawerOpen ? "open" : ""}`}
-        onClick={() => setDrawerOpen(false)}
-      ></div>
-      <div className={`drawer ${drawerOpen ? "open" : ""}`}>
-        <div className="drawer-progress">
-          <div className="fill"></div>
-        </div>
-        <div className="drawer-head">
-          <span className="step-lbl">Step 1 of 3</span>
-          <button
-            className="drawer-close"
-            onClick={() => setDrawerOpen(false)}
-          >
-            &times;
-          </button>
-        </div>
-        <div className="drawer-body">
-          <h3>Tell us about the finance you need</h3>
+/* ---------- PORTAL (settlement) PAGE ---------- */
+.page-head{padding:40px 0 8px;}
+.page-head .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--blue-deep); margin-bottom:10px;}
+.page-head h1{font-size:30px; color:var(--navy);}
+.page-head p{color:var(--ink-soft); font-size:14.5px; margin-top:8px;}
 
-          <div className="field-label">
-            <span className="ok">&#10003;</span> How much would you like to
-            borrow?
-          </div>
-          <div className="amount-row">
-            <button className="amt-btn" onClick={() => stepAmount(-10000)}>
-              &minus;
-            </button>
-            <input
-              type="text"
-              value={formatAmount(amount)}
-              readOnly
-            />
-            <button className="amt-btn" onClick={() => stepAmount(10000)}>
-              +
-            </button>
-          </div>
-          <div className="amount-minmax">
-            <span>Min. £10,000</span>
-            <span>£1,000,000 Max.</span>
-          </div>
-          <div className="chip-row">
-            {[10000, 25000, 50000, 100000, 250000, 500000].map((v) => (
-              <div className="chip" key={v} onClick={() => setAmount(v)}>
-                £{v / 1000}k
-              </div>
-            ))}
-          </div>
+.grid{display:grid; grid-template-columns:1.4fr 1fr; gap:24px; padding:28px 0 64px; align-items:start;}
+.card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:12px; padding:28px;}
+.card + .card{margin-top:24px;}
+.card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px;}
+.card-head h2{font-size:16.5px; color:var(--navy); font-weight:600; font-family:'Inter',sans-serif;}
+.tag{font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em; padding:4px 9px; border-radius:20px; font-weight:600;}
+.tag-hp{background:var(--blue-pale); color:var(--blue-deep);}
 
-          <div className="field-label">
-            <span className="ok">&#10003;</span> Business type
-          </div>
-          <div className="biz-toggle">
-            <div
-              className={`biz-opt ${bizType === "ltd" ? "selected" : ""}`}
-              onClick={() => setBizType("ltd")}
-            >
-              Limited Company
-            </div>
-            <div
-              className={`biz-opt ${bizType === "sole" ? "selected" : ""}`}
-              onClick={() => setBizType("sole")}
-            >
-              Sole trader / Partnership
-            </div>
-          </div>
+.agreement-row{display:grid; grid-template-columns:1fr 1fr; gap:18px 24px; margin-bottom:6px;}
+.field{border-bottom:1px dashed var(--rule); padding-bottom:12px;}
+.field .label{font-size:11px; letter-spacing:0.05em; text-transform:uppercase; color:var(--slate); margin-bottom:5px;}
+.field .val{font-size:15px; color:var(--ink); font-weight:500;}
+.field .val.mono{font-family:'IBM Plex Mono', monospace; font-size:14px;}
 
-          <div className="field-label">Company name</div>
-          <div className="company-field">
-            <input
-              type="text"
-              placeholder="Start typing your company name"
-              value={companyQuery}
-              onChange={(e) => setCompanyQuery(e.target.value)}
-              autoComplete="off"
-            />
-            <span className="search-ic">&#128269;</span>
-          </div>
-          <div className={`company-results ${matches.length ? "show" : ""}`}>
-            {matches.map((c) => (
-              <div
-                className="company-result"
-                key={c.number}
-                onClick={() => {
-                  setCompanySelected(c.name);
-                  setCompanyQuery(c.name);
-                }}
-              >
-                {c.name}
-                <div className="num">Company No. {c.number}</div>
-              </div>
-            ))}
-          </div>
-          <div className="drawer-hint">
-            We&apos;ll look this up via Companies House and confirm your
-            registered details on the next step.
-          </div>
+.progress-wrap{margin-top:22px;}
+.progress-labels{display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;}
+.progress-labels .count{font-family:'IBM Plex Mono', monospace; color:var(--navy); font-weight:500;}
+.progress-bar{height:8px; background:var(--rule); border-radius:6px; overflow:hidden;}
+.progress-fill{height:100%; background:linear-gradient(90deg, var(--blue), var(--blue-deep)); border-radius:6px;}
 
-          <button
-            className="drawer-cta"
-            onClick={() =>
-              alert(
-                "This is a working prototype — Continue would move to step 2 (asset details) once built."
-              )
-            }
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </>
-  );
+.status-strip{display:flex; align-items:center; gap:10px; margin-top:20px; padding:12px 14px; background:var(--green-pale); border:1px solid #C9EAD6; border-radius:8px;}
+.status-dot{width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0;}
+.status-strip .txt{font-size:13px; color:#1B7A46;}
+.status-strip .txt b{font-weight:600;}
+
+.settlement-card{background:var(--navy); border-radius:14px; padding:30px; color:#fff; position:relative; overflow:hidden;}
+.settlement-card::before{content:''; position:absolute; top:-40%; right:-15%; width:280px; height:280px; background:radial-gradient(circle, rgba(14,140,245,0.3) 0%, transparent 70%);}
+.settlement-card .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#8FC6F7; position:relative;}
+.settlement-amt{font-family:'Fraunces', serif; font-size:46px; font-weight:600; margin:12px 0 4px; position:relative;}
+.settlement-valid{font-size:12.5px; color:#C3CCDA; margin-bottom:22px; position:relative;}
+.settlement-rows{position:relative; border-top:1px solid rgba(255,255,255,0.14); padding-top:16px;}
+.settlement-rows .row{display:flex; justify-content:space-between; font-size:13px; padding:6px 0; color:#C3CCDA;}
+.settlement-rows .row span:last-child{font-family:'IBM Plex Mono', monospace; color:#fff;}
+.settlement-actions{display:flex; gap:10px; margin-top:22px; position:relative;}
+.settlement-actions .btn{flex:1;}
+
+.bank-card h2{margin-bottom:14px;}
+.bank-row{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px dashed var(--rule); font-size:13.5px;}
+.bank-row:last-child{border-bottom:none;}
+.bank-row .label{color:var(--slate);}
+.bank-row .val{font-family:'IBM Plex Mono', monospace; color:var(--ink);}
+.copy-hint{font-size:11.5px; color:var(--slate); margin-top:12px;}
+
+.apply-card{background:var(--gold-pale); border:1px solid var(--gold-border); border-radius:12px; padding:22px; margin-top:24px;}
+.apply-card h3{font-size:15.5px; color:var(--navy); margin-bottom:6px;}
+.apply-card p{font-size:13px; color:var(--ink-soft); line-height:1.55; margin-bottom:14px;}
+.apply-card .btn{background:var(--navy); color:#fff; width:100%; flex:none;}
+.apply-card .btn:hover{background:var(--blue-deep);}
+
+.schedule-toggle{font-size:13px; color:var(--blue-deep); font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-top:18px;}
+.schedule{margin-top:14px; max-height:0; overflow:hidden; transition:max-height .35s ease;}
+.schedule.open{max-height:500px;}
+.schedule table{width:100%; border-collapse:collapse; font-size:12.5px;}
+.schedule th{text-align:left; font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate); padding:8px 6px; border-bottom:1px solid var(--rule);}
+.schedule td{padding:8px 6px; border-bottom:1px solid var(--rule); color:var(--ink-soft);}
+.schedule td.mono{font-family:'IBM Plex Mono', monospace;}
+.paid-chip{display:inline-block; width:16px; height:16px; border-radius:50%; background:var(--green); color:#fff; font-size:10px; text-align:center; line-height:16px;}
+.due-chip{display:inline-block; width:16px; height:16px; border-radius:50%; border:1.5px solid var(--rule);}
+
+@media (max-width: 900px){
+  .hero h1{font-size:38px;}
+  .hero-ctas{flex-direction:column; align-items:center;}
+  .stats-grid{grid-template-columns:repeat(2,1fr); row-gap:24px;}
+  .stat{border-left:none;}
+  .products-grid{grid-template-columns:1fr;}
+  .spec-strip{flex-direction:column;}
+  .why-grid{grid-template-columns:1fr;}
+  .portal-inner{grid-template-columns:1fr; padding:0 28px;}
+  .portal-actions{align-items:flex-start;}
+  .portal-hint{text-align:left;}
+  .footer-top{grid-template-columns:1fr 1fr; gap:28px;}
+  .nav-links{display:none;}
+  .wrap{padding:0 20px;}
+  .grid{grid-template-columns:1fr;}
+  .agreement-row{grid-template-columns:1fr;}
+  .nav-inner{padding:14px 20px;}
+  .nav-right{gap:10px;}
+  .nav-right .btn{padding:10px 14px; font-size:13px;}
+}
+
+@media (max-width: 640px){
+  .nav-inner{flex-wrap:wrap; row-gap:10px;}
+  .wordmark{font-size:17px;}
+  .logo-mark{height:26px;}
+  .hero{padding:48px 0 0;}
+  .hero h1{font-size:28px;}
+  .hero p{font-size:15.5px; padding:0 12px;}
+  .hero-visual{aspect-ratio:auto; border-radius:12px;}
+  .hero-visual-inner{flex-direction:column; align-items:flex-start; gap:20px; padding:24px 22px;}
+  .hero-visual-inner h3{font-size:19px; max-width:none;}
+  .hv-card{margin-left:0; width:100%;}
+  .stats-grid{grid-template-columns:repeat(2,1fr); row-gap:20px;}
+  .section{padding:56px 0;}
+  .section-head h2{font-size:26px;}
+  .footer-top{grid-template-columns:1fr;}
 }
