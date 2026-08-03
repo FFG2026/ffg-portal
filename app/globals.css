@@ -245,4 +245,23 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
   .wrap{padding:0 20px;}
   .grid{grid-template-columns:1fr;}
   .agreement-row{grid-template-columns:1fr;}
+  .nav-inner{padding:14px 20px;}
+  .nav-right{gap:10px;}
+  .nav-right .btn{padding:10px 14px; font-size:13px;}
+}
+
+@media (max-width: 640px){
+  .nav-inner{flex-wrap:wrap; row-gap:10px;}
+  .wordmark{font-size:17px;}
+  .hero{padding:48px 0 0;}
+  .hero h1{font-size:28px;}
+  .hero p{font-size:15.5px; padding:0 12px;}
+  .hero-visual{aspect-ratio:auto; border-radius:12px;}
+  .hero-visual-inner{flex-direction:column; align-items:flex-start; gap:20px; padding:24px 22px;}
+  .hero-visual-inner h3{font-size:19px; max-width:none;}
+  .hv-card{margin-left:0; width:100%;}
+  .stats-grid{grid-template-columns:repeat(2,1fr); row-gap:20px;}
+  .section{padding:56px 0;}
+  .section-head h2{font-size:26px;}
+  .footer-top{grid-template-columns:1fr;}
 }
