@@ -359,7 +359,7 @@ export default function HomePage() {
             </div>
             <div className="footer-col">
               <h4>Contact</h4>
-              <a href="tel:07525823547">07525 823547</a>
+              <a href="tel:01634715690">01634 715 690</a>
               <a href="mailto:olb@ffg.finance">olb@ffg.finance</a>
               <p>
                 No. 9 Magazine B
