@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 const GC_API_BASE = "https://api.gocardless.com";
 const GC_VERSION = "2015-07-06";
 
@@ -22,7 +24,10 @@ async function fetchAllPages(path: string, key: string) {
     url.searchParams.set("limit", "500");
     if (after) url.searchParams.set("after", after);
 
-    const res = await fetch(url.toString(), { headers: gcHeaders() });
+    const res = await fetch(url.toString(), {
+      headers: gcHeaders(),
+      cache: "no-store",
+    });
     if (!res.ok) {
       const errorBody = await res.text();
       throw new Error(
