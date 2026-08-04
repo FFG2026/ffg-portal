@@ -120,16 +120,93 @@ export async function GET(request: Request) {
         our_company_name: ourMatch.company_name,
         gc_customer_name: gcName,
         gc_mandate_id: mandateId,
+        gc_email: gcCustomer.email || null,
       });
     } else {
       unmatchedGc.push({ gc_customer_name: gcName, gc_mandate_id: mandateId });
     }
   }
 
-  // 4. If applying, write the mandate id to every agreement for each matched customer
+  // 3.5 Count how many agreements each of our customers actually has —
+  // multi-agreement customers need manual mandate-to-agreement mapping,
+  // never an automatic blanket write.
+  const { data: agreementRows, error: agreementsErr } = await supabase
+    .from("agreements")
+    .select("id, customer_id, agreement_number, gocardless_mandate_id");
+
+  if (agreementsErr) {
+    return NextResponse.json({ error: agreementsErr.message }, { status: 500 });
+  }
+
+  const agreementsByCustomer = new Map<string, any[]>();
+  for (const a of agreementRows || []) {
+    const list = agreementsByCustomer.get(a.customer_id) || [];
+    list.push(a);
+    agreementsByCustomer.set(a.customer_id, list);
+  }
+
+  // Split matches: safe to auto-apply (customer has exactly 1 agreement,
+  // and exactly 1 mandate match) vs needs manual review (2+ agreements,
+  // or 2+ mandate matches for the same customer — can't be sure which
+  // mandate belongs to which agreement without more info).
+  const matchCountByCustomer = new Map<string, number>();
+  for (const m of matched) {
+    matchCountByCustomer.set(
+      m.our_customer_id,
+      (matchCountByCustomer.get(m.our_customer_id) || 0) + 1
+    );
+  }
+
+  const safeMatches: any[] = [];
+  const needsReview: any[] = [];
+
+  for (const m of matched) {
+    const agreementCount = (agreementsByCustomer.get(m.our_customer_id) || []).length;
+    const mandateMatchCount = matchCountByCustomer.get(m.our_customer_id) || 0;
+
+    if (agreementCount === 1 && mandateMatchCount === 1) {
+      safeMatches.push({ ...m, agreement_count: agreementCount });
+    } else {
+      needsReview.push({
+        ...m,
+        agreement_count: agreementCount,
+        agreement_numbers: (agreementsByCustomer.get(m.our_customer_id) || []).map(
+          (a) => a.agreement_number
+        ),
+        reason:
+          agreementCount > 1
+            ? "customer has multiple agreements — mandate not auto-assigned"
+            : "multiple GoCardless mandates matched to this customer — needs manual mapping",
+      });
+    }
+  }
+
+  // 4. If applying: write emails for every matched customer (email
+  // isn't agreement-specific, so this is safe even for customers
+  // with multiple agreements/mandates), then write mandate ids only
+  // for the safe, unambiguous matches.
   let writeResults: any[] = [];
+  let emailWriteResults: any[] = [];
+
   if (apply) {
+    const emailByCustomer = new Map<string, string>();
     for (const m of matched) {
+      if (m.gc_email && !emailByCustomer.has(m.our_customer_id)) {
+        emailByCustomer.set(m.our_customer_id, m.gc_email);
+      }
+    }
+
+    for (const [customerId, email] of emailByCustomer) {
+      const { error: emailErr } = await supabase
+        .from("customers")
+        .update({ email })
+        .eq("id", customerId)
+        .is("email", null); // never overwrite an email that's already set
+
+      emailWriteResults.push({ customer_id: customerId, email, error: emailErr?.message || null });
+    }
+
+    for (const m of safeMatches) {
       const { data: updated, error: updateErr } = await supabase
         .from("agreements")
         .update({ gocardless_mandate_id: m.gc_mandate_id })
@@ -145,15 +222,19 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    mode: apply ? "APPLIED" : "DRY RUN — nothing written, add &apply=true to write",
+    mode: apply ? "APPLIED (safe matches only)" : "DRY RUN — nothing written, add &apply=true to write",
     summary: {
       gocardless_customers_with_active_mandate: customerToMandate.size,
       our_customers_total: ourCustomers?.length || 0,
-      matched: matched.length,
+      matched_total: matched.length,
+      safe_to_apply: safeMatches.length,
+      needs_manual_review: needsReview.length,
       unmatched_gocardless_customers: unmatchedGc.length,
     },
-    matched,
+    safe_matches: safeMatches,
+    needs_manual_review: needsReview,
     unmatched_gocardless_customers: unmatchedGc,
     write_results: apply ? writeResults : undefined,
+    email_write_results: apply ? emailWriteResults : undefined,
   });
 }
