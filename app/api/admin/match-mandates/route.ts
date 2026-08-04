@@ -196,7 +196,7 @@ export async function GET(request: Request) {
       }
     }
 
-    for (const [customerId, email] of emailByCustomer) {
+    for (const [customerId, email] of Array.from(emailByCustomer.entries())) {
       const { error: emailErr } = await supabase
         .from("customers")
         .update({ email })
