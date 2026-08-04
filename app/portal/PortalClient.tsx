@@ -10,9 +10,7 @@ type PaymentRow = {
   status: string;
 };
 
-type Props = {
-  companyName: string;
-  initials: string;
+type AgreementSummary = {
   agreementNumber: string;
   agreementType: string;
   assetDescription: string;
@@ -25,9 +23,17 @@ type Props = {
   schedule: PaymentRow[];
 };
 
+type Props = {
+  companyName: string;
+  initials: string;
+  agreements: AgreementSummary[];
+};
+
 export default function PortalClient(props: Props) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const pct = Math.round((props.paidCount / props.termMonths) * 1000) / 10;
+  const active = props.agreements[selectedIndex];
+  const pct = Math.round((active.paidCount / active.termMonths) * 1000) / 10;
 
   const gbp = (n: number) =>
     n.toLocaleString("en-GB", {
@@ -66,20 +72,39 @@ export default function PortalClient(props: Props) {
           <div className="eyebrow">Customer portal</div>
           <h1>Welcome back, {props.companyName}</h1>
           <p>
-            Here&apos;s the latest on agreement {props.agreementNumber} —
-            figures shown are accurate as of today.
+            {props.agreements.length > 1
+              ? `You hold ${props.agreements.length} agreements with us — figures shown are accurate as of today.`
+              : `Here's the latest on agreement ${active.agreementNumber} — figures shown are accurate as of today.`}
           </p>
         </div>
+
+        {props.agreements.length > 1 && (
+          <div className="agreement-switcher">
+            {props.agreements.map((a, i) => (
+              <button
+                key={a.agreementNumber}
+                className={`switcher-pill ${i === selectedIndex ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedIndex(i);
+                  setScheduleOpen(false);
+                }}
+              >
+                <span className="num">{a.agreementNumber}</span>
+                <span className="asset">{a.assetDescription}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="grid">
           <div>
             <div className="card">
               <div className="card-head">
-                <h2>Agreement {props.agreementNumber}</h2>
+                <h2>Agreement {active.agreementNumber}</h2>
                 <span className="tag tag-hp">
-                  {props.agreementType === "HP"
+                  {active.agreementType === "HP"
                     ? "HIRE PURCHASE"
-                    : props.agreementType === "FL"
+                    : active.agreementType === "FL"
                     ? "FINANCE LEASE"
                     : "LOAN"}
                 </span>
@@ -87,23 +112,23 @@ export default function PortalClient(props: Props) {
               <div className="agreement-row">
                 <div className="field">
                   <div className="label">Asset</div>
-                  <div className="val">{props.assetDescription}</div>
+                  <div className="val">{active.assetDescription}</div>
                 </div>
                 <div className="field">
                   <div className="label">Monthly instalment</div>
                   <div className="val mono">
-                    {gbp(props.monthlyInstalment)}
+                    {gbp(active.monthlyInstalment)}
                   </div>
                 </div>
                 <div className="field">
                   <div className="label">Agreement start</div>
                   <div className="val mono">
-                    {formatDate(props.startDate)}
+                    {formatDate(active.startDate)}
                   </div>
                 </div>
                 <div className="field">
                   <div className="label">Original term</div>
-                  <div className="val mono">{props.termMonths} months</div>
+                  <div className="val mono">{active.termMonths} months</div>
                 </div>
               </div>
 
@@ -111,7 +136,7 @@ export default function PortalClient(props: Props) {
                 <div className="progress-labels">
                   <span>Instalments paid</span>
                   <span className="count">
-                    {props.paidCount} / {props.termMonths}
+                    {active.paidCount} / {active.termMonths}
                   </span>
                 </div>
                 <div className="progress-bar">
@@ -122,12 +147,12 @@ export default function PortalClient(props: Props) {
                 </div>
               </div>
 
-              {props.lastPaymentDate && (
+              {active.lastPaymentDate && (
                 <div className="status-strip">
                   <span className="status-dot"></span>
                   <span className="txt">
                     Direct debit <b>up to date</b> — last payment recorded{" "}
-                    {formatDate(props.lastPaymentDate)}
+                    {formatDate(active.lastPaymentDate)}
                   </span>
                 </div>
               )}
@@ -150,7 +175,7 @@ export default function PortalClient(props: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {props.schedule.map((row) => (
+                    {active.schedule.map((row) => (
                       <tr key={row.instalment_number}>
                         <td>{formatDate(row.due_date)}</td>
                         <td>{row.instalment_number}</td>
@@ -192,7 +217,7 @@ export default function PortalClient(props: Props) {
             <div className="settlement-card">
               <div className="eyebrow">Settlement figure</div>
               <div className="settlement-amt">
-                {gbp(props.settlementFigure)}
+                {gbp(active.settlementFigure)}
               </div>
               <div className="settlement-valid">
                 Valid to close of business today
@@ -201,12 +226,12 @@ export default function PortalClient(props: Props) {
                 <div className="row">
                   <span>Instalments paid</span>
                   <span>
-                    {props.paidCount} / {props.termMonths}
+                    {active.paidCount} / {active.termMonths}
                   </span>
                 </div>
                 <div className="row">
                   <span>Outstanding balance</span>
-                  <span>{gbp(props.settlementFigure)}</span>
+                  <span>{gbp(active.settlementFigure)}</span>
                 </div>
                 <div className="row">
                   <span>Early settlement rebate</span>
@@ -257,10 +282,10 @@ export default function PortalClient(props: Props) {
               </div>
               <div className="bank-row">
                 <span className="label">Reference</span>
-                <span className="val">{props.agreementNumber}</span>
+                <span className="val">{active.agreementNumber}</span>
               </div>
               <div className="copy-hint">
-                Use agreement {props.agreementNumber} as your payment
+                Use agreement {active.agreementNumber} as your payment
                 reference so we can match it quickly.
               </div>
             </div>
