@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
-const mockCompanies = [
-  { name: "Medway Plant Hire Ltd", number: "09214563" },
-  { name: "Anderson Groundworks Ltd", number: "11087742" },
-  { name: "Kent Logistics Solutions Ltd", number: "08765310" },
-  { name: "Greenfield Agri Services Ltd", number: "12456709" },
-  { name: "Rochester Vehicle Rentals Ltd", number: "10983221" },
-  { name: "Medway Engineering Ltd", number: "07659912" },
-];
+type CompanyResult = {
+  name: string;
+  number: string;
+  status: string;
+  address: string | null;
+};
 
 export default function HomePage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -18,17 +16,45 @@ export default function HomePage() {
   const [bizType, setBizType] = useState<"ltd" | "sole">("ltd");
   const [companyQuery, setCompanyQuery] = useState("");
   const [companySelected, setCompanySelected] = useState("");
+  const [matches, setMatches] = useState<CompanyResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const formatAmount = (n: number) => `£${n.toLocaleString("en-GB")}`;
   const stepAmount = (delta: number) =>
     setAmount((prev) => Math.max(10000, Math.min(1000000, prev + delta)));
 
-  const matches =
-    companyQuery.trim().length >= 2
-      ? mockCompanies.filter((c) =>
-          c.name.toLowerCase().includes(companyQuery.trim().toLowerCase())
-        )
-      : [];
+  // Debounced live Companies House search -- waits for a short pause
+  // in typing before calling the API, so we're not firing a request
+  // on every keystroke.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (companyQuery.trim().length < 2) {
+      setMatches([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/companies-house/search?q=${encodeURIComponent(companyQuery.trim())}`
+        );
+        const data = await res.json();
+        setMatches(data.items || []);
+      } catch {
+        setMatches([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [companyQuery]);
 
   return (
     <>
@@ -468,20 +494,30 @@ export default function HomePage() {
             />
             <span className="search-ic">&#128269;</span>
           </div>
-          <div className={`company-results ${matches.length ? "show" : ""}`}>
-            {matches.map((c) => (
-              <div
-                className="company-result"
-                key={c.number}
-                onClick={() => {
-                  setCompanySelected(c.name);
-                  setCompanyQuery(c.name);
-                }}
-              >
-                {c.name}
-                <div className="num">Company No. {c.number}</div>
+          <div className={`company-results ${matches.length || searchLoading ? "show" : ""}`}>
+            {searchLoading && (
+              <div className="company-result company-result-loading">
+                Searching Companies House…
               </div>
-            ))}
+            )}
+            {!searchLoading &&
+              matches.map((c) => (
+                <div
+                  className="company-result"
+                  key={c.number}
+                  onClick={() => {
+                    setCompanySelected(c.name);
+                    setCompanyQuery(c.name);
+                    setMatches([]);
+                  }}
+                >
+                  {c.name}
+                  <div className="num">
+                    Company No. {c.number}
+                    {c.status && c.status !== "active" ? ` · ${c.status}` : ""}
+                  </div>
+                </div>
+              ))}
           </div>
           <div className="drawer-hint">
             We&apos;ll look this up via Companies House and confirm your
