@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 function normalizeName(name: string) {
   return name
@@ -125,24 +127,31 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({
-    summary: {
-      total_customers: list.length,
-      zero_agreement_customers: zeroAgreementCustomers.length,
-      exact_duplicate_groups: exactDuplicateGroups.length,
-      near_miss_groups: nearMisses.length,
-    },
-    zero_agreement_customers: zeroAgreementCustomers.map((c) => ({
-      id: c.id,
-      company_name: c.company_name,
-    })),
-    exact_duplicate_groups: exactDuplicateGroups.map((group) =>
-      group.map((c) => ({
+  return NextResponse.json(
+    {
+      summary: {
+        total_customers: list.length,
+        zero_agreement_customers: zeroAgreementCustomers.length,
+        exact_duplicate_groups: exactDuplicateGroups.length,
+        near_miss_groups: nearMisses.length,
+      },
+      zero_agreement_customers: zeroAgreementCustomers.map((c) => ({
         id: c.id,
         company_name: c.company_name,
-        agreement_numbers: c.agreement_numbers,
-      }))
-    ),
-    near_miss_groups: nearMisses,
-  });
+      })),
+      exact_duplicate_groups: exactDuplicateGroups.map((group) =>
+        group.map((c) => ({
+          id: c.id,
+          company_name: c.company_name,
+          agreement_numbers: c.agreement_numbers,
+        }))
+      ),
+      near_miss_groups: nearMisses,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      },
+    }
+  );
 }
