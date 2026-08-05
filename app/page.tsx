@@ -12,17 +12,93 @@ type CompanyResult = {
 
 export default function HomePage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [step, setStep] = useState(1);
+
+  // Step 1
   const [amount, setAmount] = useState(50000);
   const [bizType, setBizType] = useState<"ltd" | "sole">("ltd");
   const [companyQuery, setCompanyQuery] = useState("");
   const [companySelected, setCompanySelected] = useState("");
+  const [companyNumber, setCompanyNumber] = useState("");
   const [matches, setMatches] = useState<CompanyResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Step 2
+  const [assetType, setAssetType] = useState("");
+  const [assetDescription, setAssetDescription] = useState("");
+  const [assetCondition, setAssetCondition] = useState<"new" | "used">("used");
+  const [assetCost, setAssetCost] = useState("");
+
+  // Step 3
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+
+  // Submission
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
   const formatAmount = (n: number) => `£${n.toLocaleString("en-GB")}`;
   const stepAmount = (delta: number) =>
     setAmount((prev) => Math.max(10000, Math.min(1000000, prev + delta)));
+
+  const resetDrawer = () => {
+    setStep(1);
+    setAmount(50000);
+    setBizType("ltd");
+    setCompanyQuery("");
+    setCompanySelected("");
+    setCompanyNumber("");
+    setMatches([]);
+    setAssetType("");
+    setAssetDescription("");
+    setAssetCondition("used");
+    setAssetCost("");
+    setContactName("");
+    setContactEmail("");
+    setContactPhone("");
+    setSubmitError("");
+  };
+
+  const step1Valid = !!companySelected && !!companyNumber;
+  const step2Valid = !!assetType && assetDescription.trim().length > 1;
+  const step3Valid =
+    contactName.trim().length > 1 &&
+    /\S+@\S+\.\S+/.test(contactEmail) &&
+    contactPhone.trim().length > 6;
+
+  const submitApplication = async () => {
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const res = await fetch("/api/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          bizType,
+          companyName: companySelected,
+          companyNumber,
+          assetType,
+          assetDescription,
+          assetCondition,
+          assetCost: assetCost ? Number(assetCost) : null,
+          contactName,
+          contactEmail,
+          contactPhone,
+        }),
+      });
+      if (!res.ok) throw new Error("Submission failed");
+      setStep(4);
+    } catch {
+      setSubmitError(
+        "Something went wrong sending your application. Please try again, or call us on 07525 823547."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Debounced live Companies House search -- waits for a short pause
   // in typing before calling the API, so we're not firing a request
@@ -418,122 +494,299 @@ export default function HomePage() {
       {/* APPLY DRAWER */}
       <div
         className={`overlay ${drawerOpen ? "open" : ""}`}
-        onClick={() => setDrawerOpen(false)}
+        onClick={() => {
+          setDrawerOpen(false);
+          if (step === 4) resetDrawer();
+        }}
       ></div>
       <div className={`drawer ${drawerOpen ? "open" : ""}`}>
         <div className="drawer-progress">
-          <div className="fill"></div>
+          <div
+            className="fill"
+            style={{ width: `${Math.min(step, 3) * 33.33}%` }}
+          ></div>
         </div>
         <div className="drawer-head">
-          <span className="step-lbl">Step 1 of 3</span>
+          <span className="step-lbl">
+            {step <= 3 ? `Step ${step} of 3` : "Done"}
+          </span>
           <button
             className="drawer-close"
-            onClick={() => setDrawerOpen(false)}
+            onClick={() => {
+              setDrawerOpen(false);
+              if (step === 4) resetDrawer();
+            }}
           >
             &times;
           </button>
         </div>
         <div className="drawer-body">
-          <h3>Tell us about the finance you need</h3>
+          {step === 1 && (
+            <>
+              <h3>Tell us about the finance you need</h3>
 
-          <div className="field-label">
-            <span className="ok">&#10003;</span> How much would you like to
-            borrow?
-          </div>
-          <div className="amount-row">
-            <button className="amt-btn" onClick={() => stepAmount(-10000)}>
-              &minus;
-            </button>
-            <input
-              type="text"
-              value={formatAmount(amount)}
-              readOnly
-            />
-            <button className="amt-btn" onClick={() => stepAmount(10000)}>
-              +
-            </button>
-          </div>
-          <div className="amount-minmax">
-            <span>Min. £10,000</span>
-            <span>£1,000,000 Max.</span>
-          </div>
-          <div className="chip-row">
-            {[10000, 25000, 50000, 100000, 250000, 500000].map((v) => (
-              <div className="chip" key={v} onClick={() => setAmount(v)}>
-                £{v / 1000}k
+              <div className="field-label">
+                <span className="ok">&#10003;</span> How much would you like to
+                borrow?
               </div>
-            ))}
-          </div>
-
-          <div className="field-label">
-            <span className="ok">&#10003;</span> Business type
-          </div>
-          <div className="biz-toggle">
-            <div
-              className={`biz-opt ${bizType === "ltd" ? "selected" : ""}`}
-              onClick={() => setBizType("ltd")}
-            >
-              Limited Company
-            </div>
-            <div
-              className={`biz-opt ${bizType === "sole" ? "selected" : ""}`}
-              onClick={() => setBizType("sole")}
-            >
-              Sole trader / Partnership
-            </div>
-          </div>
-
-          <div className="field-label">Company name</div>
-          <div className="company-field">
-            <input
-              type="text"
-              placeholder="Start typing your company name"
-              value={companyQuery}
-              onChange={(e) => setCompanyQuery(e.target.value)}
-              autoComplete="off"
-            />
-            <span className="search-ic">&#128269;</span>
-          </div>
-          <div className={`company-results ${matches.length || searchLoading ? "show" : ""}`}>
-            {searchLoading && (
-              <div className="company-result company-result-loading">
-                Searching Companies House…
+              <div className="amount-row">
+                <button className="amt-btn" onClick={() => stepAmount(-10000)}>
+                  &minus;
+                </button>
+                <input type="text" value={formatAmount(amount)} readOnly />
+                <button className="amt-btn" onClick={() => stepAmount(10000)}>
+                  +
+                </button>
               </div>
-            )}
-            {!searchLoading &&
-              matches.map((c) => (
-                <div
-                  className="company-result"
-                  key={c.number}
-                  onClick={() => {
-                    setCompanySelected(c.name);
-                    setCompanyQuery(c.name);
-                    setMatches([]);
-                  }}
-                >
-                  {c.name}
-                  <div className="num">
-                    Company No. {c.number}
-                    {c.status && c.status !== "active" ? ` · ${c.status}` : ""}
+              <div className="amount-minmax">
+                <span>Min. £10,000</span>
+                <span>£1,000,000 Max.</span>
+              </div>
+              <div className="chip-row">
+                {[10000, 25000, 50000, 100000, 250000, 500000].map((v) => (
+                  <div className="chip" key={v} onClick={() => setAmount(v)}>
+                    £{v / 1000}k
                   </div>
-                </div>
-              ))}
-          </div>
-          <div className="drawer-hint">
-            We&apos;ll look this up via Companies House and confirm your
-            registered details on the next step.
-          </div>
+                ))}
+              </div>
 
-          <button
-            className="drawer-cta"
-            onClick={() =>
-              alert(
-                "This is a working prototype — Continue would move to step 2 (asset details) once built."
-              )
-            }
-          >
-            Continue
-          </button>
+              <div className="field-label">
+                <span className="ok">&#10003;</span> Business type
+              </div>
+              <div className="biz-toggle">
+                <div
+                  className={`biz-opt ${bizType === "ltd" ? "selected" : ""}`}
+                  onClick={() => setBizType("ltd")}
+                >
+                  Limited Company
+                </div>
+                <div
+                  className={`biz-opt ${bizType === "sole" ? "selected" : ""}`}
+                  onClick={() => setBizType("sole")}
+                >
+                  Sole trader / Partnership
+                </div>
+              </div>
+
+              <div className="field-label">Company name</div>
+              <div className="company-field">
+                <input
+                  type="text"
+                  placeholder="Start typing your company name"
+                  value={companyQuery}
+                  onChange={(e) => {
+                    setCompanyQuery(e.target.value);
+                    if (e.target.value !== companySelected) {
+                      setCompanySelected("");
+                      setCompanyNumber("");
+                    }
+                  }}
+                  autoComplete="off"
+                />
+                <span className="search-ic">&#128269;</span>
+              </div>
+              <div
+                className={`company-results ${
+                  matches.length || searchLoading ? "show" : ""
+                }`}
+              >
+                {searchLoading && (
+                  <div className="company-result company-result-loading">
+                    Searching Companies House…
+                  </div>
+                )}
+                {!searchLoading &&
+                  matches.map((c) => (
+                    <div
+                      className="company-result"
+                      key={c.number}
+                      onClick={() => {
+                        setCompanySelected(c.name);
+                        setCompanyNumber(c.number);
+                        setCompanyQuery(c.name);
+                        setMatches([]);
+                      }}
+                    >
+                      {c.name}
+                      <div className="num">
+                        Company No. {c.number}
+                        {c.status && c.status !== "active"
+                          ? ` · ${c.status}`
+                          : ""}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <div className="drawer-hint">
+                {step1Valid
+                  ? `Selected: ${companySelected} (Company No. ${companyNumber})`
+                  : "We'll look this up via Companies House and confirm your registered details on the next step."}
+              </div>
+
+              <button
+                className="drawer-cta"
+                disabled={!step1Valid}
+                onClick={() => step1Valid && setStep(2)}
+              >
+                Continue
+              </button>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <h3>Tell us about the asset</h3>
+
+              <div className="field-label">
+                <span className="ok">&#10003;</span> Asset type
+              </div>
+              <div className="chip-row">
+                {["Vehicle", "Plant & Equipment", "Commercial Vehicle", "Other"].map(
+                  (t) => (
+                    <div
+                      className={`chip ${assetType === t ? "chip-selected" : ""}`}
+                      key={t}
+                      onClick={() => setAssetType(t)}
+                    >
+                      {t}
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div className="field-label">Asset description</div>
+              <div className="company-field">
+                <input
+                  type="text"
+                  placeholder="e.g. Ford Transit L3H3, or CAT 320 excavator"
+                  value={assetDescription}
+                  onChange={(e) => setAssetDescription(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="field-label">Condition</div>
+              <div className="biz-toggle">
+                <div
+                  className={`biz-opt ${assetCondition === "new" ? "selected" : ""}`}
+                  onClick={() => setAssetCondition("new")}
+                >
+                  New
+                </div>
+                <div
+                  className={`biz-opt ${assetCondition === "used" ? "selected" : ""}`}
+                  onClick={() => setAssetCondition("used")}
+                >
+                  Used
+                </div>
+              </div>
+
+              <div className="field-label">Cost of asset (optional)</div>
+              <div className="company-field">
+                <input
+                  type="number"
+                  placeholder="£"
+                  value={assetCost}
+                  onChange={(e) => setAssetCost(e.target.value)}
+                />
+              </div>
+
+              <div className="drawer-btn-row">
+                <button className="drawer-cta-secondary" onClick={() => setStep(1)}>
+                  Back
+                </button>
+                <button
+                  className="drawer-cta"
+                  disabled={!step2Valid}
+                  onClick={() => step2Valid && setStep(3)}
+                >
+                  Continue
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <h3>Your contact details</h3>
+
+              <div className="field-label">Your name</div>
+              <div className="company-field">
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className="field-label">Email</div>
+              <div className="company-field">
+                <input
+                  type="email"
+                  placeholder="you@yourbusiness.co.uk"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="field-label">Phone</div>
+              <div className="company-field">
+                <input
+                  type="tel"
+                  placeholder="07…"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  autoComplete="tel"
+                />
+              </div>
+
+              <div className="drawer-hint">
+                {formatAmount(amount)} · {companySelected} · {assetType}:{" "}
+                {assetDescription}
+              </div>
+
+              {submitError && (
+                <div className="drawer-hint drawer-error">{submitError}</div>
+              )}
+
+              <div className="drawer-btn-row">
+                <button className="drawer-cta-secondary" onClick={() => setStep(2)}>
+                  Back
+                </button>
+                <button
+                  className="drawer-cta"
+                  disabled={!step3Valid || submitting}
+                  onClick={submitApplication}
+                >
+                  {submitting ? "Submitting…" : "Submit application"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <h3>Application received</h3>
+              <p className="drawer-success-copy">
+                Thanks, {contactName.split(" ")[0]} — we&apos;ve got your
+                application for {formatAmount(amount)} of finance for{" "}
+                {companySelected}. Someone from Future FG will be in touch
+                shortly, usually within one working day.
+              </p>
+              <button
+                className="drawer-cta"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  resetDrawer();
+                }}
+              >
+                Close
+              </button>
+            </>
+          )}
         </div>
       </div>
     </>
