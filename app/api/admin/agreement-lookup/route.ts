@@ -56,9 +56,13 @@ export async function GET(request: Request) {
   const paidCount = paidPayments.length;
   const lastPaid = paidPayments[paidPayments.length - 1];
 
-  const settlementFigure = lastPaid
-    ? Number(lastPaid.balance_after)
-    : Number(agreement.total_lend);
+  // Settlement figure = the total of all instalments not yet paid,
+  // matching FFG's settlement basis (remaining scheduled payments,
+  // no early settlement rebate). Correct from day one, before any
+  // payment has been collected.
+  const settlementFigure = schedule
+    .filter((p) => p.status !== "paid")
+    .reduce((sum, p) => sum + Number(p.amount), 0);
 
   return NextResponse.json(
     {
