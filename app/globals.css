@@ -285,3 +285,48 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
   .section-head h2{font-size:26px;}
   .footer-top{grid-template-columns:1fr;}
 }
+
+/* AGREEMENT LOOKUP (internal admin tool) */
+.lookup-page{min-height:100vh; background:var(--paper); padding:56px 20px 80px;}
+.lookup-wrap{max-width:640px; margin:0 auto;}
+.lookup-head{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+.lookup-dot{width:9px; height:9px; border-radius:50%; background:var(--blue);}
+.lookup-head h1{font-family:'Fraunces', serif; font-size:26px; color:var(--navy);}
+.lookup-sub{color:var(--slate); font-size:14px; line-height:1.6; margin-bottom:32px;}
+.lookup-form{display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px; background:var(--paper-raised); border:1px solid var(--rule); border-radius:12px; padding:20px;}
+.lookup-field{flex:1; min-width:160px;}
+.lookup-field label{display:block; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--slate); margin-bottom:6px;}
+.lookup-field input{width:100%; padding:11px 13px; border:1px solid var(--rule); border-radius:8px; font-size:14px; font-family:'Inter', sans-serif; background:var(--paper);}
+.lookup-field input:focus{outline:none; border-color:var(--blue);}
+.lookup-form button{padding:11px 22px; border-radius:8px; background:var(--blue); color:#fff; font-size:14px; font-weight:600; border:none; cursor:pointer; transition:background .15s; white-space:nowrap;}
+.lookup-form button:hover{background:var(--blue-deep);}
+.lookup-form button:disabled{background:var(--rule); color:var(--slate); cursor:not-allowed;}
+.lookup-error{background:#FBEAEA; border:1px solid #E8B4B4; color:#B4232C; padding:14px 16px; border-radius:8px; font-size:13.5px; margin-bottom:20px;}
+.lookup-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:14px; padding:28px;}
+.lookup-card-head{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+.lookup-card-head h2{font-family:'Fraunces', serif; font-size:22px; color:var(--navy);}
+.lookup-tag{font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; background:var(--blue-pale); color:var(--blue-deep); padding:3px 9px; border-radius:5px;}
+.lookup-status{font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; padding:3px 9px; border-radius:5px;}
+.lookup-status.live{background:var(--green-pale); color:var(--green);}
+.lookup-status.finished{background:var(--rule); color:var(--slate);}
+.lookup-company{font-size:15px; font-weight:600; color:var(--ink); margin-bottom:2px;}
+.lookup-email{font-size:12.5px; color:var(--slate); margin-bottom:22px;}
+.lookup-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; padding:20px 0; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); margin-bottom:22px;}
+.lookup-item .lookup-label{font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate); margin-bottom:4px;}
+.lookup-item .lookup-value{font-size:14px; color:var(--ink);}
+.lookup-settlement{background:var(--navy); border-radius:10px; padding:20px 22px; margin-bottom:18px;}
+.lookup-settlement-label{font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--blue-pale); margin-bottom:8px;}
+.lookup-settlement-amt{font-family:'Fraunces', serif; font-size:32px; font-weight:600; color:#fff;}
+.lookup-settlement-note{font-size:12px; color:rgba(255,255,255,0.65); margin-top:6px;}
+.lookup-toggle{font-size:13px; font-weight:600; color:var(--blue-deep); cursor:pointer; user-select:none;}
+.lookup-table{width:100%; border-collapse:collapse; margin-top:16px; font-size:13px;}
+.lookup-table th{text-align:left; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate); padding:8px 6px; border-bottom:1px solid var(--rule);}
+.lookup-table td{padding:8px 6px; border-bottom:1px solid var(--rule); color:var(--ink);}
+.lookup-paid{color:var(--green); font-weight:600; font-size:12px;}
+.lookup-due{color:var(--slate); font-size:12px;}
+
+@media (max-width:600px){
+  .lookup-form{flex-direction:column; align-items:stretch;}
+  .lookup-grid{grid-template-columns:1fr;}
+  .lookup-settlement-amt{font-size:26px;}
+}
