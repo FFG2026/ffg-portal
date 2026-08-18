@@ -85,6 +85,10 @@ export async function GET(request: Request) {
       missing_live: missing.filter((m) => m.live),
       missing_finished: missing.filter((m) => !m.live),
     },
-    { headers: { "Cache-Control": "no-store" } }
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      },
+    }
   );
 }
