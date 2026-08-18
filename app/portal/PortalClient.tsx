@@ -32,6 +32,39 @@ type Props = {
 export default function PortalClient(props: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+
+  // A customer whose agreements have all finished has nothing to
+  // show here -- render a short message rather than an empty page.
+  if (props.agreements.length === 0) {
+    return (
+      <>
+        <nav>
+          <div className="nav-inner">
+            <div className="wordmark">
+              <span className="dot"></span>
+              FUTURE FG
+            </div>
+            <div className="nav-right">
+              <LogoutButton />
+              <div className="avatar">{props.initials}</div>
+            </div>
+          </div>
+        </nav>
+        <div className="wrap">
+          <div className="page-head">
+            <div className="eyebrow">Customer portal</div>
+            <h1>Welcome back, {props.companyName}</h1>
+            <p>
+              You don&apos;t have any active agreements with us at the moment.
+              If you think that&apos;s wrong, or you&apos;d like to discuss new
+              finance, give us a call on 07525 823547.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const active = props.agreements[selectedIndex];
   const pct = Math.round((active.paidCount / active.termMonths) * 1000) / 10;
 
