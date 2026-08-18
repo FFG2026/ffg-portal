@@ -53,12 +53,14 @@ export default async function PortalPage() {
     const paidCount = paidPayments.length;
     const lastPayment = paidPayments[paidPayments.length - 1];
 
-    // Settlement figure = the balance_after of the most recent paid
-    // instalment, matching the same "Settlement" figure the deal book
-    // shows. Falls back to total_lend if nothing's been paid yet.
-    const settlementFigure = lastPayment
-      ? Number(lastPayment.balance_after)
-      : Number(agreement.total_lend);
+    // Settlement figure = the total of all instalments not yet paid.
+    // This matches the settlement basis FFG uses (remaining scheduled
+    // payments, no early settlement rebate) and, unlike the old
+    // balance_after fallback, is correct on day one before any
+    // payment has been collected.
+    const settlementFigure = schedule
+      .filter((p) => p.status !== "paid")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
 
     return {
       agreementNumber: agreement.agreement_number,
