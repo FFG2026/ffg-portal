@@ -35,10 +35,37 @@ type LookupResult = {
   }[];
 };
 
+type CompanyAgreement = {
+  agreement_number: string;
+  agreement_type: string;
+  asset_description: string | null;
+  monthly_instalment: number;
+  paid_count: number;
+  term_months: number;
+  live: boolean;
+  settlement_figure: number;
+  has_schedule: boolean;
+  gocardless_mandate_id: string | null;
+};
+
+type CompanyResult = {
+  mode: "company";
+  customers: {
+    company_name: string;
+    email: string | null;
+    has_portal_login: boolean;
+    agreements: CompanyAgreement[];
+  }[];
+};
+
 export default function AgreementLookupPage() {
   const [secret, setSecret] = useState("");
-  const [agreementNumber, setAgreementNumber] = useState("");
+  const [searchMode, setSearchMode] = useState<"agreement" | "company">(
+    "agreement"
+  );
+  const [query, setQuery] = useState("");
   const [result, setResult] = useState<LookupResult | null>(null);
+  const [companyResult, setCompanyResult] = useState<CompanyResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -55,20 +82,25 @@ export default function AgreementLookupPage() {
         })
       : "—";
 
-  const lookup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!secret.trim() || !agreementNumber.trim()) return;
+  const runLookup = async (
+    mode: "agreement" | "company",
+    value: string
+  ) => {
+    if (!secret.trim() || !value.trim()) return;
     setLoading(true);
     setError("");
     setResult(null);
+    setCompanyResult(null);
     setScheduleOpen(false);
     try {
       const res = await fetch(
-        `/api/admin/agreement-lookup?secret=${encodeURIComponent(secret.trim())}&agreement=${encodeURIComponent(agreementNumber.trim())}`
+        `/api/admin/agreement-lookup?secret=${encodeURIComponent(secret.trim())}&${mode}=${encodeURIComponent(value.trim())}`
       );
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Something went wrong");
+      } else if (data.mode === "company") {
+        setCompanyResult(data);
       } else {
         setResult(data);
       }
@@ -79,6 +111,11 @@ export default function AgreementLookupPage() {
     }
   };
 
+  const lookup = (e: React.FormEvent) => {
+    e.preventDefault();
+    runLookup(searchMode, query);
+  };
+
   return (
     <div className="lookup-page">
       <div className="lookup-wrap">
@@ -87,9 +124,26 @@ export default function AgreementLookupPage() {
           <h1>Agreement lookup</h1>
         </div>
         <p className="lookup-sub">
-          Internal tool — type an agreement number to see its full details,
-          payment history, and current settlement figure.
+          Internal tool — look up a single agreement, or search a company to
+          see all of their agreements in one place.
         </p>
+
+        <div className="lookup-modes">
+          <button
+            className={`lookup-mode ${searchMode === "agreement" ? "active" : ""}`}
+            onClick={() => setSearchMode("agreement")}
+            type="button"
+          >
+            By agreement
+          </button>
+          <button
+            className={`lookup-mode ${searchMode === "company" ? "active" : ""}`}
+            onClick={() => setSearchMode("company")}
+            type="button"
+          >
+            By company
+          </button>
+        </div>
 
         <form className="lookup-form" onSubmit={lookup}>
           <div className="lookup-field">
@@ -103,12 +157,18 @@ export default function AgreementLookupPage() {
             />
           </div>
           <div className="lookup-field">
-            <label>Agreement number</label>
+            <label>
+              {searchMode === "agreement" ? "Agreement number" : "Company name"}
+            </label>
             <input
               type="text"
-              value={agreementNumber}
-              onChange={(e) => setAgreementNumber(e.target.value)}
-              placeholder="e.g. HP116 or FL5"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                searchMode === "agreement"
+                  ? "e.g. HP116 or FL5"
+                  : "e.g. Howe, Seymour, Mulberry"
+              }
               autoComplete="off"
             />
           </div>
@@ -118,6 +178,76 @@ export default function AgreementLookupPage() {
         </form>
 
         {error && <div className="lookup-error">{error}</div>}
+
+        {companyResult &&
+          companyResult.customers.map((c) => (
+            <div className="lookup-card" key={c.company_name}>
+              <div className="lookup-company">{c.company_name}</div>
+              <div className="lookup-email">
+                {c.email || "no email on file"}
+                {c.has_portal_login ? " · portal linked" : " · no portal login yet"}
+                {" · "}
+                {c.agreements.length} agreement
+                {c.agreements.length === 1 ? "" : "s"}
+              </div>
+
+              <table className="lookup-table">
+                <thead>
+                  <tr>
+                    <th>Agreement</th>
+                    <th>Asset</th>
+                    <th>Paid</th>
+                    <th>Settlement</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {c.agreements.map((a) => (
+                    <tr key={a.agreement_number}>
+                      <td>
+                        <strong>{a.agreement_number}</strong>
+                        <div className="lookup-flags">
+                          <span
+                            className={`lookup-status ${a.live ? "live" : "finished"}`}
+                          >
+                            {a.live ? "Live" : "Finished"}
+                          </span>
+                          {!a.has_schedule && (
+                            <span className="lookup-warn">No schedule</span>
+                          )}
+                          {!a.gocardless_mandate_id && (
+                            <span className="lookup-warn">No mandate</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        {a.asset_description &&
+                        !a.asset_description.startsWith("Pending") ? (
+                          a.asset_description
+                        ) : (
+                          <span className="lookup-warn">Not on file</span>
+                        )}
+                      </td>
+                      <td className="mono">
+                        {a.paid_count}/{a.term_months}
+                      </td>
+                      <td className="mono">{gbp(a.settlement_figure)}</td>
+                      <td>
+                        <span
+                          className="lookup-toggle"
+                          onClick={() =>
+                            runLookup("agreement", a.agreement_number)
+                          }
+                        >
+                          Open
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
 
         {result && (
           <div className="lookup-result">
