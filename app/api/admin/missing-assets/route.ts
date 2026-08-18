@@ -18,7 +18,9 @@ export async function GET(request: Request) {
   const { data: agreements, error } = await supabase
     .from("agreements")
     .select("agreement_number, customer_id, asset_description")
-    .or("asset_description.is.null,asset_description.eq.")
+    .or(
+      "asset_description.is.null,asset_description.eq.,asset_description.ilike.Pending%"
+    )
     .order("agreement_number");
 
   if (error) {
