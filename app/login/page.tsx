@@ -1,34 +1,51 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "../../lib/supabase/client";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const urlError = searchParams.get("error");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle"
   );
   const [errorMsg, setErrorMsg] = useState("");
 
-  const supabase = createClient();
+  const urlErrorMsg =
+    urlError === "no-account"
+      ? "You're signed in, but we don't have a customer record linked to this email yet. Call us and we'll set it up."
+      : urlError === "no-agreement"
+        ? "We couldn't find an agreement on this account. Call us if that doesn't sound right."
+        : urlError === "link-expired"
+          ? "That login link is invalid or has expired. Request a new one below."
+          : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("sending");
     setErrorMsg("");
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setStatus("error");
-      setErrorMsg(error.message);
-    } else {
+    try {
+      const res = await fetch("/api/auth/request-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          origin: window.location.origin,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatus("error");
+        setErrorMsg(data.error || "Something went wrong — please try again.");
+        return;
+      }
       setStatus("sent");
+    } catch {
+      setStatus("error");
+      setErrorMsg("Couldn't reach the server — please try again.");
     }
   };
 
@@ -69,6 +86,12 @@ export default function LoginPage() {
             needed.
           </p>
 
+          {urlErrorMsg && status === "idle" && (
+            <p style={{ color: "#B42318", fontSize: 13, marginBottom: 20 }}>
+              {urlErrorMsg}
+            </p>
+          )}
+
           {status === "sent" ? (
             <div
               className="status-strip"
@@ -76,8 +99,8 @@ export default function LoginPage() {
             >
               <span className="status-dot"></span>
               <span className="txt">
-                Check <b>{email}</b> for a login link. It'll expire in a few
-                minutes.
+                Check <b>{email}</b> for a login link. It&apos;ll expire in a
+                few minutes.
               </span>
             </div>
           ) : (
@@ -109,5 +132,13 @@ export default function LoginPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
