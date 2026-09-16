@@ -147,7 +147,6 @@ export default function HomePage() {
             <a href="#products">Funding solutions</a>
             <a href="#specialities">Specialities</a>
             <a href="#why">Why Future FG</a>
-            <a href="#portal">Customer portal</a>
           </div>
           <div className="nav-right">
             <Link href="/portal" className="btn btn-outline">

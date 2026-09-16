@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "../../lib/supabase/client";
 
 export default function LoginPage() {
@@ -36,10 +37,10 @@ export default function LoginPage() {
     <>
       <nav>
         <div className="nav-inner">
-          <div className="wordmark">
+          <Link href="/" className="wordmark">
             <span className="dot"></span>
             FUTURE FG
-          </div>
+          </Link>
         </div>
       </nav>
 
