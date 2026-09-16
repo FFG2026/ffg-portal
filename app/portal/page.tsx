@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
+import { createAdminClient } from "../../lib/supabase/admin";
+import { syncAgreementsPayments } from "../../lib/gocardless/sync-payments";
+import { isDirectDebitUpToDate } from "../../lib/gocardless/match-payments";
 import PortalClient from "./PortalClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function PortalPage() {
   const supabase = createClient();
@@ -34,6 +39,14 @@ export default async function PortalPage() {
 
   if (!agreements || agreements.length === 0) {
     redirect("/login?error=no-agreement");
+  }
+
+  // Pull the latest collected / failed payments from GoCardless
+  // before we render, so the ticks a customer sees are current.
+  try {
+    await syncAgreementsPayments(createAdminClient(), agreements);
+  } catch {
+    // Still show whatever we already hold if GoCardless is unreachable.
   }
 
   const { data: allPayments } = await supabase
@@ -72,6 +85,7 @@ export default async function PortalPage() {
       paidCount,
       settlementFigure,
       lastPaymentDate: lastPayment ? lastPayment.due_date : null,
+      directDebitUpToDate: isDirectDebitUpToDate(schedule),
       schedule: schedule.slice(
         Math.max(0, paidCount - 2),
         Math.min(schedule.length, paidCount + 3)
