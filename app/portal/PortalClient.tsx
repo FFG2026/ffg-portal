@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import LogoutButton from "./LogoutButton";
 
 type PaymentRow = {
@@ -41,11 +42,12 @@ export default function PortalClient(props: Props) {
       <>
         <nav>
           <div className="nav-inner">
-            <div className="wordmark">
+            <Link href="/" className="wordmark">
               <span className="dot"></span>
               FUTURE FG
-            </div>
+            </Link>
             <div className="nav-right">
+              <Link href="/">Website</Link>
               <LogoutButton />
               <div className="avatar">{props.initials}</div>
             </div>
@@ -87,14 +89,12 @@ export default function PortalClient(props: Props) {
     <>
       <nav>
         <div className="nav-inner">
-          <div className="wordmark">
+          <Link href="/" className="wordmark">
             <span className="dot"></span>
             FUTURE FG
-          </div>
+          </Link>
           <div className="nav-right">
-            <a href="#">Agreements</a>
-            <a href="#">Documents</a>
-            <a href="#">Contact us</a>
+            <Link href="/">Website</Link>
             <LogoutButton />
             <div className="avatar">{props.initials}</div>
           </div>
