@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -47,6 +48,12 @@ export async function GET(request: Request) {
         customers.map((c) => c.id)
       )
       .order("agreement_number");
+
+    try {
+      await syncAgreementsPayments(supabase, allAgreements || []);
+    } catch {
+      // Lookup still works from the schedule we already hold.
+    }
 
     const { data: allPayments } = await supabase
       .from("payments")
@@ -112,6 +119,12 @@ export async function GET(request: Request) {
       { error: `No agreement found matching "${agreementNumber}"` },
       { status: 404, headers: { "Cache-Control": "no-store" } }
     );
+  }
+
+  try {
+    await syncAgreementPayments(supabase, agreement);
+  } catch {
+    // Fall through and show stored schedule.
   }
 
   const { data: customer } = await supabase

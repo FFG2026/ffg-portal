@@ -1,13 +1,16 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { fetchGoCardlessPayment } from "../../../../lib/gocardless/client";
+import { syncAgreementPayments } from "../../../../lib/gocardless/sync-payments";
 
-const GC_API_BASE = "https://api.gocardless.com";
-const GC_VERSION = "2015-07-06";
-
-// Events that mean "this instalment is settled, one way or another"
-const PAID_ACTIONS = new Set(["confirmed", "paid_out"]);
-const FAILED_ACTIONS = new Set(["failed", "charged_back", "cancelled"]);
+const PAYMENT_ACTIONS = new Set([
+  "confirmed",
+  "paid_out",
+  "failed",
+  "charged_back",
+  "cancelled",
+]);
 
 function verifySignature(rawBody: string, signature: string | null): boolean {
   const secret = process.env.GOCARDLESS_WEBHOOK_SECRET;
@@ -15,25 +18,10 @@ function verifySignature(rawBody: string, signature: string | null): boolean {
 
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
 
-  // Constant-time comparison -- avoids leaking timing information
-  // about how much of the signature matched.
   const expectedBuf = Buffer.from(expected, "hex");
   const actualBuf = Buffer.from(signature, "hex");
   if (expectedBuf.length !== actualBuf.length) return false;
   return timingSafeEqual(expectedBuf, actualBuf);
-}
-
-async function fetchGoCardlessPayment(paymentId: string) {
-  const res = await fetch(`${GC_API_BASE}/payments/${paymentId}`, {
-    headers: {
-      Authorization: `Bearer ${process.env.GOCARDLESS_ACCESS_TOKEN}`,
-      "GoCardless-Version": GC_VERSION,
-      Accept: "application/json",
-    },
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.payments;
 }
 
 export async function POST(request: Request) {
@@ -41,8 +29,6 @@ export async function POST(request: Request) {
   const signature = request.headers.get("Webhook-Signature");
 
   if (!verifySignature(rawBody, signature)) {
-    // GoCardless expects a non-200 for invalid signatures so it
-    // knows the payload wasn't trusted.
     return NextResponse.json({ error: "Invalid signature" }, { status: 498 });
   }
 
@@ -59,78 +45,35 @@ export async function POST(request: Request) {
     try {
       if (
         event.resource_type === "payments" &&
-        (PAID_ACTIONS.has(event.action) || FAILED_ACTIONS.has(event.action))
+        PAYMENT_ACTIONS.has(event.action)
       ) {
         gcPaymentId = event.links?.payment || null;
 
         if (gcPaymentId) {
           const gcPayment = await fetchGoCardlessPayment(gcPaymentId);
+          gcMandateId = gcPayment?.links?.mandate || null;
 
-          if (gcPayment) {
-            gcMandateId = gcPayment.links?.mandate || null;
-            const chargeDate: string | null = gcPayment.charge_date || null;
+          if (gcMandateId) {
+            const { data: agreement } = await supabase
+              .from("agreements")
+              .select("id, gocardless_mandate_id")
+              .eq("gocardless_mandate_id", gcMandateId)
+              .maybeSingle();
 
-            if (gcMandateId && chargeDate) {
-              // Find the agreement linked to this mandate
-              const { data: agreement } = await supabase
-                .from("agreements")
-                .select("id")
-                .eq("gocardless_mandate_id", gcMandateId)
-                .single();
-
-              if (agreement) {
-                // Find the nearest un-paid instalment on that
-                // agreement, within 10 days of the charge date --
-                // a deliberately tight window so we never guess
-                // wrong on which instalment this was for.
-                const chargeDateObj = new Date(chargeDate);
-                const windowStart = new Date(chargeDateObj);
-                windowStart.setDate(windowStart.getDate() - 10);
-                const windowEnd = new Date(chargeDateObj);
-                windowEnd.setDate(windowEnd.getDate() + 10);
-
-                const { data: candidates } = await supabase
-                  .from("payments")
-                  .select("id, due_date, status")
-                  .eq("agreement_id", agreement.id)
-                  .gte("due_date", windowStart.toISOString().slice(0, 10))
-                  .lte("due_date", windowEnd.toISOString().slice(0, 10))
-                  .neq("status", "paid")
-                  .order("due_date", { ascending: true })
-                  .limit(1);
-
-                const candidate = candidates?.[0];
-
-                if (candidate) {
-                  const newStatus = PAID_ACTIONS.has(event.action)
-                    ? "paid"
-                    : "failed";
-
-                  await supabase
-                    .from("payments")
-                    .update({
-                      status: newStatus,
-                      paid_date: newStatus === "paid" ? chargeDate : null,
-                      gocardless_payment_id: gcPaymentId,
-                      updated_at: new Date().toISOString(),
-                    })
-                    .eq("id", candidate.id);
-
-                  matchStatus = "matched";
-                  matchedPaymentId = candidate.id;
-                }
+            if (agreement) {
+              const result = await syncAgreementPayments(supabase, agreement);
+              if ((result.markedPaid || result.markedFailed) && !result.error) {
+                matchStatus = "matched";
               }
+              if (result.error) matchStatus = "error";
             }
           }
         }
       }
-    } catch (err) {
+    } catch {
       matchStatus = "error";
     }
 
-    // Log every event regardless of outcome -- this is the audit
-    // trail that lets us reconcile anything that couldn't be
-    // auto-matched, rather than it just vanishing.
     await supabase.from("gocardless_events").insert({
       gc_event_id: event.id,
       resource_type: event.resource_type,

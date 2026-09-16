@@ -20,6 +20,7 @@ type AgreementSummary = {
   paidCount: number;
   settlementFigure: number;
   lastPaymentDate: string | null;
+  directDebitUpToDate: boolean;
   schedule: PaymentRow[];
 };
 
@@ -181,10 +182,20 @@ export default function PortalClient(props: Props) {
               </div>
 
               {active.lastPaymentDate && (
-                <div className="status-strip">
+                <div
+                  className={`status-strip${
+                    active.directDebitUpToDate ? "" : " behind"
+                  }`}
+                >
                   <span className="status-dot"></span>
                   <span className="txt">
-                    Direct debit <b>up to date</b> — last payment recorded{" "}
+                    Direct debit{" "}
+                    <b>
+                      {active.directDebitUpToDate
+                        ? "up to date"
+                        : "behind"}
+                    </b>{" "}
+                    — last payment recorded{" "}
                     {formatDate(active.lastPaymentDate)}
                   </span>
                 </div>

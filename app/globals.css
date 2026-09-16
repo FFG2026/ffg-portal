@@ -213,6 +213,9 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
 .status-dot{width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0;}
 .status-strip .txt{font-size:13px; color:#1B7A46;}
 .status-strip .txt b{font-weight:600;}
+.status-strip.behind{background:var(--gold-pale); border-color:var(--gold-border);}
+.status-strip.behind .status-dot{background:var(--gold);}
+.status-strip.behind .txt{color:#8A6A24;}
 
 .settlement-card{background:var(--navy); border-radius:14px; padding:30px; color:#fff; position:relative; overflow:hidden;}
 .settlement-card::before{content:''; position:absolute; top:-40%; right:-15%; width:280px; height:280px; background:radial-gradient(circle, rgba(14,140,245,0.3) 0%, transparent 70%);}
