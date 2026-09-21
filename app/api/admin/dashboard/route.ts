@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
-import { isLiveDeal } from "../../../../lib/deal-status";
+import { isLiveDeal, liveOverdueSum } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +61,11 @@ export async function GET(request: Request) {
     paymentsByAgreement.set(p.agreement_id, list);
   }
 
+  const liveById = new Map<string, boolean>();
+  for (const a of agreements || []) {
+    liveById.set(a.id, isLiveDeal(a, paymentsByAgreement.get(a.id) || []));
+  }
+
   let paidTotal = 0;
   let outstanding = 0;
   let overdue = 0;
@@ -80,7 +85,7 @@ export async function GET(request: Request) {
       if (collectedOn >= monthStart && collectedOn < nextMonth) {
         collectedThisMonth += amount;
       }
-    } else {
+    } else if (liveById.get(p.agreement_id) !== false) {
       bucket.unpaid += amount;
       if (p.due_date && p.due_date < today) overdue += amount;
       else outstanding += amount;
@@ -132,7 +137,7 @@ export async function GET(request: Request) {
         });
       }
     }
-    if (rows.length === 0) {
+    if (isLive && rows.length === 0) {
       attention.push({
         agreement_number: a.agreement_number,
         company_name: company,
@@ -140,9 +145,7 @@ export async function GET(request: Request) {
         amount: null,
       });
     }
-    const overdueAmt = rows
-      .filter((r) => r.status !== "paid" && r.due_date && r.due_date < today)
-      .reduce((sum, r) => sum + num(r.amount), 0);
+    const overdueAmt = liveOverdueSum(a, rows, today);
     if (overdueAmt > 0) {
       attention.push({
         agreement_number: a.agreement_number,
@@ -164,7 +167,8 @@ export async function GET(request: Request) {
 
   attention.sort((a, b) => (b.amount || 0) - (a.amount || 0));
 
-  return NextResponse.json({
+  return NextResponse.json(
+    {
     generated_at: new Date().toISOString(),
     totals: {
       live,
@@ -179,7 +183,9 @@ export async function GET(request: Request) {
     },
     chart,
     attention: attention.slice(0, 40),
-  });
+    },
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } }
+  );
 }
 
 function round2(n: number) {

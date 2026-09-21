@@ -40,3 +40,42 @@ export function isLiveDeal(
   if (list.length > 0 && list.every((r) => isPaidRow(r.status))) return false;
   return paidCount(list) < Number(agreement.term_months || 0) || list.length === 0;
 }
+
+export function overdueSum(
+  rows:
+    | {
+        status?: string | null;
+        amount?: number | string | null;
+        due_date?: string | null;
+      }[]
+    | null
+    | undefined,
+  today: string
+) {
+  return roundMoney(
+    (rows || [])
+      .filter(
+        (r) =>
+          !isPaidRow(r.status) &&
+          r.due_date &&
+          String(r.due_date).slice(0, 10) < today
+      )
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+  );
+}
+
+/**
+ * Overdue on a finished deal is leftover sheet noise, not a collection to chase.
+ */
+export function liveOverdueSum(
+  agreement: { status?: string | null; term_months?: number | null },
+  rows: {
+    status?: string | null;
+    amount?: number | string | null;
+    due_date?: string | null;
+  }[] | null | undefined,
+  today: string
+) {
+  if (!isLiveDeal(agreement, rows)) return 0;
+  return overdueSum(rows, today);
+}

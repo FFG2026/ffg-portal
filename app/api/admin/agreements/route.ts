@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
-import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
+import { isLiveDeal, paidCount, unpaidSum, overdueSum } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
 
@@ -65,10 +65,8 @@ export async function GET(request: Request) {
   const list = (agreements || []).map((a) => {
     const rows = rowsByAgreement.get(a.id) || [];
     const live = isLiveDeal(a, rows);
-    const outstanding = unpaidSum(rows);
-    const overdue = rows
-      .filter((r) => r.status !== "paid" && r.due_date && r.due_date < today)
-      .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const outstanding = live ? unpaidSum(rows) : 0;
+    const overdue = live ? overdueSum(rows, today) : 0;
     const customer = nameById.get(a.customer_id);
     return {
       id: a.id,

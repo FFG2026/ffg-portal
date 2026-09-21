@@ -47,7 +47,10 @@ function DashboardInner() {
   const [syncMsg, setSyncMsg] = useState("");
 
   const load = async () => {
-    const res = await fetch("/api/admin/dashboard", { headers: adminHeaders() });
+    const res = await fetch("/api/admin/dashboard", {
+      headers: adminHeaders(),
+      cache: "no-store",
+    });
     if (!res.ok) {
       setError("Couldn't load the dashboard.");
       return;
