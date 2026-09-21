@@ -5,7 +5,7 @@ import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
 import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
-import { startDateFromFirstPayment } from "../../../../lib/schedule";
+import { startDateFromFirstPayment, visibleScheduleNote } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
 
 export const dynamic = "force-dynamic";
@@ -198,7 +198,7 @@ export async function GET(request: Request) {
         status: p.status,
         paid_date: p.paid_date,
         balance_after: p.balance_after,
-        notes: p.notes || null,
+        notes: visibleScheduleNote(p.notes),
         source: p.source || null,
       })),
     },
