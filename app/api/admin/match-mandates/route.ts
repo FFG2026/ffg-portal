@@ -67,20 +67,35 @@ export async function GET(request: Request) {
 
   const supabase = createAdminClient();
 
-  // 1. Pull GoCardless customers and active mandates
-  const [gcCustomers, gcMandates] = await Promise.all([
-    fetchAllPages("/customers", "customers"),
-    fetchAllPages("/mandates", "mandates"),
-  ]);
+  const [gcCustomers, gcMandatesActive, gcMandatesCancelled, gcMandatesExpired] =
+    await Promise.all([
+      fetchAllPages("/customers", "customers"),
+      fetchAllPages("/mandates", "mandates"),
+      fetchAllPages("/mandates?status=cancelled", "mandates"),
+      fetchAllPages("/mandates?status=expired", "mandates"),
+    ]);
+  const gcMandatesById = new Map<string, any>();
+  for (const mandate of [
+    ...gcMandatesActive,
+    ...gcMandatesCancelled,
+    ...gcMandatesExpired,
+  ]) {
+    gcMandatesById.set(mandate.id, mandate);
+  }
+  const gcMandates = Array.from(gcMandatesById.values());
 
-  // Map: GC customer id -> active mandate id (prefer 'active' status)
-  const customerToMandate = new Map<string, string>();
+  // Map: GC customer id -> mandate id. Prefer an active mandate, but keep
+  // a cancelled/expired one so we can still pull the collections already made.
+  const customerToMandate = new Map<string, { id: string; status: string }>();
   for (const mandate of gcMandates) {
     const customerId = mandate.links?.customer;
     if (!customerId) continue;
     const existing = customerToMandate.get(customerId);
     if (!existing || mandate.status === "active") {
-      customerToMandate.set(customerId, mandate.id);
+      customerToMandate.set(customerId, {
+        id: mandate.id,
+        status: mandate.status,
+      });
     }
   }
 
@@ -108,8 +123,8 @@ export async function GET(request: Request) {
       `${gcCustomer.given_name || ""} ${gcCustomer.family_name || ""}`.trim();
     if (!gcName) continue;
 
-    const mandateId = customerToMandate.get(gcCustomer.id);
-    if (!mandateId) continue; // no active mandate, nothing to link
+    const mandate = customerToMandate.get(gcCustomer.id);
+    if (!mandate) continue;
 
     const normalized = normalizeName(gcName);
     const ourMatch = ourByNormalized.get(normalized);
@@ -119,11 +134,16 @@ export async function GET(request: Request) {
         our_customer_id: ourMatch.id,
         our_company_name: ourMatch.company_name,
         gc_customer_name: gcName,
-        gc_mandate_id: mandateId,
+        gc_mandate_id: mandate.id,
+        gc_mandate_status: mandate.status,
         gc_email: gcCustomer.email || null,
       });
     } else {
-      unmatchedGc.push({ gc_customer_name: gcName, gc_mandate_id: mandateId });
+      unmatchedGc.push({
+        gc_customer_name: gcName,
+        gc_mandate_id: mandate.id,
+        gc_mandate_status: mandate.status,
+      });
     }
   }
 
@@ -224,7 +244,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     mode: apply ? "APPLIED (safe matches only)" : "DRY RUN — nothing written, add &apply=true to write",
     summary: {
-      gocardless_customers_with_active_mandate: customerToMandate.size,
+      gocardless_customers_with_mandate: customerToMandate.size,
       our_customers_total: ourCustomers?.length || 0,
       matched_total: matched.length,
       safe_to_apply: safeMatches.length,
