@@ -482,8 +482,9 @@ function ManualPaymentForm({
       <p className="lookup-manual-help">
         For a lump that is not a monthly Direct Debit — insurance on a stolen
         van, a vehicle sold off the agreement, or a customer paying down
-        part of the balance. It comes off the remaining instalments from the
-        end of the schedule, so collections still due stay in place.
+        part of the balance. Dated today, it comes off the end of the
+        schedule. Dated in the past, nothing after that day is left as due,
+        and the line sits in date order.
       </p>
       {msg && <div className="lookup-ok">{msg}</div>}
       {open && (

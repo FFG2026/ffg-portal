@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
+import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -137,21 +138,22 @@ export async function GET(request: Request) {
   const { data: payments } = await supabase
     .from("payments")
     .select("*")
-    .eq("agreement_id", agreement.id)
-    .order("instalment_number", { ascending: true });
+    .eq("agreement_id", agreement.id);
 
-  const schedule = payments || [];
+  const schedule = sortByDueDate(payments || []);
   const paidPayments = schedule.filter((p) => p.status === "paid");
   const paidCount = paidPayments.length;
-  const lastPaid = paidPayments[paidPayments.length - 1];
+  const lastPaid = [...paidPayments].sort((a, b) =>
+    String(a.paid_date || a.due_date).localeCompare(
+      String(b.paid_date || b.due_date)
+    )
+  ).pop();
 
-  // Settlement figure = the total of all instalments not yet paid,
-  // matching FFG's settlement basis (remaining scheduled payments,
-  // no early settlement rebate). Correct from day one, before any
-  // payment has been collected.
   const settlementFigure = schedule
     .filter((p) => p.status !== "paid")
     .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const scheduleWithBalance = withRemainingBalance(schedule);
 
   return NextResponse.json(
     {
@@ -181,7 +183,7 @@ export async function GET(request: Request) {
           ? lastPaid.paid_date || lastPaid.due_date
           : null,
       },
-      schedule: schedule.map((p) => ({
+      schedule: scheduleWithBalance.map((p) => ({
         instalment_number: p.instalment_number,
         due_date: p.due_date,
         amount: p.amount,
