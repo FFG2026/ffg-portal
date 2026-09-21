@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
-import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
+import { fetchAllIn, fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
@@ -66,15 +66,14 @@ export async function GET(request: Request) {
     }
 
     const agreementIds = (allAgreements || []).map((a) => a.id);
-    const allPayments =
-      agreementIds.length === 0
-        ? []
-        : await fetchAllRows(() =>
-            supabase
-              .from("payments")
-              .select("agreement_id, amount, status")
-              .in("agreement_id", agreementIds)
-          );
+    const allPayments = await fetchAllIn(
+      (chunk) =>
+        supabase
+          .from("payments")
+          .select("agreement_id, amount, status")
+          .in("agreement_id", chunk),
+      agreementIds
+    );
 
     const results = customers.map((c) => ({
       company_name: c.company_name,

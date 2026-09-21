@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
-import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
+import { fetchAllIn, fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import {
@@ -12,7 +12,6 @@ import {
 } from "../../../../lib/deal-status";
 import { fetchGoCardlessPaymentsChargedBetween } from "../../../../lib/gocardless/client";
 import { collectedPoundsFromGoCardlessPayments } from "../../../../lib/gocardless/match-payments";
-import { applyGoCardlessCollections } from "../../../../lib/gocardless/sync-payments";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -64,27 +63,28 @@ export async function GET(request: Request) {
 
     if (book === "ffg" && process.env.GOCARDLESS_ACCESS_TOKEN) {
       try {
-        const gcMonth = await fetchGoCardlessPaymentsChargedBetween(
-          monthStart,
-          nextMonth
-        );
+        const gcMonth = await Promise.race([
+          fetchGoCardlessPaymentsChargedBetween(monthStart, nextMonth),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("GoCardless timed out")), 8000)
+          ),
+        ]);
         gcCollectedThisMonth = collectedPoundsFromGoCardlessPayments(gcMonth);
-        await applyGoCardlessCollections(supabase, agreements || [], gcMonth);
       } catch {
-        // Book figures still load if GoCardless is down.
+        // Book figures still load if GoCardless is down or slow.
       }
     }
 
     const ids = (agreements || []).map((a) => a.id);
-    payments = ids.length
-      ? await fetchAllRows(() =>
-          supabase
-            .from("payments")
-            .select("agreement_id, amount, status, due_date, paid_date, source")
-            .in("agreement_id", ids)
-            .order("id")
-        )
-      : [];
+    payments = await fetchAllIn(
+      (chunk) =>
+        supabase
+          .from("payments")
+          .select("agreement_id, amount, status, due_date, paid_date, source")
+          .in("agreement_id", chunk)
+          .order("id"),
+      ids
+    );
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Could not load the book" },

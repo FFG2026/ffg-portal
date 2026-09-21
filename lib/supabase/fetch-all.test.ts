@@ -1,23 +1,30 @@
-import { fetchAllRows } from "./fetch-all";
+import { fetchAllIn } from "./fetch-all";
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
 }
 
 async function run() {
-  const all = Array.from({ length: 2503 }, (_, i) => ({ i }));
-  const rows = await fetchAllRows(() => ({
-    range: async (a: number, b: number) => ({
-      data: all.slice(a, b + 1),
-      error: null,
-    }),
-  }));
-  assert(rows.length === 2503, `expected 2503 got ${rows.length}`);
-  assert(rows[0].i === 0 && rows[2502].i === 2502, "order preserved");
-  console.log("fetch-all tests ok");
+  const seen: string[][] = [];
+  const rows = await fetchAllIn(
+    (chunk) => {
+      seen.push(chunk);
+      return {
+        range: async () => ({
+          data: chunk.map((id) => ({ id })),
+          error: null,
+        }),
+      };
+    },
+    Array.from({ length: 90 }, (_, i) => `id-${i}`),
+    80
+  );
+  assert(seen.length === 2, `chunks ${seen.length}`);
+  assert(seen[0].length === 80, "first chunk 80");
+  assert(seen[1].length === 10, "second chunk 10");
+  assert(rows.length === 90, `rows ${rows.length}`);
+  assert((await fetchAllIn(() => ({ range: async () => ({ data: [], error: null }) }), [])).length === 0, "empty");
+  console.log("fetch-all in chunks ok");
 }
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+run();

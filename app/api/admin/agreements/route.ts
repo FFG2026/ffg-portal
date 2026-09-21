@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
-import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
+import { fetchAllIn, fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { isLiveDeal, paidCount, overdueSum } from "../../../../lib/deal-status";
@@ -51,14 +51,14 @@ export async function GET(request: Request) {
       ),
     ]);
     const ids = (agreements || []).map((a) => a.id);
-    payments = ids.length
-      ? await fetchAllRows(() =>
-          supabase
-            .from("payments")
-            .select("agreement_id, amount, status, due_date, paid_date")
-            .in("agreement_id", ids)
-        )
-      : [];
+    payments = await fetchAllIn(
+      (chunk) =>
+        supabase
+          .from("payments")
+          .select("agreement_id, amount, status, due_date, paid_date")
+          .in("agreement_id", chunk),
+      ids
+    );
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Could not load agreements" },
