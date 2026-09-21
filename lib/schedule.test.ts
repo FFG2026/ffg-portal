@@ -1,7 +1,9 @@
 import {
   addMonths,
   buildPaymentSchedule,
+  financeLeaseScheduleNeedsRepair,
   instalmentDueFromStart,
+  rebuildFinanceLeaseSchedule,
   rewritePaymentSchedule,
   startDateFromDriveFolder,
   startDateFromFirstPayment,
@@ -84,4 +86,46 @@ assert(
 );
 assert(rewritten[1].status === "due", "double collection is netted with the refund");
 assert(rewritten[34].amount === 595.39, "last instalment is a full 595.39");
+
+const fl14 = rebuildFinanceLeaseSchedule(
+  {
+    termMonths: 36,
+    monthlyInstalment: 1146.05,
+    startDate: "2025-07-26",
+  },
+  [
+    { chargeDate: "2025-08-26", amount: 1146.05, gocardless_payment_id: "PM1" },
+    { chargeDate: "2025-09-25", amount: 1146.05, gocardless_payment_id: "PM2" },
+    { chargeDate: "2025-10-27", amount: 1146.05, gocardless_payment_id: "PM3" },
+    { chargeDate: "2025-11-25", amount: 1146.05, gocardless_payment_id: "PM4" },
+    { chargeDate: "2025-12-29", amount: 1146.05, gocardless_payment_id: "PM5" },
+    { chargeDate: "2026-01-26", amount: 1146.05, gocardless_payment_id: "PM37" },
+    { chargeDate: "2026-04-27", amount: 1146.05, gocardless_payment_id: "PM6" },
+    { chargeDate: "2026-05-26", amount: 1146.05, gocardless_payment_id: "PM7" },
+    { chargeDate: "2026-06-25", amount: 1146.05, gocardless_payment_id: "PM8" },
+    { chargeDate: "2026-07-27", amount: 1146.05, gocardless_payment_id: "PM38" },
+    { chargeDate: "2026-08-25", amount: 1146.05, gocardless_payment_id: "PM39" },
+  ]
+);
+assert(fl14.length === 36, "FL14 is 36 monthly rents");
+assert(fl14[0].due_date === "2025-08-26", "first due from start");
+assert(fl14[5].due_date === "2026-01-26", "January sits in instalment order");
+assert(fl14[5].status === "paid" && fl14[5].gocardless_payment_id === "PM37", "Jan leftover becomes instalment 6");
+assert(fl14[6].due_date === "2026-02-26" && fl14[6].status === "due", "Feb hole is restored as due");
+assert(fl14[7].due_date === "2026-03-26" && fl14[7].status === "due", "Mar hole is restored as due");
+assert(fl14[11].status === "paid" && fl14[11].amount === 1146.05, "July collection is VAT-inclusive");
+assert(fl14[12].status === "paid", "August collection ticks instalment 13");
+assert(fl14[13].status === "due" && fl14[13].amount === 1146.05, "remaining dues are gross not net");
+assert(fl14.every((row) => row.instalment_number === fl14.indexOf(row) + 1), "numbers stay in date order");
+assert(
+  financeLeaseScheduleNeedsRepair(
+    [
+      { instalment_number: 9, due_date: "2026-07-27", amount: 955.04, status: "due" },
+      { instalment_number: 37, due_date: "2026-01-26", amount: 1146.05, status: "paid" },
+    ],
+    { termMonths: 36, monthlyInstalment: 1146.05, startDate: "2025-07-26" }
+  ),
+  "net dues and leftover numbers need an FL rebuild"
+);
+
 console.log("schedule tests ok");

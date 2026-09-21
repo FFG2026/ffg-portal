@@ -1,3 +1,9 @@
+import {
+  amountsClose,
+  daysBetween,
+  looksLikeVatExclusive,
+} from "./gocardless/match-payments";
+
 export function addMonths(isoDate: string, months: number): string {
   const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
   const cursor = new Date(Date.UTC(year, month - 1 + months, 1));
@@ -48,7 +54,7 @@ export function buildPaymentSchedule(opts: {
       instalment_number: i,
       due_date: dueDate,
       amount: opts.monthlyInstalment,
-      status: "due" as "due" | "paid",
+      status: "due" as "due" | "paid" | "failed",
       paid_date: null as string | null,
       balance_after: Math.max(0, balanceAfter),
       gocardless_payment_id: null as string | null,
@@ -105,4 +111,125 @@ export function rewritePaymentSchedule(
     schedule[i].source = src.source || null;
   }
   return schedule;
+}
+
+export type ScheduleCollection = {
+  chargeDate: string;
+  amount: number | string;
+  gocardless_payment_id?: string | null;
+  notes?: string | null;
+  source?: string | null;
+  status?: "paid" | "failed";
+};
+
+function collectionKey(row: ScheduleCollection) {
+  const gc = row.gocardless_payment_id || "";
+  if (gc) return `gc:${gc}`;
+  return `dt:${String(row.chargeDate).slice(0, 10)}:${Math.round(Number(row.amount) * 100)}`;
+}
+
+/**
+ * Finance leases collect VAT-inclusive rent on GoCardless. Rebuild the
+ * contracted term from start_date at the monthly (gross) figure, then attach
+ * collections to the nearest due date so leftover VAT rows cannot steal months.
+ */
+export function rebuildFinanceLeaseSchedule(
+  opts: {
+    termMonths: number;
+    monthlyInstalment: number;
+    startDate: string;
+  },
+  collections: ScheduleCollection[],
+  windowDays = 40
+) {
+  const schedule = buildPaymentSchedule(opts);
+  const monthlyPence = Math.round(Number(opts.monthlyInstalment) * 100);
+  const used = new Set<number>();
+  const seen = new Set<string>();
+  const attached = new Set<string>();
+  const ordered = [...(collections || [])]
+    .filter((row) => {
+      const key = collectionKey(row);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      const pence = Math.round(Number(row.amount) * 100);
+      return (
+        amountsClose(opts.monthlyInstalment, pence) ||
+        amountsClose(row.amount, monthlyPence)
+      );
+    })
+    .sort((a, b) =>
+      String(a.chargeDate).slice(0, 10).localeCompare(String(b.chargeDate).slice(0, 10))
+    );
+
+  const attach = (row: ScheduleCollection, maxDays: number) => {
+    const key = collectionKey(row);
+    if (attached.has(key)) return false;
+    const charge = String(row.chargeDate).slice(0, 10);
+    let best = -1;
+    let bestDiff = Infinity;
+    for (let i = 0; i < schedule.length; i++) {
+      if (used.has(i)) continue;
+      const diff = Math.abs(daysBetween(schedule[i].due_date, charge));
+      if (diff > maxDays) continue;
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = i;
+      }
+    }
+    if (best < 0) return false;
+    used.add(best);
+    attached.add(key);
+    const status = row.status === "failed" ? "failed" : "paid";
+    schedule[best].status = status;
+    schedule[best].paid_date = status === "paid" ? charge : null;
+    schedule[best].gocardless_payment_id = row.gocardless_payment_id || null;
+    schedule[best].notes = row.notes || null;
+    schedule[best].source = row.source || null;
+    schedule[best].amount = opts.monthlyInstalment;
+    return true;
+  };
+
+  for (const row of ordered) attach(row, windowDays);
+  for (const row of ordered) attach(row, 400);
+
+  return schedule;
+}
+
+export function financeLeaseScheduleNeedsRepair(
+  rows: Array<{
+    instalment_number?: number | null;
+    due_date?: string | null;
+    amount?: number | string | null;
+    status?: string | null;
+  }>,
+  opts: { termMonths: number; monthlyInstalment: number; startDate: string }
+) {
+  const term = Number(opts.termMonths || 0);
+  const monthly = Number(opts.monthlyInstalment || 0);
+  const start = String(opts.startDate || "").slice(0, 10);
+  if (term <= 0 || monthly <= 0 || start.length < 10) return false;
+  if ((rows || []).some((row) => Number(row.instalment_number || 0) > term)) {
+    return true;
+  }
+  if (
+    (rows || []).some(
+      (row) =>
+        String(row.status) !== "paid" &&
+        looksLikeVatExclusive(row.amount || 0, monthly)
+    )
+  ) {
+    return true;
+  }
+  const byNumber = new Map(
+    (rows || []).map((row) => [Number(row.instalment_number || 0), row])
+  );
+  for (let n = 1; n <= term; n++) {
+    const row = byNumber.get(n);
+    if (!row) return true;
+    if (String(row.due_date || "").slice(0, 10) !== addMonths(start, n)) {
+      return true;
+    }
+  }
+  return false;
 }

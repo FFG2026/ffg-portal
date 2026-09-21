@@ -6,11 +6,18 @@ import {
   matchGcPaymentsToInstalments,
   unmatchedCollectedPayments,
   scheduleCollectionsOnly,
+  amountsClose,
+  collectedScheduleAmount,
+  COLLECTED_STATUSES,
   type GoCardlessPayment,
   type Instalment,
 } from "./match-payments";
 import { parseAgreementRefFromPayment } from "./parse-ref";
-import { addMonths } from "../schedule";
+import {
+  addMonths,
+  financeLeaseScheduleNeedsRepair,
+  rebuildFinanceLeaseSchedule,
+} from "../schedule";
 import { planPartSettlement } from "../part-settlement";
 import { createAdminClient } from "../supabase/admin";
 
@@ -77,7 +84,7 @@ async function applyMatches(
   const headerRes = await supabase
     .from("agreements")
     .select(
-      "term_months, monthly_instalment, start_date, status, gocardless_mandate_id, documentation_fee"
+      "term_months, monthly_instalment, start_date, status, gocardless_mandate_id, documentation_fee, agreement_type"
     )
     .eq("id", agreement.id)
     .maybeSingle();
@@ -86,7 +93,9 @@ async function applyMatches(
 
   const paymentsRes = await supabase
     .from("payments")
-    .select("id, due_date, status, amount, gocardless_payment_id, instalment_number")
+    .select(
+      "id, due_date, status, amount, gocardless_payment_id, instalment_number, paid_date, notes, source"
+    )
     .eq("agreement_id", agreement.id)
     .order("due_date", { ascending: true });
 
@@ -94,18 +103,91 @@ async function applyMatches(
     throw new Error(paymentsRes.error.message);
   }
 
-  const instalments = (paymentsRes.data || []) as Instalment[];
-  const matches = matchGcPaymentsToInstalments(instalments, gcPayments);
+  const term = Number(header?.term_months || 0);
+  const monthly = Number(header?.monthly_instalment || 0);
+  const start = String(header?.start_date || "").slice(0, 10);
+  const isFl = String(header?.agreement_type || "").toUpperCase() === "FL";
+
+  let instalments = (paymentsRes.data || []) as Instalment[];
+  const scheduleCollections = scheduleCollectionsOnly(
+    gcPayments,
+    header?.documentation_fee,
+    header?.monthly_instalment
+  );
+
+  if (
+    isFl &&
+    term > 0 &&
+    monthly > 0 &&
+    start.length >= 10 &&
+    financeLeaseScheduleNeedsRepair(instalments, {
+      termMonths: term,
+      monthlyInstalment: monthly,
+      startDate: start,
+    })
+  ) {
+    const fromGc = scheduleCollections
+      .filter((p) => p.charge_date && COLLECTED_STATUSES.has(p.status))
+      .map((p) => ({
+        chargeDate: String(p.charge_date).slice(0, 10),
+        amount: Math.round(Number(p.amount)) / 100,
+        gocardless_payment_id: p.id,
+        notes: "GoCardless collection",
+        source: "gocardless",
+        status: "paid" as const,
+      }));
+    const fromRows = instalments
+      .filter((row) => String(row.status) === "paid")
+      .map((row) => ({
+        chargeDate: String(
+          (row as { paid_date?: string | null }).paid_date || row.due_date
+        ).slice(0, 10),
+        amount: Number(row.amount),
+        gocardless_payment_id: row.gocardless_payment_id,
+        notes: (row as { notes?: string | null }).notes || null,
+        source: (row as { source?: string | null }).source || null,
+        status: "paid" as const,
+      }));
+    const rebuilt = rebuildFinanceLeaseSchedule(
+      { termMonths: term, monthlyInstalment: monthly, startDate: start },
+      [...fromGc, ...fromRows]
+    );
+    await supabase.from("payments").delete().eq("agreement_id", agreement.id);
+    const { error: insertErr } = await supabase.from("payments").insert(
+      rebuilt.map((row) => ({ ...row, agreement_id: agreement.id }))
+    );
+    if (!insertErr) {
+      const reload = await supabase
+        .from("payments")
+        .select("id, due_date, status, amount, gocardless_payment_id, instalment_number")
+        .eq("agreement_id", agreement.id)
+        .order("due_date", { ascending: true });
+      if (!reload.error) instalments = (reload.data || []) as Instalment[];
+    }
+  }
+
+  const matches = matchGcPaymentsToInstalments(
+    instalments,
+    scheduleCollections,
+    isFl ? { looseDateDays: 40 } : undefined
+  );
   let markedPaid = 0;
   let markedFailed = 0;
 
   for (const match of matches) {
+    const row = instalments.find((instalment) => instalment.id === match.instalmentId);
+    const gc = scheduleCollections.find((p) => p.id === match.gcPaymentId);
+    const amount =
+      gc && match.status === "paid"
+        ? collectedScheduleAmount(row?.amount || monthly, gc.amount, monthly)
+        : undefined;
     const { error } = await supabase
       .from("payments")
       .update({
         status: match.status,
         paid_date: match.status === "paid" ? match.chargeDate : null,
         gocardless_payment_id: match.gcPaymentId,
+        ...(amount != null ? { amount } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", match.instalmentId);
@@ -118,15 +200,11 @@ async function applyMatches(
   const leftover =
     opts?.leftover === false
       ? []
-      : scheduleCollectionsOnly(
-          unmatchedCollectedPayments(
-            gcPayments,
-            matches,
-            instalments.map((row) => row.gocardless_payment_id)
-          ),
-          header?.documentation_fee,
-          header?.monthly_instalment
-        );
+      : unmatchedCollectedPayments(
+          scheduleCollections,
+          matches,
+          instalments.map((row) => row.gocardless_payment_id)
+        ).filter((payment) => !amountsClose(monthly || 0, payment.amount));
   let nextNumber =
     Math.max(0, ...instalments.map((row) => Number(row.instalment_number || 0))) +
     1;
@@ -150,9 +228,6 @@ async function applyMatches(
     }
   }
 
-  const term = Number(header?.term_months || 0);
-  const monthly = Number(header?.monthly_instalment || 0);
-  const start = String(header?.start_date || "").slice(0, 10);
   const { count } = await supabase
     .from("payments")
     .select("id", { count: "exact", head: true })
