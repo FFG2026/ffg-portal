@@ -509,8 +509,9 @@ function AmendDealForm({
       {open && (
         <p className="lookup-manual-help">
           Use this if Drive pulled a name, figure or date through wrongly.
-          Changing the monthly, term or start date rebuilds the unpaid
-          schedule, as long as nothing has been marked paid yet.
+          Changing the monthly, term or start date rebuilds the schedule
+          (for a rewrite). Paid GoCardless collections of the new monthly
+          amount are kept; the old instalments are replaced.
         </p>
       )}
       {msg && <div className="lookup-ok">{msg}</div>}
