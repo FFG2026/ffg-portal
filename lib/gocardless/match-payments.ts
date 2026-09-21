@@ -23,6 +23,7 @@ export type GoCardlessPayment = {
   amount: number;
   /** Set when the GC description is HP41/2 (instalment 2 on HP41). */
   instalment_number?: number | null;
+  mandateId?: string | null;
 };
 
 export type PaymentMatch = {
@@ -45,6 +46,16 @@ export function daysBetween(a: string, b: string): number {
 
 function amountPence(amount: number | string): number {
   return Math.round(Number(amount) * 100);
+}
+
+/** Same collection, allowing a small GC fee / rounding difference. */
+export function amountsClose(
+  instalmentAmount: number | string,
+  gcAmountPence: number
+) {
+  const inst = amountPence(instalmentAmount);
+  const diff = Math.abs(inst - gcAmountPence);
+  return diff <= 100 || diff <= Math.round(inst * 0.02);
 }
 
 function nearestInstalment(
@@ -71,12 +82,9 @@ function nearestInstalment(
 
     const diff = Math.abs(daysBetween(instalment.due_date, chargeDate));
     if (diff > MATCH_WINDOW_DAYS) continue;
-
-    const amountPenalty =
-      amountPence(instalment.amount) === gcPayment.amount ? 0 : 0.5;
-    const score = diff + amountPenalty;
-    if (score < bestScore) {
-      bestScore = score;
+    if (!amountsClose(instalment.amount, gcPayment.amount)) continue;
+    if (diff < bestScore) {
+      bestScore = diff;
       best = instalment;
     }
   }
@@ -170,6 +178,27 @@ export function matchGcPaymentsToInstalments(
   }
 
   return matches;
+}
+
+export function unmatchedCollectedPayments(
+  gcPayments: GoCardlessPayment[],
+  matches: PaymentMatch[],
+  alreadyLinkedIds: (string | null | undefined)[]
+) {
+  const used = new Set<string>([
+    ...matches.map((m) => m.gcPaymentId),
+    ...alreadyLinkedIds.filter((id): id is string => !!id),
+  ]);
+  return gcPayments
+    .filter(
+      (p) =>
+        COLLECTED_STATUSES.has(p.status) &&
+        p.charge_date &&
+        !used.has(p.id)
+    )
+    .sort((a, b) =>
+      String(a.charge_date).localeCompare(String(b.charge_date))
+    );
 }
 
 export function todayIsoDate(): string {

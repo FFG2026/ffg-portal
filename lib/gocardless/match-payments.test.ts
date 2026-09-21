@@ -47,4 +47,19 @@ const byRef = matchGcPaymentsToInstalments(numbered, [
 ]);
 assert(byRef.length === 1 && byRef[0].instalmentId === "b", "HP41/2 attaches to instalment 2 even if the date is off");
 
+const stub = [
+  {
+    id: "one",
+    due_date: "2025-07-22",
+    status: "due",
+    amount: "784.20",
+    gocardless_payment_id: null,
+    instalment_number: 1,
+  },
+];
+const weekly = matchGcPaymentsToInstalments(stub, [
+  { id: "PM150", charge_date: "2025-07-24", status: "paid_out", amount: 15000 },
+]);
+assert(weekly.length === 0, "£150 collection must not tick a £784.20 instalment");
+
 console.log("match-payments tests ok");

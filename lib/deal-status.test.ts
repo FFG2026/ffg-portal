@@ -36,6 +36,13 @@ assert(
   isLiveDeal({ status: "active", term_months: 36 }, stillDue) === true,
   "open term with dues is live"
 );
+assert(
+  isLiveDeal(
+    { status: "active", term_months: 1 },
+    [{ status: "paid" }, { status: "due" }]
+  ) === true,
+  "cancelled DD with remaining dues stays live even if term_months is stale"
+);
 
 assert(
   liveOverdueSum(

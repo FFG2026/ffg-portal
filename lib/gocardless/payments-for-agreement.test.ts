@@ -42,4 +42,24 @@ assert(forHp41.some((p) => p.id === "PM1" && p.instalment_number === 1), "HP41/1
 assert(!forHp41.some((p) => p.id === "PM2"), "HP42/1 on the HP41 mandate does not tick HP41");
 assert(forHp41.some((p) => p.id === "PM3"), "unlabelled payment on the HP41 mandate still matches by mandate");
 
+const hp104 = {
+  id: "b",
+  agreement_number: "HP104",
+  gocardless_mandate_id: null,
+};
+const cancelledDd = paymentsForAgreement(
+  [
+    {
+      id: "PM104",
+      description: "FFG HP104",
+      charge_date: "2025-12-01",
+      status: "paid_out",
+      amount: 15000,
+      links: { mandate: "MD_CANCELLED" },
+    },
+  ],
+  hp104
+);
+assert(cancelledDd.some((p) => p.id === "PM104"), "cancelled mandate still matches by HP number in the description");
+
 console.log("payments-for-agreement tests ok");

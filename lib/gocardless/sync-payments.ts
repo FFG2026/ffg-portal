@@ -4,10 +4,13 @@ import {
 } from "./client";
 import {
   matchGcPaymentsToInstalments,
+  unmatchedCollectedPayments,
   type GoCardlessPayment,
   type Instalment,
 } from "./match-payments";
 import { parseAgreementRefFromPayment } from "./parse-ref";
+import { addMonths } from "../schedule";
+import { planPartSettlement } from "../part-settlement";
 import { createAdminClient } from "../supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -69,6 +72,14 @@ async function applyMatches(
   agreement: AgreementToSync,
   gcPayments: GoCardlessPayment[]
 ): Promise<SyncResult> {
+  const headerRes = await supabase
+    .from("agreements")
+    .select("term_months, monthly_instalment, start_date, status, gocardless_mandate_id")
+    .eq("id", agreement.id)
+    .maybeSingle();
+  if (headerRes.error) throw new Error(headerRes.error.message);
+  const header = headerRes.data;
+
   const paymentsRes = await supabase
     .from("payments")
     .select("id, due_date, status, amount, gocardless_payment_id, instalment_number")
@@ -100,9 +111,126 @@ async function applyMatches(
     else markedFailed += 1;
   }
 
+  const leftover = unmatchedCollectedPayments(
+    gcPayments,
+    matches,
+    instalments.map((row) => row.gocardless_payment_id)
+  );
+  let nextNumber =
+    Math.max(0, ...instalments.map((row) => Number(row.instalment_number || 0))) +
+    1;
+  for (const payment of leftover) {
+    const amount = Math.round(Number(payment.amount)) / 100;
+    const due = String(payment.charge_date).slice(0, 10);
+    const { error } = await supabase.from("payments").insert({
+      agreement_id: agreement.id,
+      instalment_number: nextNumber,
+      due_date: due,
+      amount,
+      status: "paid",
+      paid_date: due,
+      gocardless_payment_id: payment.id,
+      source: "gocardless",
+      notes: "GoCardless collection",
+    });
+    if (!error) {
+      nextNumber += 1;
+      markedPaid += 1;
+    }
+  }
+
+  const term = Number(header?.term_months || 0);
+  const monthly = Number(header?.monthly_instalment || 0);
+  const start = String(header?.start_date || "").slice(0, 10);
+  const { count } = await supabase
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("agreement_id", agreement.id);
+  const have = count || 0;
+  if (term > have && monthly > 0 && start.length >= 10) {
+    const extras = [];
+    for (let n = nextNumber; extras.length + have < term; n += 1) {
+      extras.push({
+        agreement_id: agreement.id,
+        instalment_number: n,
+        due_date: addMonths(start, n),
+        amount: monthly,
+        status: "due",
+        paid_date: null,
+      });
+    }
+    if (extras.length) {
+      await supabase.from("payments").insert(extras);
+    }
+  }
+
+  const leftoverPounds = leftover.reduce(
+    (sum, payment) => sum + Math.round(Number(payment.amount)) / 100,
+    0
+  );
+  if (leftoverPounds > 0.009) {
+    const { data: dueRows } = await supabase
+      .from("payments")
+      .select("id, instalment_number, amount, due_date, status")
+      .eq("agreement_id", agreement.id);
+    const unpaid = (dueRows || [])
+      .filter((row) => String(row.status) !== "paid")
+      .map((row) => ({
+        id: row.id,
+        instalment_number: Number(row.instalment_number),
+        amount: Number(row.amount),
+        due_date: String(row.due_date),
+      }));
+    try {
+      const plan = planPartSettlement(unpaid, leftoverPounds);
+      if (plan.removeIds.length) {
+        await supabase.from("payments").delete().in("id", plan.removeIds);
+      }
+      if (plan.reduce) {
+        await supabase
+          .from("payments")
+          .update({ amount: plan.reduce.amount })
+          .eq("id", plan.reduce.id);
+      }
+    } catch {
+      // Extra collections beyond the contracted remaining stay as paid rows.
+    }
+  }
+
+  const { data: allRows } = await supabase
+    .from("payments")
+    .select("id, amount, due_date, instalment_number, status")
+    .eq("agreement_id", agreement.id);
+  const sorted = (allRows || []).sort(
+    (a, b) =>
+      String(a.due_date).localeCompare(String(b.due_date)) ||
+      Number(a.instalment_number) - Number(b.instalment_number)
+  );
+  let remaining = sorted.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  for (const row of sorted) {
+    remaining = Math.round((remaining - Number(row.amount || 0)) * 100) / 100;
+    await supabase
+      .from("payments")
+      .update({ balance_after: Math.max(0, remaining) })
+      .eq("id", row.id);
+  }
+
+  const hasUnpaid = sorted.some((row) => String(row.status) !== "paid");
+  const patch: Record<string, string> = {};
+  if (hasUnpaid && String(header?.status || "") === "settled") {
+    patch.status = "active";
+  }
+  const mandateFromGc = gcPayments.find((p) => p.mandateId)?.mandateId;
+  if (mandateFromGc && !header?.gocardless_mandate_id) {
+    patch.gocardless_mandate_id = mandateFromGc;
+  }
+  if (Object.keys(patch).length) {
+    await supabase.from("agreements").update(patch).eq("id", agreement.id);
+  }
+
   return {
     agreementId: agreement.id,
-    mandateId: agreement.gocardless_mandate_id || "",
+    mandateId: patch.gocardless_mandate_id || agreement.gocardless_mandate_id || "",
     gcPayments: gcPayments.length,
     markedPaid,
     markedFailed,
@@ -130,7 +258,9 @@ export async function syncAgreementPayments(
   try {
     const raw =
       gcRaw ||
-      (mandateId ? await fetchPaymentsForMandate(mandateId) : []);
+      (mandateId
+        ? await fetchPaymentsForMandate(mandateId)
+        : await fetchAllGoCardlessPayments());
     const gcPayments = paymentsForAgreement(raw, agreement);
     return await applyMatches(supabase, agreement, gcPayments);
   } catch (err: any) {
