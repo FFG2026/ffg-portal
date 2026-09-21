@@ -6,6 +6,7 @@ import AdminShell, { adminHeaders } from "./AdminShell";
 import { useBookReload } from "../../lib/admin-book-reload";
 
 type Dashboard = {
+  generated_at?: string;
   totals: {
     live: number;
     finished: number;
@@ -48,7 +49,8 @@ function DashboardInner() {
   const [syncMsg, setSyncMsg] = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/admin/dashboard?ts=${Date.now()}`, {
+    const res = await fetch("/api/admin/dashboard", {
+      method: "POST",
       headers: adminHeaders(),
       cache: "no-store",
     });
@@ -91,11 +93,26 @@ function DashboardInner() {
         from GoCardless, including descriptions like HP41/1. Refresh after a
         collection run. New deals go on New deal — the workbook can still be
         dropped there if you have a batch of tabs to load.
+        {data?.generated_at && (
+          <>
+            {" "}
+            Figures at{" "}
+            {new Date(data.generated_at).toLocaleTimeString("en-GB", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+            .
+          </>
+        )}
       </p>
 
       <div className="admin-actions">
         <button className="primary" onClick={refreshCollections} disabled={syncing}>
           {syncing ? "Refreshing from GoCardless…" : "Refresh collections from GoCardless"}
+        </button>
+        <button onClick={() => load()} type="button">
+          Reload figures
         </button>
         <button onClick={() => router.push("/admin/new-deal")}>Load a new deal</button>
       </div>

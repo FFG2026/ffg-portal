@@ -41,6 +41,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     e.preventDefault();
     setError("");
     const res = await fetch("/api/admin/dashboard", {
+      method: "POST",
       headers: { "x-admin-secret": secret.trim() },
     });
     if (!res.ok) {

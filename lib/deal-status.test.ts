@@ -50,4 +50,27 @@ assert(
   "live HP with a past due still flags"
 );
 
+assert(
+  liveOverdueSum(
+    { status: "settled", term_months: 19 },
+    [
+      { status: "paid", amount: 884.16, due_date: "2024-04-05" },
+      { status: "paid", amount: 15914.88, due_date: "2024-05-05" },
+    ],
+    "2026-09-21"
+  ) === 0,
+  "HP23 settlement lump is paid, not overdue"
+);
+assert(
+  liveOverdueSum(
+    { status: "settled", term_months: 16 },
+    [
+      { status: "paid", amount: 861.28, due_date: "2024-03-18" },
+      { status: "paid", amount: 18086.88, due_date: "2024-04-18" },
+    ],
+    "2026-09-21"
+  ) === 0,
+  "HP33 settlement lump is paid, not overdue"
+);
+
 console.log("deal-status tests ok");

@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
-import { isLiveDeal, liveOverdueSum } from "../../../../lib/deal-status";
+import { isLiveDeal, liveOverdueSum, isPaidRow, unpaidSum } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 function num(v: unknown) {
   return Number(v || 0);
@@ -40,6 +42,7 @@ export async function GET(request: Request) {
         supabase
           .from("payments")
           .select("agreement_id, amount, status, due_date, paid_date")
+          .order("id")
       ),
       fetchAllRows(() => supabase.from("customers").select("id, company_name")),
     ]);
@@ -78,7 +81,7 @@ export async function GET(request: Request) {
     const dueMonth = String(p.due_date).slice(0, 7);
     if (!monthMap.has(dueMonth)) monthMap.set(dueMonth, { paid: 0, unpaid: 0 });
     const bucket = monthMap.get(dueMonth)!;
-    if (p.status === "paid") {
+    if (isPaidRow(p.status)) {
       paidTotal += amount;
       bucket.paid += amount;
       const collectedOn = (p.paid_date || p.due_date || "").slice(0, 10);
@@ -145,8 +148,9 @@ export async function GET(request: Request) {
         amount: null,
       });
     }
-    const overdueAmt = liveOverdueSum(a, rows, today);
-    if (overdueAmt > 0) {
+    const overdueAmt =
+      unpaidSum(rows) > 0 ? liveOverdueSum(a, rows, today) : 0;
+    if (isLive && overdueAmt > 0) {
       attention.push({
         agreement_number: a.agreement_number,
         company_name: company,
@@ -184,8 +188,12 @@ export async function GET(request: Request) {
     chart,
     attention: attention.slice(0, 40),
     },
-    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } }
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", Pragma: "no-cache" } }
   );
+}
+
+export async function POST(request: Request) {
+  return GET(request);
 }
 
 function round2(n: number) {
