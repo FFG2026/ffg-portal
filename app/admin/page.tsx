@@ -146,9 +146,7 @@ function DashboardInner() {
             <div className="admin-stat warn">
               <div className="lbl">Overdue</div>
               <div className="num">{gbp(data.totals.overdue)}</div>
-              <div className="sub">
-                {data.totals.no_mandate} live deals with no mandate
-              </div>
+              <div className="sub">No payment in the last month</div>
             </div>
           </div>
 

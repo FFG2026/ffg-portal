@@ -1,4 +1,11 @@
-import { isLiveDeal, unpaidSum, paidCount, liveOverdueSum } from "./deal-status";
+import {
+  isLiveDeal,
+  unpaidSum,
+  paidCount,
+  liveOverdueSum,
+  receivedPaymentInLastMonth,
+  lastReceivedPaymentDate,
+} from "./deal-status";
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
@@ -71,6 +78,39 @@ assert(
     "2026-09-21"
   ) === 0,
   "HP33 settlement lump is paid, not overdue"
+);
+
+const payingThisMonth = [
+  { status: "paid", amount: 500, due_date: "2026-08-21", paid_date: "2026-08-21" },
+  { status: "due", amount: 500, due_date: "2026-07-21" },
+  { status: "due", amount: 500, due_date: "2026-09-21" },
+];
+assert(
+  lastReceivedPaymentDate(payingThisMonth) === "2026-08-21",
+  "last payment uses paid_date"
+);
+assert(
+  receivedPaymentInLastMonth(payingThisMonth, "2026-09-21") === true,
+  "21 Aug is within one month of 21 Sep"
+);
+assert(
+  liveOverdueSum({ status: "active", term_months: 36 }, payingThisMonth, "2026-09-21") ===
+    0,
+  "live account that paid in the last month is not overdue"
+);
+
+const missedMonth = [
+  { status: "paid", amount: 500, due_date: "2026-07-21", paid_date: "2026-07-21" },
+  { status: "due", amount: 500, due_date: "2026-08-21" },
+];
+assert(
+  receivedPaymentInLastMonth(missedMonth, "2026-09-21") === false,
+  "21 Jul is more than one month before 21 Sep"
+);
+assert(
+  liveOverdueSum({ status: "active", term_months: 36 }, missedMonth, "2026-09-21") ===
+    500,
+  "no payment in the last month still flags overdue"
 );
 
 console.log("deal-status tests ok");
