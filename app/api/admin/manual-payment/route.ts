@@ -117,7 +117,6 @@ export async function POST(request: Request) {
   const { error: agrUpd } = await supabase
     .from("agreements")
     .update({
-      term_months: remaining?.length || 0,
       status: stillDue ? "active" : "settled",
     })
     .eq("id", agreement.id);

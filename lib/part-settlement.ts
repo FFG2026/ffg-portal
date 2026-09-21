@@ -46,9 +46,10 @@ function allocateFromEnd(pool: UnpaidInstalment[], pay: number): PartSettlementP
 }
 
 /**
- * A lump on a past date clears everything still due on or after that day
- * (nothing later should show as due). A lump dated today shaves from the
- * back of the book so near-term Direct Debits stay.
+ * A lump that covers everything still due on or after that day (insurance
+ * settlement, stolen van) clears those rows. A smaller past-dated amount
+ * only shaves the back of the book so the HP does not look finished.
+ * A lump dated today always shaves from the back so near-term Direct Debits stay.
  */
 export function planPartSettlement(
   unpaid: UnpaidInstalment[],
@@ -73,7 +74,10 @@ export function planPartSettlement(
     throw new Error("There are no instalments left to apply this to.");
   }
 
-  if (paidDate && paidDate < today) {
+  // A past-dated lump that covers everything still due from that day
+  // (e.g. insurance settlement) clears those rows. A smaller amount only
+  // shaves the back of the book — it must not look like the HP is finished.
+  if (paidDate && paidDate < today && pay + 0.009 >= owing) {
     return {
       removeIds: pool.map((row) => row.id),
       reduce: null,

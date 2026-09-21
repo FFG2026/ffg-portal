@@ -34,6 +34,11 @@ const retrospective = planPartSettlement(
 assert(retrospective.removeIds.length === 4, "past-dated lump clears all dues from that day");
 assert(retrospective.reduce === null, "no leftover dues after a retrospective settle");
 
+const smallPast = planPartSettlement(unpaid, 500, "2024-04-29", "2026-09-21");
+assert(smallPast.removeIds.length === 0, "£500 must not wipe the rest of the HP");
+assert(smallPast.reduce?.id === "36", "shaves the last instalment instead");
+assert(smallPast.reduce?.amount === 1594.95, `got ${smallPast.reduce?.amount}`);
+
 assert(
   nextInstalmentNumber(
     [
