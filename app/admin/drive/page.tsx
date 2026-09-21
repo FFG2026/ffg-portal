@@ -23,6 +23,8 @@ type ScanResult = {
   linked: number;
   unmatched_folders: { name: string; id: string; company: string | null }[];
   missing_in_drive: string[];
+  created_from_drive?: string[];
+  ingest_errors?: { name: string; error: string }[];
 };
 
 export default function DrivePage() {
@@ -110,8 +112,11 @@ function DriveInner() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Scan failed");
       setScan(json);
+      const created = (json.created_from_drive || []).length;
       setOk(
-        `Matched ${json.linked} deal folders out of ${json.folder_count} in Drive.`
+        `Matched ${json.linked} existing deals. ${created} new agreement${
+          created === 1 ? "" : "s"
+        } added from Drive.`
       );
       await load();
     } catch (err: any) {
@@ -139,9 +144,9 @@ function DriveInner() {
       <div className="admin-kicker">Google Drive</div>
       <h1>Deal documents</h1>
       <p className="admin-lead">
-        Connect the Future FG Google Drive. Agreement folders such as
-        HP143 - Company are matched to the book, and the signed paperwork
-        shows on lookup.
+        Connect the Future FG Google Drive. New HP / FL folders are read from
+        the signed agreement PDF and added to the book. Open lookup to amend
+        anything that came through wrongly.
       </p>
 
       {ok && <div className="admin-ok">{ok}</div>}
@@ -243,11 +248,19 @@ function DriveInner() {
         <div className="admin-card">
           <h2>Last scan</h2>
           <p className="admin-lead">
-            {scan.linked} book deals now have a Drive folder.{" "}
-            {scan.missing_in_drive.length} in the book have no matching
-            folder. {scan.unmatched_folders.length} Drive folders did not
-            match a deal.
+            {scan.linked} existing deals linked to a folder.
+            {(scan.created_from_drive || []).length
+              ? ` Added ${(scan.created_from_drive || []).join(", ")} from Drive.`
+              : ""}{" "}
+            {scan.missing_in_drive.length} book deals still have no folder.
           </p>
+          {(scan.ingest_errors || []).length > 0 && (
+            <div className="admin-error" style={{ marginBottom: 12 }}>
+              {(scan.ingest_errors || [])
+                .map((row) => `${row.name}: ${row.error}`)
+                .join(" ")}
+            </div>
+          )}
           {scan.unmatched_folders.length > 0 && (
             <table className="admin-table" style={{ marginTop: 12 }}>
               <thead>

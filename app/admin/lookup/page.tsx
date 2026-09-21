@@ -15,11 +15,17 @@ type LookupResult = {
     start_date: string;
     term_months: number;
     total_lend: number;
+    purchase_price: number | null;
+    customer_deposit: number | null;
+    commission: number | null;
+    documentation_fee: number | null;
     gocardless_mandate_id: string | null;
   };
   customer: {
     company_name: string;
+    contact_name: string | null;
     email: string | null;
+    phone: string | null;
     has_portal_login: boolean;
   } | null;
   status: {
@@ -348,6 +354,15 @@ function LookupInner() {
                 )}
               </div>
 
+              <AmendDealForm
+                key={result.agreement.agreement_number}
+                result={result}
+                onDone={() => {
+                  runLookup("agreement", result.agreement.agreement_number);
+                  notifyBookChanged();
+                }}
+              />
+
               {result.status.live && result.status.settlement_figure > 0 && (
                 <ManualPaymentForm
                   agreementNumber={result.agreement.agreement_number}
@@ -411,6 +426,135 @@ function LookupInner() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function AmendDealForm({
+  result,
+  onDone,
+}: {
+  result: LookupResult;
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
+  const [form, setForm] = useState({
+    company_name: result.customer?.company_name || "",
+    contact_name: result.customer?.contact_name || "",
+    email: result.customer?.email || "",
+    phone: result.customer?.phone || "",
+    asset_description: result.agreement.asset_description || "",
+    purchase_price: String(result.agreement.purchase_price ?? ""),
+    customer_deposit: String(result.agreement.customer_deposit ?? ""),
+    total_lend: String(result.agreement.total_lend ?? ""),
+    commission: String(result.agreement.commission ?? ""),
+    documentation_fee: String(result.agreement.documentation_fee ?? ""),
+    monthly_instalment: String(result.agreement.monthly_instalment ?? ""),
+    term_months: String(result.agreement.term_months ?? ""),
+    start_date: result.agreement.start_date || "",
+    gocardless_mandate_id: result.agreement.gocardless_mandate_id || "",
+  });
+
+  const set = (key: string, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    setMsg("");
+    try {
+      const res = await fetch("/api/admin/deals", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({
+          agreement_number: result.agreement.agreement_number,
+          ...form,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not save");
+      setMsg(
+        json.schedule_note ||
+          (json.instalments
+            ? `Saved. Schedule is now ${json.instalments} instalments.`
+            : "Saved.")
+      );
+      setOpen(false);
+      onDone();
+    } catch (err: any) {
+      setError(err.message || "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="lookup-manual">
+      <button
+        type="button"
+        className="lookup-manual-toggle"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? "Cancel" : "Amend this deal"}
+      </button>
+      <p className="lookup-manual-help">
+        Use this if Drive pulled a name, figure or date through wrongly. Changing
+        the monthly, term or start date rebuilds the unpaid schedule, as long
+        as nothing has been marked paid yet.
+      </p>
+      {msg && <div className="lookup-ok">{msg}</div>}
+      {open && (
+        <form className="lookup-manual-form" onSubmit={submit}>
+          {(
+            [
+              ["company_name", "Company"],
+              ["contact_name", "Contact"],
+              ["email", "Email"],
+              ["phone", "Phone"],
+              ["asset_description", "Asset"],
+              ["purchase_price", "Cash price"],
+              ["customer_deposit", "Deposit"],
+              ["total_lend", "Amount financed"],
+              ["commission", "Commission"],
+              ["documentation_fee", "Documentation fee"],
+              ["monthly_instalment", "Monthly"],
+              ["term_months", "Term (months)"],
+              ["start_date", "Start date"],
+              ["gocardless_mandate_id", "GoCardless mandate"],
+            ] as const
+          ).map(([key, label]) => (
+            <div
+              className={`lookup-field ${
+                key === "asset_description" || key === "company_name"
+                  ? "lookup-field-wide"
+                  : ""
+              }`}
+              key={key}
+            >
+              <label>{label}</label>
+              <input
+                type={
+                  key === "start_date"
+                    ? "date"
+                    : key === "email"
+                      ? "email"
+                      : "text"
+                }
+                value={form[key]}
+                onChange={(e) => set(key, e.target.value)}
+              />
+            </div>
+          ))}
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+          {error && <div className="lookup-error">{error}</div>}
+        </form>
+      )}
     </div>
   );
 }

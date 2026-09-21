@@ -124,10 +124,10 @@ function NewDealInner() {
       <div className="admin-kicker">Origination</div>
       <h1>Load a new deal</h1>
       <p className="admin-lead">
-        Add the agreement here instead of the spreadsheet. Leave the agreement
-        number blank and the next HP / FL number is used. Paste a GoCardless
-        mandate id if you already have it — monthly collections then sync from
-        the API, no merge sheet required.
+        New deals should come from Google Drive — put the signed pack in
+        Agreements as HP143 - Company, then scan on the Drive page. Use this
+        form if you need to type one in, or to correct a deal on lookup with
+        Amend this deal.
       </p>
       <div className="admin-card" style={{ marginBottom: 28 }}>
         <h2>Or drop in the deal book</h2>

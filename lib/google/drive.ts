@@ -19,6 +19,7 @@ export type DriveFile = {
   name: string;
   mimeType: string;
   modifiedTime?: string;
+  createdTime?: string;
   size?: string;
   webViewLink?: string;
 };
@@ -103,7 +104,7 @@ export async function listDriveChildren(
     url.searchParams.set("pageSize", "1000");
     url.searchParams.set(
       "fields",
-      "nextPageToken, files(id,name,mimeType,modifiedTime,size,webViewLink)"
+      "nextPageToken, files(id,name,mimeType,modifiedTime,createdTime,size,webViewLink)"
     );
     url.searchParams.set("supportsAllDrives", "true");
     url.searchParams.set("includeItemsFromAllDrives", "true");
@@ -114,6 +115,21 @@ export async function listDriveChildren(
     pageToken = json.nextPageToken;
   }
   return files;
+}
+
+export async function downloadDriveFile(accessToken: string, fileId: string) {
+  const res = await fetch(
+    `${DRIVE_FILES}/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Could not download Drive file (${res.status}) ${body.slice(0, 180)}`);
+  }
+  return Buffer.from(await res.arrayBuffer());
 }
 
 export async function scanDealFolders(supabase: SupabaseClient) {
@@ -128,8 +144,13 @@ export async function scanDealFolders(supabase: SupabaseClient) {
   );
 
   let linked = 0;
-  const unmatchedFolders: { name: string; id: string; company: string | null }[] =
-    [];
+  const unmatchedFolders: {
+    name: string;
+    id: string;
+    company: string | null;
+    createdTime?: string;
+    modifiedTime?: string;
+  }[] = [];
   const usedIds = new Set<string>();
 
   for (const agreement of agreements) {
@@ -158,6 +179,8 @@ export async function scanDealFolders(supabase: SupabaseClient) {
       name: folder.name,
       id: folder.id,
       company: parsed?.company || null,
+      createdTime: folder.createdTime,
+      modifiedTime: folder.modifiedTime,
     });
   }
 

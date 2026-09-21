@@ -156,3 +156,29 @@ export async function POST(request: Request) {
     instalments: schedule.length,
   });
 }
+
+export async function PATCH(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const auth = await authorizeAdminRequest(request, body);
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const agreementNumber = String(body.agreement_number || "").trim();
+  if (!agreementNumber) {
+    return NextResponse.json({ error: "Agreement number is required." }, { status: 400 });
+  }
+  try {
+    const { updateAgreementFromFields } = await import("../../../../lib/admin-deal");
+    const result = await updateAgreementFromFields(
+      createAdminClient(),
+      agreementNumber,
+      body
+    );
+    return NextResponse.json({ success: true, ...result });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Could not save changes" },
+      { status: 400 }
+    );
+  }
+}

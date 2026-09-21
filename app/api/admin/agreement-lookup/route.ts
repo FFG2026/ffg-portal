@@ -158,13 +158,19 @@ export async function GET(request: Request) {
         start_date: agreement.start_date,
         term_months: agreement.term_months,
         total_lend: agreement.total_lend,
+        purchase_price: agreement.purchase_price,
+        customer_deposit: agreement.customer_deposit,
+        commission: agreement.commission,
+        documentation_fee: agreement.documentation_fee,
         gocardless_mandate_id: agreement.gocardless_mandate_id,
         status: agreement.status,
       },
       customer: customer
         ? {
             company_name: customer.company_name,
+            contact_name: customer.contact_name || null,
             email: customer.email,
+            phone: customer.phone || null,
             has_portal_login: !!customer.auth_user_id,
           }
         : null,
