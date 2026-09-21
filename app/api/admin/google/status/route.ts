@@ -4,8 +4,9 @@ import { authorizeAdminRequest } from "../../../../../lib/admin";
 import { googleOAuthConfigured } from "../../../../../lib/google/oauth";
 import {
   DEFAULT_AGREEMENTS_FOLDER_ID,
+  driveServiceAccount,
   getAgreementsFolderId,
-  getRefreshToken,
+  isDriveConnected,
 } from "../../../../../lib/google/drive";
 import { getSetting } from "../../../../../lib/google/settings";
 
@@ -18,13 +19,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const supabase = createAdminClient();
-  const refresh = await getRefreshToken(supabase);
-  const email = await getSetting(supabase, "google_connected_email");
+  const service = driveServiceAccount();
+  const connected = await isDriveConnected(supabase);
+  const email =
+    service?.client_email ||
+    (await getSetting(supabase, "google_connected_email"));
   const folderId = await getAgreementsFolderId(supabase);
   const lastScan = await getSetting(supabase, "google_last_scan");
   return NextResponse.json({
     oauth_configured: googleOAuthConfigured(),
-    connected: Boolean(refresh),
+    service_account: Boolean(service),
+    connected,
     email: email || null,
     agreements_folder_id: folderId,
     agreements_folder_url: `https://drive.google.com/drive/folders/${folderId}`,

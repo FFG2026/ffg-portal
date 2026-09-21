@@ -3,6 +3,10 @@ import { fetchAllRows } from "../supabase/fetch-all";
 import { getSetting, setSetting } from "./settings";
 import { parseDealFolderTitle, pickFolderForAgreement } from "./folder-match";
 import { googleOAuthConfigured, refreshAccessToken } from "./oauth";
+import {
+  accessTokenFromServiceAccount,
+  serviceAccountFromEnv,
+} from "./service-account";
 
 export const DEFAULT_AGREEMENTS_FOLDER_ID =
   "13pGew1ioaAll792h3sCXfWbAl62rSczv";
@@ -26,6 +30,15 @@ export async function getRefreshToken(supabase: SupabaseClient) {
   );
 }
 
+export function driveServiceAccount() {
+  return serviceAccountFromEnv();
+}
+
+export async function isDriveConnected(supabase: SupabaseClient) {
+  if (driveServiceAccount()) return true;
+  return Boolean(await getRefreshToken(supabase));
+}
+
 export async function getAgreementsFolderId(supabase: SupabaseClient) {
   return (
     (await getSetting(supabase, "google_agreements_folder_id")) ||
@@ -35,6 +48,10 @@ export async function getAgreementsFolderId(supabase: SupabaseClient) {
 }
 
 export async function driveAccessToken(supabase: SupabaseClient) {
+  const service = driveServiceAccount();
+  if (service) {
+    return accessTokenFromServiceAccount(service);
+  }
   const refresh = await getRefreshToken(supabase);
   if (!refresh) {
     throw new Error("Google Drive is not connected.");

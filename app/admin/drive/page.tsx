@@ -5,6 +5,7 @@ import AdminShell, { adminHeaders } from "../AdminShell";
 
 type Status = {
   oauth_configured: boolean;
+  service_account: boolean;
   connected: boolean;
   email: string | null;
   agreements_folder_id: string;
@@ -121,20 +122,20 @@ function DriveInner() {
 
       <div className="admin-card" style={{ marginBottom: 22 }}>
         <h2>Connection</h2>
-        {!status?.oauth_configured && (
+        {!status?.connected && !status?.service_account && (
           <p className="admin-lead" style={{ marginBottom: 16 }}>
-            Add <span className="mono">GOOGLE_CLIENT_ID</span> and{" "}
-            <span className="mono">GOOGLE_CLIENT_SECRET</span> in Vercel.
-            The authorised redirect URI is{" "}
-            <span className="mono">{status?.callback_url}</span>. Sign in
-            with the Google account that can see the Agreements folder
-            (usually sales@dcfgroup.co.uk).
+            Copy <span className="mono">GOOGLE_SERVICE_ACCOUNT_JSON</span> from
+            the DCF Portal Vercel project onto this site. That is the same
+            Drive robot account DCF already uses — no Google Cloud billing
+            and no Auth Platform setup.
           </p>
         )}
         {status?.connected ? (
           <>
             <p className="admin-lead" style={{ marginBottom: 12 }}>
-              Connected as{" "}
+              {status.service_account
+                ? "Using the DCF Google Drive service account"
+                : "Connected as"}{" "}
               <strong>{status.email || "Google Drive"}</strong>. Folders
               are read from{" "}
               <a href={status.agreements_folder_url} target="_blank" rel="noreferrer">
@@ -158,26 +159,30 @@ function DriveInner() {
               >
                 {busy === "scan" ? "Scanning…" : "Scan deal folders"}
               </button>
-              <button type="button" onClick={connect} disabled={!!busy}>
-                Reconnect
-              </button>
-              <button type="button" onClick={disconnect} disabled={!!busy}>
-                Disconnect
-              </button>
+              {!status.service_account && (
+                <>
+                  <button type="button" onClick={connect} disabled={!!busy}>
+                    Reconnect
+                  </button>
+                  <button type="button" onClick={disconnect} disabled={!!busy}>
+                    Disconnect
+                  </button>
+                </>
+              )}
             </div>
           </>
-        ) : (
+        ) : status?.oauth_configured ? (
           <div className="admin-actions">
             <button
               type="button"
               className="primary"
               onClick={connect}
-              disabled={!!busy || status?.oauth_configured === false}
+              disabled={!!busy}
             >
               {busy === "connect" ? "Opening Google…" : "Connect Google Drive"}
             </button>
           </div>
-        )}
+        ) : null}
       </div>
 
       {scan && (

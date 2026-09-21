@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../../lib/supabase/admin";
 import { authorizeAdminRequest } from "../../../../../lib/admin";
-import { fileKind, filesForAgreement, getRefreshToken } from "../../../../../lib/google/drive";
+import { fileKind, filesForAgreement, isDriveConnected } from "../../../../../lib/google/drive";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -17,8 +17,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = createAdminClient();
-  const refresh = await getRefreshToken(supabase);
-  if (!refresh) {
+  if (!(await isDriveConnected(supabase))) {
     return NextResponse.json({
       connected: false,
       folder: null,

@@ -456,8 +456,8 @@ function DriveDocuments({ agreementNumber }: { agreementNumber: string }) {
       {!loading && error && <div className="lookup-error">{error}</div>}
       {!loading && data && !data.connected && (
         <p className="lookup-docs-help">
-          Connect Google Drive under Drive in the admin menu to pull through
-          signed agreements and invoices for this deal.
+          Connect Google Drive by copying GOOGLE_SERVICE_ACCOUNT_JSON from
+          the DCF Portal Vercel project, then scan folders under Drive.
         </p>
       )}
       {!loading && data?.connected && !data.folder && (
