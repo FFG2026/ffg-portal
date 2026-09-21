@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
+import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get("secret");
-
-  if (secret !== process.env.ADMIN_SECRET) {
+  const secret = getAdminSecret(request);
+  if (!isAuthorizedAdmin(secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
