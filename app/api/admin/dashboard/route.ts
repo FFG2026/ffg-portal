@@ -11,7 +11,7 @@ import {
   overdueSum,
 } from "../../../../lib/deal-status";
 import { fetchGoCardlessPaymentsChargedBetween } from "../../../../lib/gocardless/client";
-import { collectedPoundsFromGoCardlessPayments } from "../../../../lib/gocardless/match-payments";
+import { collectedPoundsFromGoCardlessPayments, collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -48,6 +48,7 @@ export async function GET(request: Request) {
   let payments;
   let customers;
   let gcCollectedThisMonth = 0;
+  let gcMonthLoaded = false;
   try {
     [agreements, customers] = await Promise.all([
       fetchAllRows(() =>
@@ -66,10 +67,11 @@ export async function GET(request: Request) {
         const gcMonth = await Promise.race([
           fetchGoCardlessPaymentsChargedBetween(monthStart, nextMonth),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("GoCardless timed out")), 8000)
+            setTimeout(() => reject(new Error("GoCardless timed out")), 25000)
           ),
         ]);
         gcCollectedThisMonth = collectedPoundsFromGoCardlessPayments(gcMonth);
+        gcMonthLoaded = true;
       } catch {
         // Book figures still load if GoCardless is down or slow.
       }
@@ -80,7 +82,7 @@ export async function GET(request: Request) {
       (chunk) =>
         supabase
           .from("payments")
-          .select("agreement_id, amount, status, due_date, paid_date, source")
+          .select("agreement_id, amount, status, due_date, paid_date, source, gocardless_payment_id")
           .in("agreement_id", chunk)
           .order("id"),
       ids
@@ -127,7 +129,6 @@ export async function GET(request: Request) {
       bucket.paid += amount;
       const collectedOn = (p.paid_date || p.due_date || "").slice(0, 10);
       if (collectedOn >= monthStart && collectedOn < nextMonth) {
-        collectedThisMonth += amount;
         if (String((p as { source?: string }).source || "") === "manual") {
           manualThisMonth += amount;
         }
@@ -141,8 +142,10 @@ export async function GET(request: Request) {
   }
   collectedThisMonth = round2(
     book === "gg"
-      ? collectedThisMonth
-      : Math.max(collectedThisMonth, gcCollectedThisMonth + manualThisMonth)
+      ? collectedThisMonthFromLinkedRows(payments || [], monthStart, nextMonth)
+      : gcMonthLoaded
+        ? gcCollectedThisMonth + manualThisMonth
+        : collectedThisMonthFromLinkedRows(payments || [], monthStart, nextMonth)
   );
 
   for (const a of agreements || []) {

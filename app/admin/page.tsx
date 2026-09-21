@@ -170,7 +170,7 @@ function DashboardInner() {
               <div className="sub">
                 {base === "/admin/gg"
                   ? `Standing order / bank this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`
-                  : `GoCardless cash this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`}
+                  : `GoCardless cash this month (paid out / confirmed) · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`}
               </div>
             </div>
             <div className="admin-stat warn">
