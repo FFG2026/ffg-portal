@@ -72,10 +72,10 @@ export async function fetchGoCardlessPaymentsChargedBetween(
   const last = new Date(Date.parse(`${toExclusive}T00:00:00Z`) - 86400000)
     .toISOString()
     .slice(0, 10);
-  const qs = new URLSearchParams({
-    "charge_date[gte]": fromInclusive,
-    "charge_date[lte]": last,
-    limit: "500",
-  });
+  const qs = new URLSearchParams();
+  qs.set("charge_date[gte]", fromInclusive);
+  qs.set("charge_date[lte]", last);
+  qs.set("status", "paid_out");
+  qs.set("limit", "500");
   return fetchGoCardlessPages(`/payments?${qs.toString()}`, "payments");
 }

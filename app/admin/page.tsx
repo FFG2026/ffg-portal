@@ -111,7 +111,7 @@ function DashboardInner() {
       <p className="admin-lead">
         {base === "/admin/gg"
           ? "Glacier Gem book. Collections are standing orders — open a deal sheet to record a payment when money lands."
-          : "Live book, collections and anything that needs a look. Collected this month is what actually landed in GoCardless this calendar month (plus any manual receipts), not only the instalments already ticked on the book. Refresh after a collection run."}
+          : "Live book, collections and anything that needs a look. Collected this month is what GoCardless has paid out this calendar month — the same total as a payments export — not book ticks or money still going through."}
         {data?.generated_at && (
           <>
             {" "}
@@ -170,7 +170,7 @@ function DashboardInner() {
               <div className="sub">
                 {base === "/admin/gg"
                   ? `Standing order / bank this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`
-                  : `GoCardless cash this month (paid out / confirmed) · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`}
+                  : `Paid out by GoCardless this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`}
               </div>
             </div>
             <div className="admin-stat warn">

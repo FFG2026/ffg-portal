@@ -11,7 +11,7 @@ import {
   overdueSum,
 } from "../../../../lib/deal-status";
 import { fetchGoCardlessPaymentsChargedBetween } from "../../../../lib/gocardless/client";
-import { collectedPoundsFromGoCardlessPayments, collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
+import { paidOutPoundsFromGoCardlessPayments, collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
             setTimeout(() => reject(new Error("GoCardless timed out")), 25000)
           ),
         ]);
-        gcCollectedThisMonth = collectedPoundsFromGoCardlessPayments(gcMonth);
+        gcCollectedThisMonth = paidOutPoundsFromGoCardlessPayments(gcMonth);
         gcMonthLoaded = true;
       } catch {
         // Book figures still load if GoCardless is down or slow.
@@ -144,8 +144,14 @@ export async function GET(request: Request) {
     book === "gg"
       ? collectedThisMonthFromLinkedRows(payments || [], monthStart, nextMonth)
       : gcMonthLoaded
-        ? gcCollectedThisMonth + manualThisMonth
-        : collectedThisMonthFromLinkedRows(payments || [], monthStart, nextMonth)
+        ? gcCollectedThisMonth
+        : collectedThisMonthFromLinkedRows(
+            (payments || []).filter(
+              (p) => String((p as { source?: string }).source || "") !== "manual"
+            ),
+            monthStart,
+            nextMonth
+          )
   );
 
   for (const a of agreements || []) {
