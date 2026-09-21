@@ -330,6 +330,9 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
 .lookup-manual-form button{padding:11px 18px; border-radius:8px; background:var(--blue); color:#fff; font-size:14px; font-weight:600; border:none; cursor:pointer;}
 .lookup-manual-form button:disabled{background:var(--rule); color:var(--slate);}
 .lookup-ok{background:#E7F6EE; border:1px solid #B7E0C5; color:#17663A; padding:12px 14px; border-radius:8px; font-size:13.5px; margin-top:12px;}
+.lookup-check{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink); flex:1 1 100%;}
+.lookup-check input{width:16px; height:16px;}
+.lookup-manual-preview{flex:1 1 100%; font-size:13px; color:var(--slate); margin:0;}
 .lookup-row-note{font-size:11px; color:var(--slate); margin-top:4px; max-width:220px;}
 .lookup-toggle{font-size:13px; font-weight:600; color:var(--blue-deep); cursor:pointer; user-select:none;}
 .lookup-table{width:100%; border-collapse:collapse; margin-top:16px; font-size:13px;}
