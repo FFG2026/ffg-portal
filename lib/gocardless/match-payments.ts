@@ -83,6 +83,20 @@ export function isDocumentationFeeCollection(
   return monthlyPence > 0 && gcAmountPence === monthlyPence + feePence;
 }
 
+/** Confirmed GoCardless cash in pounds, skipping the £195 documentation fee. */
+export function collectedPoundsFromGoCardlessPayments(
+  payments: { status?: string; amount?: number | string | null }[]
+) {
+  let pence = 0;
+  for (const payment of payments || []) {
+    if (!COLLECTED_STATUSES.has(String(payment.status || ""))) continue;
+    const amount = Number(payment.amount) || 0;
+    if (isDocumentationFeeCollection(amount)) continue;
+    pence += amount;
+  }
+  return Math.round(pence) / 100;
+}
+
 export function scheduleCollectionsOnly(
   payments: GoCardlessPayment[],
   documentationFee?: number | string | null,

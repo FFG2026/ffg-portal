@@ -9,6 +9,9 @@ import {
   unpaidSum,
   overdueSum,
 } from "../../../../lib/deal-status";
+import { fetchGoCardlessPaymentsChargedBetween } from "../../../../lib/gocardless/client";
+import { collectedPoundsFromGoCardlessPayments } from "../../../../lib/gocardless/match-payments";
+import { applyGoCardlessCollections } from "../../../../lib/gocardless/sync-payments";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -43,8 +46,9 @@ export async function GET(request: Request) {
   let agreements;
   let payments;
   let customers;
+  let gcCollectedThisMonth = 0;
   try {
-    [agreements, payments, customers] = await Promise.all([
+    [agreements, customers] = await Promise.all([
       fetchAllRows(() =>
         supabase
           .from("agreements")
@@ -52,14 +56,28 @@ export async function GET(request: Request) {
             "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend, status"
           )
       ),
-      fetchAllRows(() =>
-        supabase
-          .from("payments")
-          .select("agreement_id, amount, status, due_date, paid_date")
-          .order("id")
-      ),
       fetchAllRows(() => supabase.from("customers").select("id, company_name")),
     ]);
+
+    if (process.env.GOCARDLESS_ACCESS_TOKEN) {
+      try {
+        const gcMonth = await fetchGoCardlessPaymentsChargedBetween(
+          monthStart,
+          nextMonth
+        );
+        gcCollectedThisMonth = collectedPoundsFromGoCardlessPayments(gcMonth);
+        await applyGoCardlessCollections(supabase, agreements || [], gcMonth);
+      } catch {
+        // Book figures still load if GoCardless is down.
+      }
+    }
+
+    payments = await fetchAllRows(() =>
+      supabase
+        .from("payments")
+        .select("agreement_id, amount, status, due_date, paid_date, source")
+        .order("id")
+    );
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Could not load the book" },
@@ -89,6 +107,7 @@ export async function GET(request: Request) {
   let overdue = 0;
   let dueThisMonth = 0;
   let collectedThisMonth = 0;
+  let manualThisMonth = 0;
   const monthMap = new Map<string, { paid: number; unpaid: number }>();
 
   for (const p of payments || []) {
@@ -102,6 +121,9 @@ export async function GET(request: Request) {
       const collectedOn = (p.paid_date || p.due_date || "").slice(0, 10);
       if (collectedOn >= monthStart && collectedOn < nextMonth) {
         collectedThisMonth += amount;
+        if (String((p as { source?: string }).source || "") === "manual") {
+          manualThisMonth += amount;
+        }
       }
     } else if (liveById.get(p.agreement_id) !== false) {
       bucket.unpaid += amount;
@@ -110,6 +132,9 @@ export async function GET(request: Request) {
       }
     }
   }
+  collectedThisMonth = round2(
+    Math.max(collectedThisMonth, gcCollectedThisMonth + manualThisMonth)
+  );
 
   for (const a of agreements || []) {
     if (liveById.get(a.id) === false) continue;
