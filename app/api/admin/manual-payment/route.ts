@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
-import { planPartSettlement } from "../../../../lib/part-settlement";
+import { planPartSettlement, nextInstalmentNumber } from "../../../../lib/part-settlement";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +45,9 @@ export async function POST(request: Request) {
 
   const { data: payments, error: payErr } = await supabase
     .from("payments")
-    .select("id, instalment_number, amount, status")
+    .select("id, instalment_number, amount, status, due_date")
     .eq("agreement_id", agreement.id)
-    .order("instalment_number");
+    .order("due_date");
   if (payErr) {
     return NextResponse.json({ error: payErr.message }, { status: 500 });
   }
@@ -58,11 +58,12 @@ export async function POST(request: Request) {
       id: p.id,
       instalment_number: p.instalment_number,
       amount: Number(p.amount),
+      due_date: p.due_date,
     }));
 
   let plan;
   try {
-    plan = planPartSettlement(unpaid, amount);
+    plan = planPartSettlement(unpaid, amount, paidDate);
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Could not apply" }, { status: 400 });
   }
@@ -86,10 +87,17 @@ export async function POST(request: Request) {
     }
   }
 
-  const maxN = Math.max(0, ...(payments || []).map((p) => p.instalment_number));
+  const kept = (payments || []).filter((p) => !plan.removeIds.includes(p.id));
+  const n = nextInstalmentNumber(
+    kept.map((p) => ({
+      instalment_number: p.instalment_number,
+      due_date: p.due_date,
+    })),
+    paidDate
+  );
   const { error: insErr } = await supabase.from("payments").insert({
     agreement_id: agreement.id,
-    instalment_number: maxN + 1,
+    instalment_number: n,
     due_date: paidDate,
     amount: Math.round(Number(amount) * 100) / 100,
     status: "paid",
