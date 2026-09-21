@@ -5,6 +5,7 @@ import {
   isDocumentationFeeCollection,
   scheduleCollectionsOnly,
   collectedPoundsFromGoCardlessPayments,
+  paidOutPoundsFromGoCardlessPayments,
   collectedThisMonthPounds,
   collectedThisMonthFromLinkedRows,
   amountsClose,
@@ -103,14 +104,12 @@ assert(
   "collected this month is confirmed GoCardless cash without the doc fee"
 );
 assert(
-  collectedThisMonthPounds({
-    gcPayments: [
-      { status: "paid_out", amount: 3510414 },
-      { status: "pending_submission", amount: 50000 },
-    ],
-    manualPounds: 4069.2,
-  }) === 39173.34,
-  "dashboard collected this month is GC cash plus manual receipts"
+  paidOutPoundsFromGoCardlessPayments([
+    { status: "paid_out", amount: 3510414 },
+    { status: "confirmed", amount: 1500000 },
+    { status: "paid_out", amount: 19500 },
+  ]) === 35104.14,
+  "dashboard collected this month matches a paid-out GoCardless export"
 );
 assert(
   collectedThisMonthFromLinkedRows(

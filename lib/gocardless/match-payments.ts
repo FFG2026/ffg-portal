@@ -134,6 +134,15 @@ export function collectedPoundsFromGoCardlessPayments(
   return Math.round(pence) / 100;
 }
 
+/** Matches a GoCardless payments CSV of paid-out collections. */
+export function paidOutPoundsFromGoCardlessPayments(
+  payments: { status?: string; amount?: number | string | null }[]
+) {
+  return collectedPoundsFromGoCardlessPayments(
+    (payments || []).filter((p) => String(p.status || "") === "paid_out")
+  );
+}
+
 /**
  * Cash actually collected this calendar month: GoCardless confirmed/paid_out
  * (skipping the £195 documentation fee) plus manual bank receipts.
