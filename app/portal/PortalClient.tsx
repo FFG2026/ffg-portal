@@ -264,7 +264,9 @@ export default function PortalClient(props: Props) {
                 {gbp(active.settlementFigure)}
               </div>
               <div className="settlement-valid">
-                Valid to close of business today
+                {active.agreementType === "FL"
+                  ? "Including VAT · valid to close of business today"
+                  : "Valid to close of business today"}
               </div>
               <div className="settlement-rows">
                 <div className="row">
