@@ -16,6 +16,7 @@ type Dashboard = {
     overdue: number;
     due_this_month: number;
     collected_this_month: number;
+    collected_count?: number | null;
     no_mandate: number;
   };
   chart: { month: string; paid: number; unpaid: number }[];
@@ -170,7 +171,7 @@ function DashboardInner() {
               <div className="sub">
                 {base === "/admin/gg"
                   ? `Standing order / bank this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`
-                  : `Paid out by GoCardless this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`}
+                  : `${data.totals.collected_count ? `${data.totals.collected_count} paid-out collections · ` : ""}Paid out by GoCardless this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`}
               </div>
             </div>
             <div className="admin-stat warn">

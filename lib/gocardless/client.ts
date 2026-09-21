@@ -9,18 +9,42 @@ export function gcHeaders() {
   };
 }
 
+export function gcListPaymentsPath(params: Record<string, string>) {
+  const qs = Object.entries(params)
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+    )
+    .join("&");
+  return `/payments?${qs}`;
+}
+
+export function paymentsChargedInRange<
+  T extends { charge_date?: string | null; status?: string | null }
+>(
+  payments: T[],
+  fromInclusive: string,
+  toExclusive: string,
+  status?: string
+) {
+  return (payments || []).filter((p) => {
+    const charge = String(p.charge_date || "").slice(0, 10);
+    if (charge < fromInclusive || charge >= toExclusive) return false;
+    if (status && String(p.status || "") !== status) return false;
+    return true;
+  });
+}
+
 export async function fetchGoCardlessPages(path: string, key: string) {
   const items: any[] = [];
   let after: string | undefined;
+  const join = path.includes("?") ? "&" : "?";
 
   while (true) {
-    const url = new URL(`${GC_API_BASE}${path}`);
-    if (!url.searchParams.has("limit")) {
-      url.searchParams.set("limit", "500");
-    }
-    if (after) url.searchParams.set("after", after);
-
-    const res = await fetch(url.toString(), {
+    const page = after
+      ? `${path}${join}after=${encodeURIComponent(after)}`
+      : path;
+    const res = await fetch(`${GC_API_BASE}${page}`, {
       headers: gcHeaders(),
       cache: "no-store",
     });
@@ -72,10 +96,16 @@ export async function fetchGoCardlessPaymentsChargedBetween(
   const last = new Date(Date.parse(`${toExclusive}T00:00:00Z`) - 86400000)
     .toISOString()
     .slice(0, 10);
-  const qs = new URLSearchParams();
-  qs.set("charge_date[gte]", fromInclusive);
-  qs.set("charge_date[lte]", last);
-  qs.set("status", "paid_out");
-  qs.set("limit", "500");
-  return fetchGoCardlessPages(`/payments?${qs.toString()}`, "payments");
+  const createdFrom = new Date(Date.parse(`${fromInclusive}T00:00:00Z`) - 40 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  const path = gcListPaymentsPath({
+    "charge_date[gte]": fromInclusive,
+    "charge_date[lte]": last,
+    "created_at[gte]": createdFrom,
+    status: "paid_out",
+    limit: "500",
+  });
+  const items = await fetchGoCardlessPages(path, "payments");
+  return paymentsChargedInRange(items, fromInclusive, toExclusive, "paid_out");
 }
