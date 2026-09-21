@@ -7,6 +7,14 @@ import { isLiveDeal, liveOverdueSum, isPaidRow, unpaidSum } from "../../../../li
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+export const maxDuration = 60;
+
+const NO_CACHE = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  Pragma: "no-cache",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+};
 
 function num(v: unknown) {
   return Number(v || 0);
@@ -188,7 +196,7 @@ export async function GET(request: Request) {
     chart,
     attention: attention.slice(0, 40),
     },
-    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", Pragma: "no-cache" } }
+    { headers: NO_CACHE }
   );
 }
 
