@@ -4,6 +4,13 @@ import {
   looksLikeVatExclusive,
 } from "./gocardless/match-payments";
 
+/** Internal leftover label — a normal DD tick, not a different kind of paid. */
+export function visibleScheduleNote(notes?: string | null) {
+  const text = String(notes || "").trim();
+  if (!text || /^gocardless collection$/i.test(text)) return null;
+  return text;
+}
+
 export function addMonths(isoDate: string, months: number): string {
   const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
   const cursor = new Date(Date.UTC(year, month - 1 + months, 1));
@@ -184,7 +191,7 @@ export function rebuildFinanceLeaseSchedule(
     schedule[best].status = status;
     schedule[best].paid_date = status === "paid" ? charge : null;
     schedule[best].gocardless_payment_id = row.gocardless_payment_id || null;
-    schedule[best].notes = row.notes || null;
+    schedule[best].notes = visibleScheduleNote(row.notes);
     schedule[best].source = row.source || null;
     schedule[best].amount = opts.monthlyInstalment;
     return true;

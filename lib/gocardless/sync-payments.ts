@@ -132,7 +132,7 @@ async function applyMatches(
         chargeDate: String(p.charge_date).slice(0, 10),
         amount: Math.round(Number(p.amount)) / 100,
         gocardless_payment_id: p.id,
-        notes: "GoCardless collection",
+        notes: null,
         source: "gocardless",
         status: "paid" as const,
       }));
@@ -220,7 +220,7 @@ async function applyMatches(
       paid_date: due,
       gocardless_payment_id: payment.id,
       source: "gocardless",
-      notes: "GoCardless collection",
+      notes: null,
     });
     if (!error) {
       nextNumber += 1;

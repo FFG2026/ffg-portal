@@ -7,6 +7,7 @@ import {
   rewritePaymentSchedule,
   startDateFromDriveFolder,
   startDateFromFirstPayment,
+  visibleScheduleNote,
 } from "./schedule";
 
 function assert(cond: unknown, msg: string) {
@@ -99,7 +100,7 @@ const fl14 = rebuildFinanceLeaseSchedule(
     { chargeDate: "2025-10-27", amount: 1146.05, gocardless_payment_id: "PM3" },
     { chargeDate: "2025-11-25", amount: 1146.05, gocardless_payment_id: "PM4" },
     { chargeDate: "2025-12-29", amount: 1146.05, gocardless_payment_id: "PM5" },
-    { chargeDate: "2026-01-26", amount: 1146.05, gocardless_payment_id: "PM37" },
+    { chargeDate: "2026-01-26", amount: 1146.05, gocardless_payment_id: "PM37", notes: "GoCardless collection" },
     { chargeDate: "2026-04-27", amount: 1146.05, gocardless_payment_id: "PM6" },
     { chargeDate: "2026-05-26", amount: 1146.05, gocardless_payment_id: "PM7" },
     { chargeDate: "2026-06-25", amount: 1146.05, gocardless_payment_id: "PM8" },
@@ -111,6 +112,7 @@ assert(fl14.length === 36, "FL14 is 36 monthly rents");
 assert(fl14[0].due_date === "2025-08-26", "first due from start");
 assert(fl14[5].due_date === "2026-01-26", "January sits in instalment order");
 assert(fl14[5].status === "paid" && fl14[5].gocardless_payment_id === "PM37", "Jan leftover becomes instalment 6");
+assert(fl14[5].notes == null, "monthly GoCardless tick has no extra label");
 assert(fl14[6].due_date === "2026-02-26" && fl14[6].status === "due", "Feb hole is restored as due");
 assert(fl14[7].due_date === "2026-03-26" && fl14[7].status === "due", "Mar hole is restored as due");
 assert(fl14[11].status === "paid" && fl14[11].amount === 1146.05, "July collection is VAT-inclusive");
@@ -128,4 +130,5 @@ assert(
   "net dues and leftover numbers need an FL rebuild"
 );
 
-console.log("schedule tests ok");
+assert(visibleScheduleNote("GoCardless collection") == null, "hide internal GC label");
+assert(visibleScheduleNote("Refund of double payment") === "Refund of double payment", "keep real notes");
