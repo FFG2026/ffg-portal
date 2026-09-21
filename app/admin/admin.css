@@ -11,7 +11,7 @@
 .admin-who{font-size:12.5px; color:var(--slate);}
 .admin-signout{border:none; background:none; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
 .admin-signout:hover{color:var(--blue-deep);}
-.admin-main{padding:28px clamp(20px, 4vw, 40px) 72px; max-width:1280px; margin:0 auto;}
+.admin-main{padding:28px clamp(20px, 4vw, 40px) 72px; max-width:1360px; margin:0 auto;}
 .admin-lock{max-width:420px; margin:12vh auto; background:#fff; border:1px solid var(--rule); border-radius:16px; padding:36px;}
 .admin-lock h1{font-size:28px; color:var(--navy); margin:18px 0 8px;}
 .admin-lock p{color:var(--slate); font-size:14.5px; margin-bottom:22px;}

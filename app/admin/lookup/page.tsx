@@ -90,7 +90,6 @@ function LookupInner() {
   const [companyResult, setCompanyResult] = useState<CompanyResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const gbp = (n: number) =>
     `£${Number(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -113,7 +112,6 @@ function LookupInner() {
     setError("");
     setResult(null);
     setCompanyResult(null);
-    setScheduleOpen(false);
     try {
       const res = await fetch(
         `/api/admin/agreement-lookup?${mode}=${encodeURIComponent(value.trim())}`,
@@ -150,15 +148,12 @@ function LookupInner() {
   };
 
   return (
-    <div className="lookup-page" style={{ padding: 0 }}>
+    <div className="lookup-page">
       <div className="lookup-wrap">
-        <div className="lookup-head">
-          <div className="lookup-dot"></div>
-          <h1>Agreement lookup</h1>
-        </div>
-        <p className="lookup-sub">
-          Internal tool — look up a single agreement, or search a company to
-          see all of their agreements in one place.
+        <div className="admin-kicker">Book</div>
+        <h1>Lookup</h1>
+        <p className="admin-lead lookup-sub">
+          Find one agreement, or a company and every deal they have.
         </p>
 
         <div className="lookup-modes">
@@ -273,8 +268,8 @@ function LookupInner() {
           ))}
 
         {result && (
-          <div className="lookup-result">
-            <div className="lookup-card">
+          <div className="lookup-split">
+            <div className="lookup-card lookup-main">
               <div className="lookup-card-head">
                 <h2>{result.agreement.agreement_number}</h2>
                 <span className="lookup-tag">
@@ -293,65 +288,68 @@ function LookupInner() {
               {result.customer?.email && (
                 <div className="lookup-email">
                   {result.customer.email}
-                  {result.customer.has_portal_login ? " · portal linked" : " · no portal login yet"}
+                  {result.customer.has_portal_login
+                    ? " · portal linked"
+                    : " · no portal login yet"}
                 </div>
               )}
 
-              <div className="lookup-grid">
-                <div className="lookup-item">
-                  <div className="lookup-label">Asset</div>
-                  <div className="lookup-value">
-                    {result.agreement.asset_description || "Not on file"}
-                  </div>
-                </div>
-                <div className="lookup-item">
-                  <div className="lookup-label">Monthly instalment</div>
-                  <div className="lookup-value mono">
-                    {gbp(result.agreement.monthly_instalment)}
-                  </div>
-                </div>
-                <div className="lookup-item">
-                  <div className="lookup-label">Start date</div>
-                  <div className="lookup-value mono">
-                    {formatDate(result.agreement.start_date)}
-                  </div>
-                </div>
-                <div className="lookup-item">
-                  <div className="lookup-label">Term</div>
-                  <div className="lookup-value mono">
-                    {result.status.paid_count} / {result.status.term_months} paid
-                  </div>
-                </div>
-                <div className="lookup-item">
-                  <div className="lookup-label">Total lend</div>
-                  <div className="lookup-value mono">
-                    {gbp(result.agreement.total_lend)}
-                  </div>
-                </div>
-                <div className="lookup-item">
-                  <div className="lookup-label">GoCardless mandate</div>
-                  <div className="lookup-value mono">
-                    {result.agreement.gocardless_mandate_id || "Not linked"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="lookup-settlement">
-                <div className="lookup-settlement-label">
-                  {result.status.live
-                    ? "Settlement figure — valid to close of business today"
-                    : "Paid in full"}
-                </div>
-                <div className="lookup-settlement-amt">
-                  {gbp(result.status.settlement_figure)}
-                </div>
-                {result.status.last_payment_date && (
-                  <div className="lookup-settlement-note">
+              <div className="lookup-hero">
+                <div className="lookup-settlement">
+                  <div className="lookup-settlement-label">
                     {result.status.live
-                      ? `Last payment recorded ${formatDate(result.status.last_payment_date)}`
-                      : `Nothing owing. Last payment ${formatDate(result.status.last_payment_date)}.`}
+                      ? "Settlement figure — close of business today"
+                      : "Paid in full"}
                   </div>
-                )}
+                  <div className="lookup-settlement-amt">
+                    {gbp(result.status.settlement_figure)}
+                  </div>
+                  {result.status.last_payment_date && (
+                    <div className="lookup-settlement-note">
+                      {result.status.live
+                        ? `Last payment ${formatDate(result.status.last_payment_date)}`
+                        : `Nothing owing. Last payment ${formatDate(result.status.last_payment_date)}.`}
+                    </div>
+                  )}
+                </div>
+                <div className="lookup-grid">
+                  <div className="lookup-item lookup-item-wide">
+                    <div className="lookup-label">Asset</div>
+                    <div className="lookup-value">
+                      {result.agreement.asset_description || "Not on file"}
+                    </div>
+                  </div>
+                  <div className="lookup-item">
+                    <div className="lookup-label">Monthly</div>
+                    <div className="lookup-value mono">
+                      {gbp(result.agreement.monthly_instalment)}
+                    </div>
+                  </div>
+                  <div className="lookup-item">
+                    <div className="lookup-label">Start</div>
+                    <div className="lookup-value mono">
+                      {formatDate(result.agreement.start_date)}
+                    </div>
+                  </div>
+                  <div className="lookup-item">
+                    <div className="lookup-label">Term</div>
+                    <div className="lookup-value mono">
+                      {result.status.paid_count} / {result.status.term_months} paid
+                    </div>
+                  </div>
+                  <div className="lookup-item">
+                    <div className="lookup-label">Total lend</div>
+                    <div className="lookup-value mono">
+                      {gbp(result.agreement.total_lend)}
+                    </div>
+                  </div>
+                  <div className="lookup-item lookup-item-wide">
+                    <div className="lookup-label">GoCardless mandate</div>
+                    <div className="lookup-value mono">
+                      {result.agreement.gocardless_mandate_id || "Not linked"}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <AmendDealForm
@@ -368,7 +366,6 @@ function LookupInner() {
                   agreementNumber={result.agreement.agreement_number}
                   owing={result.status.settlement_figure}
                   onDone={() => {
-                    setScheduleOpen(true);
                     runLookup("agreement", result.agreement.agreement_number);
                     notifyBookChanged();
                   }}
@@ -379,15 +376,16 @@ function LookupInner() {
               <DriveDocuments
                 agreementNumber={result.agreement.agreement_number}
               />
+            </div>
 
-              <div
-                className="lookup-toggle"
-                onClick={() => setScheduleOpen((v) => !v)}
-              >
-                {scheduleOpen ? "− Hide" : "+ View"} full payment schedule
+            <div className="lookup-card lookup-schedule">
+              <div className="lookup-schedule-head">
+                <h3>Payment schedule</h3>
+                <span className="lookup-schedule-count">
+                  {result.schedule.length} instalments
+                </span>
               </div>
-
-              {scheduleOpen && (
+              <div className="lookup-schedule-scroll">
                 <table className="lookup-table">
                   <thead>
                     <tr>
@@ -395,19 +393,26 @@ function LookupInner() {
                       <th>Due</th>
                       <th>Amount</th>
                       <th>Status</th>
-                      <th>Balance after</th>
+                      <th>Balance</th>
                     </tr>
                   </thead>
                   <tbody>
                     {result.schedule.map((row) => (
-                      <tr key={row.instalment_number}>
+                      <tr
+                        key={row.instalment_number}
+                        className={
+                          row.status === "paid" ? "lookup-row-paid" : ""
+                        }
+                      >
                         <td>{row.instalment_number}</td>
                         <td>{formatDate(row.due_date)}</td>
                         <td className="mono">{gbp(row.amount)}</td>
                         <td>
                           {row.status === "paid" ? (
                             <span className="lookup-paid">
-                              {row.source === "manual" ? "Part settlement" : "Paid"}
+                              {row.source === "manual"
+                                ? "Part settlement"
+                                : "Paid"}
                             </span>
                           ) : (
                             <span className="lookup-due">Due</span>
@@ -421,7 +426,7 @@ function LookupInner() {
                     ))}
                   </tbody>
                 </table>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -501,11 +506,13 @@ function AmendDealForm({
       >
         {open ? "Cancel" : "Amend this deal"}
       </button>
-      <p className="lookup-manual-help">
-        Use this if Drive pulled a name, figure or date through wrongly. Changing
-        the monthly, term or start date rebuilds the unpaid schedule, as long
-        as nothing has been marked paid yet.
-      </p>
+      {open && (
+        <p className="lookup-manual-help">
+          Use this if Drive pulled a name, figure or date through wrongly.
+          Changing the monthly, term or start date rebuilds the unpaid
+          schedule, as long as nothing has been marked paid yet.
+        </p>
+      )}
       {msg && <div className="lookup-ok">{msg}</div>}
       {open && (
         <form className="lookup-manual-form" onSubmit={submit}>
@@ -714,13 +721,13 @@ function ManualPaymentForm({
       >
         {open ? "Cancel" : "Record a part settlement"}
       </button>
-      <p className="lookup-manual-help">
-        For a lump that is not a monthly Direct Debit — insurance on a stolen
-        van, a vehicle sold off the agreement, or a customer paying down
-        part of the balance. Dated today, it comes off the end of the
-        schedule. Dated in the past, nothing after that day is left as due,
-        and the line sits in date order.
-      </p>
+      {open && (
+        <p className="lookup-manual-help">
+          For a lump that is not a monthly Direct Debit — insurance on a stolen
+          van, a vehicle sold off the agreement, or a customer paying down
+          part of the balance.
+        </p>
+      )}
       {msg && <div className="lookup-ok">{msg}</div>}
       {open && (
         <form className="lookup-manual-form" onSubmit={submit}>
