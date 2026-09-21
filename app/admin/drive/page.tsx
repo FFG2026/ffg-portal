@@ -39,6 +39,7 @@ function DriveInner() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState("");
+  const [json, setJson] = useState("");
 
   const load = async () => {
     const res = await fetch("/api/admin/google/status", {
@@ -69,6 +70,29 @@ function DriveInner() {
       window.location.href = json.url;
     } catch (err: any) {
       setError(err.message || "Could not start Google sign-in");
+      setBusy("");
+    }
+  };
+
+  const saveJson = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy("save");
+    setError("");
+    setOk("");
+    try {
+      const res = await fetch("/api/admin/google/service-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({ json }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not save the key");
+      setJson("");
+      setOk(`Saved. Connected as ${data.email}.`);
+      await load();
+    } catch (err: any) {
+      setError(err.message || "Could not save the key");
+    } finally {
       setBusy("");
     }
   };
@@ -126,27 +150,44 @@ function DriveInner() {
       <div className="admin-card" style={{ marginBottom: 22 }}>
         <h2>Connection</h2>
         {!status?.connected && (
-          <p className="admin-lead" style={{ marginBottom: 16 }}>
-            {status?.service_account_present && !status.service_account_valid ? (
-              <>
-                <span className="mono">GOOGLE_SERVICE_ACCOUNT_JSON</span> is
-                on this site ({status.service_account_length} characters)
-                but it is not valid JSON. Paste the whole key from DCF,
-                starting with <span className="mono">{"{"}</span> and
-                ending with <span className="mono">{"}"}</span>, then
-                redeploy.
-              </>
-            ) : (
-              <>
-                This ffg.finance deploy cannot see{" "}
-                <span className="mono">GOOGLE_SERVICE_ACCOUNT_JSON</span>{" "}
-                yet. Add that key on the <strong>Future FG</strong> Vercel
-                project (not DCF), for <strong>Production</strong>, then
-                click <strong>Redeploy</strong>. Adding the key does not
-                take effect until a new deploy.
-              </>
-            )}
-          </p>
+          <>
+            <p className="admin-lead" style={{ marginBottom: 16 }}>
+              {status?.service_account_present && !status.service_account_valid ? (
+                <>
+                  The Vercel value is only {status.service_account_length}{" "}
+                  characters — that is a name or folder id, not the key.
+                  The real JSON from DCF is a few thousand characters and
+                  starts with{" "}
+                  <span className="mono">{`{"type": "service_account"`}</span>.
+                  On DCF Vercel click the three dots next to{" "}
+                  <span className="mono">GOOGLE_SERVICE_ACCOUNT_JSON</span>,
+                  <strong> Edit / Reveal</strong>, copy everything, and
+                  paste it below.
+                </>
+              ) : (
+                <>
+                  Paste the full{" "}
+                  <span className="mono">GOOGLE_SERVICE_ACCOUNT_JSON</span>{" "}
+                  from the DCF Portal Vercel project below.
+                </>
+              )}
+            </p>
+            <form className="admin-form" onSubmit={saveJson}>
+              <div className="full">
+                <label>Service account JSON</label>
+                <textarea
+                  rows={8}
+                  value={json}
+                  onChange={(e) => setJson(e.target.value)}
+                  placeholder='{"type":"service_account","project_id":"portal-page-508706", ... }'
+                  required
+                />
+              </div>
+              <button type="submit" disabled={!!busy}>
+                {busy === "save" ? "Saving…" : "Save and connect"}
+              </button>
+            </form>
+          </>
         )}
         {status?.connected ? (
           <>
@@ -177,15 +218,10 @@ function DriveInner() {
               >
                 {busy === "scan" ? "Scanning…" : "Scan deal folders"}
               </button>
-              {!status.service_account && (
-                <>
-                  <button type="button" onClick={connect} disabled={!!busy}>
-                    Reconnect
-                  </button>
-                  <button type="button" onClick={disconnect} disabled={!!busy}>
-                    Disconnect
-                  </button>
-                </>
+              {status.service_account && (
+                <button type="button" onClick={disconnect} disabled={!!busy}>
+                  Disconnect
+                </button>
               )}
             </div>
           </>

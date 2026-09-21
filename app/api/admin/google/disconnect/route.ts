@@ -14,5 +14,6 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   await deleteSetting(supabase, "google_refresh_token");
   await deleteSetting(supabase, "google_connected_email");
+  await deleteSetting(supabase, "google_service_account_json");
   return NextResponse.json({ ok: true });
 }

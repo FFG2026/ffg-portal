@@ -5,6 +5,7 @@ import { parseDealFolderTitle, pickFolderForAgreement } from "./folder-match";
 import { googleOAuthConfigured, refreshAccessToken } from "./oauth";
 import {
   accessTokenFromServiceAccount,
+  parseServiceAccountJson,
   serviceAccountFromEnv,
 } from "./service-account";
 
@@ -34,8 +35,16 @@ export function driveServiceAccount() {
   return serviceAccountFromEnv();
 }
 
+export async function resolveServiceAccount(supabase: SupabaseClient) {
+  const fromEnv = serviceAccountFromEnv();
+  if (fromEnv) return fromEnv;
+  return parseServiceAccountJson(
+    await getSetting(supabase, "google_service_account_json")
+  );
+}
+
 export async function isDriveConnected(supabase: SupabaseClient) {
-  if (driveServiceAccount()) return true;
+  if (await resolveServiceAccount(supabase)) return true;
   return Boolean(await getRefreshToken(supabase));
 }
 
@@ -48,7 +57,7 @@ export async function getAgreementsFolderId(supabase: SupabaseClient) {
 }
 
 export async function driveAccessToken(supabase: SupabaseClient) {
-  const service = driveServiceAccount();
+  const service = await resolveServiceAccount(supabase);
   if (service) {
     return accessTokenFromServiceAccount(service);
   }
