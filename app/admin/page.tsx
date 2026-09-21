@@ -85,8 +85,9 @@ function DashboardInner() {
       <h1>Company dashboard</h1>
       <p className="admin-lead">
         Live book, collections and anything that needs a look. Payments come
-        from GoCardless — refresh after a collection run rather than
-        re-uploading the spreadsheet.
+        from GoCardless. Refresh after a collection run. New deals go on
+        New deal — the workbook can still be dropped there if you have a
+        batch of tabs to load.
       </p>
 
       <div className="admin-actions">
@@ -111,9 +112,9 @@ function DashboardInner() {
               <div className="sub">{data.totals.finished} finished</div>
             </div>
             <div className="admin-stat">
-              <div className="lbl">Outstanding</div>
+              <div className="lbl">Owed in</div>
               <div className="num">{gbp(data.totals.outstanding)}</div>
-              <div className="sub">Still to collect on the book</div>
+              <div className="sub">Unpaid instalments from today</div>
             </div>
             <div className="admin-stat good">
               <div className="lbl">Collected this month</div>

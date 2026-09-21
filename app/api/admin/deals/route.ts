@@ -19,7 +19,11 @@ export async function POST(request: Request) {
   }
 
   const companyName = String(body.company_name || "").trim();
-  const agreementType = String(body.agreement_type || "HP").trim().toUpperCase();
+  const agreementType = String(body.agreement_type || "HP")
+    .trim()
+    .toUpperCase()
+    .replace(/^LN$/, "L")
+    .replace(/^LOAN$/, "L");
   const startDate = String(body.start_date || "").slice(0, 10);
   const termMonths = n(body.term_months);
   const monthly = n(body.monthly_instalment);
@@ -115,7 +119,7 @@ export async function POST(request: Request) {
       monthly_instalment: monthly,
       term_months: termMonths,
       start_date: startDate,
-      status: "live",
+      status: "active",
       gocardless_mandate_id: body.gocardless_mandate_id || null,
     })
     .select("id, agreement_number")

@@ -15,6 +15,9 @@ function NewDealInner() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const [importError, setImportError] = useState("");
   const [form, setForm] = useState({
     agreement_number: "",
     agreement_type: "HP",
@@ -76,6 +79,46 @@ function NewDealInner() {
     }
   };
 
+  const uploadBook = async (file: File) => {
+    setImporting(true);
+    setImportMsg("");
+    setImportError("");
+    try {
+      const XLSX = await import("xlsx");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const sheets: Record<string, unknown[][]> = {};
+      for (const name of wb.SheetNames) {
+        sheets[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], {
+          header: 1,
+          raw: true,
+          defval: null,
+        }) as unknown[][];
+      }
+      const { parseWorkbookSheets } = await import("../../../lib/spreadsheet");
+      const deals = parseWorkbookSheets(sheets);
+      const apply = await fetch("/api/admin/import-book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({ deals, apply: true }),
+      });
+      const json = await apply.json();
+      if (!apply.ok) throw new Error(json.error || "Import failed");
+      const created = (json.created || []).length;
+      const updated = (json.updated || []).length;
+      const errors = (json.errors || []).length;
+      setImportMsg(
+        `Read ${deals.length} deals from ${file.name}. Added ${created}, updated ticks on ${updated}, marked ${json.marked_paid} instalments paid.${
+          errors ? ` ${errors} tab(s) need a look.` : ""
+        }`
+      );
+    } catch (err: any) {
+      setImportError(err.message || "Could not import that workbook.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <>
       <div className="admin-kicker">Origination</div>
@@ -86,6 +129,29 @@ function NewDealInner() {
         mandate id if you already have it — monthly collections then sync from
         the API, no merge sheet required.
       </p>
+      <div className="admin-card" style={{ marginBottom: 28 }}>
+        <h2>Or drop in the deal book</h2>
+        <p className="admin-lead">
+          The usual FFG workbook still works — one tab per agreement. New tabs
+          are added to the portal. Existing deals only gain missing green ticks;
+          GoCardless collections are never unmarked.
+        </p>
+        <label className="admin-file">
+          <input
+            type="file"
+            accept=".xlsx,.xlsm"
+            disabled={importing}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) uploadBook(file);
+              e.target.value = "";
+            }}
+          />
+          {importing ? "Reading workbook…" : "Upload FFG agreement workbook"}
+        </label>
+        {importMsg && <div className="admin-ok">{importMsg}</div>}
+        {importError && <div className="admin-error">{importError}</div>}
+      </div>
       {msg && <div className="admin-ok">{msg}</div>}
       {error && <div className="admin-error">{error}</div>}
       <form className="admin-form" onSubmit={submit}>
@@ -105,7 +171,7 @@ function NewDealInner() {
           >
             <option value="HP">Hire purchase</option>
             <option value="FL">Finance lease</option>
-            <option value="LN">Loan</option>
+            <option value="L">Loan</option>
           </select>
         </div>
         <div className="full">
