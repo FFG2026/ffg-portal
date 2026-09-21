@@ -18,6 +18,7 @@ export function adminHeaders() {
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/figures", label: "Live figures", owenOnly: true },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/agreements", label: "Agreements" },
   { href: "/admin/new-deal", label: "New deal" },
@@ -35,6 +36,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [secret, setSecret] = useState("");
   const [error, setError] = useState("");
   const [who, setWho] = useState("");
+  const [ownerDash, setOwnerDash] = useState(false);
 
   useEffect(() => {
     const stored = getStoredAdminSecret();
@@ -43,6 +45,20 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       setWho(sessionStorage.getItem(NAME_KEY) || "");
     }
   }, []);
+
+  useEffect(() => {
+    if (!unlocked) {
+      setOwnerDash(false);
+      return;
+    }
+    fetch("/api/admin/me", { headers: adminHeaders() })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        setOwnerDash(!!json?.owner_dashboard);
+        if (json?.name) setWho(json.name);
+      })
+      .catch(() => setOwnerDash(false));
+  }, [unlocked]);
 
   const unlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +163,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           Future FG admin
         </Link>
         <nav>
-          {NAV.map((item) => (
+          {NAV.filter((item) => !item.owenOnly || ownerDash).map((item) => (
             <Link
               key={item.href}
               href={item.href}
