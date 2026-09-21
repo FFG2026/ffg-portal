@@ -1,6 +1,27 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeCompany, type SheetDeal } from "./spreadsheet";
 
+type DbPayment = {
+  id: string;
+  instalment_number: number;
+  due_date: string;
+  status: string;
+};
+
+/** Extra portal instalments left on a deal the spreadsheet has already finished. */
+export function extraUnpaidOnSettledSheet(
+  deal: SheetDeal,
+  payments: DbPayment[]
+): DbPayment[] {
+  if (deal.payments.length === 0 || deal.payments.some((p) => !p.paid)) {
+    return [];
+  }
+  const onSheet = new Set(deal.payments.map((p) => p.due_date));
+  return payments.filter(
+    (p) => p.status !== "paid" && !onSheet.has(String(p.due_date).slice(0, 10))
+  );
+}
+
 export type ImportSummary = {
   created: string[];
   updated: string[];
@@ -156,9 +177,31 @@ export async function importDealBook(
         if (error) throw new Error(error.message);
         marked += 1;
       }
+      const extras = extraUnpaidOnSettledSheet(deal, payments || []);
+      if (extras.length) {
+        const { error } = await supabase
+          .from("payments")
+          .delete()
+          .in(
+            "id",
+            extras.map((p) => p.id)
+          );
+        if (error) throw new Error(error.message);
+        await supabase
+          .from("agreements")
+          .update({
+            status: "settled",
+            term_months: deal.term_months,
+          })
+          .eq("id", current.id);
+      }
+
       summary.marked_paid += marked;
-      if (marked > 0) summary.updated.push(deal.agreement_number);
-      else summary.skipped.push(deal.agreement_number);
+      if (marked > 0 || extras.length > 0) {
+        summary.updated.push(deal.agreement_number);
+      } else {
+        summary.skipped.push(deal.agreement_number);
+      }
     } catch (err: any) {
       summary.errors.push({
         agreement_number: deal.agreement_number,
