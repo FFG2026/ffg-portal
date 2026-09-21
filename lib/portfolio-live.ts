@@ -36,7 +36,7 @@ export type PortfolioSnapshot = {
 
 /**
  * Deal-book dashboard printed 28 Aug 2026. Live figures start from this
- * snapshot; only deals written after that book (HP142+, FL16+, L5+) are added.
+ * snapshot; deals from HP139, FL16 and L5 onwards are added on top.
  */
 export const PORTFOLIO_BASE: PortfolioSnapshot = {
   as_of: "2026-08-28",
@@ -91,12 +91,12 @@ export function dealNumberOf(agreementNumber: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Deals that were not in the 28 Aug book (HP 141 / FL 15 / L 4). */
+/** Deals the 28 Aug book does not cover (HP from 139, FL from 16, L from 5). */
 export function isDealAddedAfterSnapshot(agreementNumber: string) {
   const type = dealTypeOf(agreementNumber);
   const n = dealNumberOf(agreementNumber);
   if (!type || n == null) return false;
-  if (type === "HP") return n >= 142;
+  if (type === "HP") return n >= 139;
   if (type === "FL") return n >= 16;
   return n >= 5;
 }
