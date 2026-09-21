@@ -59,4 +59,36 @@ assert(deals.some((d) => d.agreement_number === "HP142"), "hp142");
 assert(deals.find((d) => d.agreement_number === "L3")?.agreement_type === "L", "loan type");
 assert(deals.find((d) => d.agreement_number === "L3")?.payments[0].paid === true, "tick in col F");
 
+const l2 = parseAgreementRows("L2", [
+  ["SGA Services Loan"],
+  [],
+  [null, null, null, "Outstanding Balance"],
+  [null, "Purchase Price", 70000],
+  [null, "Total Lend", 70000],
+  [
+    new Date(2023, 7, 21),
+    "1st Payment",
+    2608.65,
+    91302.75,
+    18974.27,
+    542.12,
+    72328.47,
+    2066.52,
+    "✓",
+  ],
+  [
+    new Date(2026, 6, 21),
+    "36th Payment",
+    2608.65,
+    0,
+    0,
+    542.12,
+    0,
+    2066.52,
+    "✓",
+  ],
+]);
+assert(l2?.payments.length === 2, "l2 rows");
+assert(l2?.payments.every((p) => p.paid) === true, "Paid? ticks in column I");
+
 console.log("spreadsheet tests ok");

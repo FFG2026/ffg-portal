@@ -117,7 +117,9 @@ export function parseAgreementRows(
     const due = asIsoDate(row?.[0]);
     const amount = asNumber(row?.[2]);
     if (!due || amount == null || amount === 0) continue;
-    const paid = [row?.[3], row?.[4], row?.[5], row?.[6]].some(isPaidCell);
+    // Ticks usually sit in E/F. Loan tabs put "Paid?" further right (I or L)
+    // because D–H are the running-balance columns.
+    const paid = (row || []).some(isPaidCell);
     payments.push({
       instalment_number: payments.length + 1,
       due_date: due,
