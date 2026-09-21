@@ -10,7 +10,7 @@ const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
 
 const json = JSON.stringify({
   client_email: "dcf-google-drive@portal-page-508706.iam.gserviceaccount.com",
-  private_key: pem.replace(/\n/g, "\\n"),
+  private_key: pem,
 });
 
 const parsed = parseServiceAccountJson(json);
@@ -22,5 +22,9 @@ assert(
 assert(parsed?.private_key.includes("BEGIN"), "pem restored");
 assert(parseServiceAccountJson("") === null, "empty");
 assert(parseServiceAccountJson("{") === null, "bad json");
+assert(
+  parseServiceAccountJson(`"${json}"`)?.client_email?.includes("dcf-google-drive"),
+  "strips wrapping quotes"
+);
 
 console.log("service-account tests ok");

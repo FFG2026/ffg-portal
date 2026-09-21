@@ -7,18 +7,55 @@ export type ServiceAccount = {
 };
 
 export function parseServiceAccountJson(raw: string): ServiceAccount | null {
-  const text = String(raw || "").trim();
+  let text = String(raw || "").trim().replace(/^\uFEFF/, "");
   if (!text) return null;
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    text = text.slice(1, -1).trim();
+  }
+  const parsed = parseJsonObject(text);
+  if (!parsed) return null;
+  const email = String(parsed.client_email || "").trim();
+  let key = String(parsed.private_key || "");
+  key = key.replace(/\\n/g, "\n");
+  if (!email || !key.includes("BEGIN")) return null;
+  return { client_email: email, private_key: key };
+}
+
+function parseJsonObject(text: string): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(text);
-    const email = String(parsed.client_email || "").trim();
-    let key = String(parsed.private_key || "");
-    key = key.replace(/\\n/g, "\n");
-    if (!email || !key.includes("BEGIN")) return null;
-    return { client_email: email, private_key: key };
+    const value = JSON.parse(text);
+    if (value && typeof value === "object") return value as Record<string, unknown>;
+  } catch {
+    // Vercel sometimes stores the key with real line breaks inside private_key.
+  }
+  try {
+    const repaired = text.replace(
+      /"private_key"\s*:\s*"([\s\S]*?)"\s*(,|\})/,
+      (_all, key: string, tail: string) => {
+        const escaped = String(key).replace(/\r?\n/g, "\\n").replace(/"/g, '\\"');
+        return `"private_key":"${escaped}"${tail}`;
+      }
+    );
+    const value = JSON.parse(repaired);
+    if (value && typeof value === "object") return value as Record<string, unknown>;
   } catch {
     return null;
   }
+  return null;
+}
+
+export function inspectServiceAccountEnv() {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON || "";
+  const parsed = parseServiceAccountJson(raw);
+  return {
+    present: raw.trim().length > 0,
+    valid: Boolean(parsed),
+    email: parsed?.client_email || null,
+    length: raw.trim().length,
+  };
 }
 
 export function serviceAccountFromEnv() {

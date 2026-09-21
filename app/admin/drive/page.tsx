@@ -8,6 +8,9 @@ type Status = {
   service_account: boolean;
   connected: boolean;
   email: string | null;
+  service_account_present?: boolean;
+  service_account_valid?: boolean;
+  service_account_length?: number;
   agreements_folder_id: string;
   agreements_folder_url: string;
   using_default_folder: boolean;
@@ -122,12 +125,27 @@ function DriveInner() {
 
       <div className="admin-card" style={{ marginBottom: 22 }}>
         <h2>Connection</h2>
-        {!status?.connected && !status?.service_account && (
+        {!status?.connected && (
           <p className="admin-lead" style={{ marginBottom: 16 }}>
-            Copy <span className="mono">GOOGLE_SERVICE_ACCOUNT_JSON</span> from
-            the DCF Portal Vercel project onto this site. That is the same
-            Drive robot account DCF already uses — no Google Cloud billing
-            and no Auth Platform setup.
+            {status?.service_account_present && !status.service_account_valid ? (
+              <>
+                <span className="mono">GOOGLE_SERVICE_ACCOUNT_JSON</span> is
+                on this site ({status.service_account_length} characters)
+                but it is not valid JSON. Paste the whole key from DCF,
+                starting with <span className="mono">{"{"}</span> and
+                ending with <span className="mono">{"}"}</span>, then
+                redeploy.
+              </>
+            ) : (
+              <>
+                This ffg.finance deploy cannot see{" "}
+                <span className="mono">GOOGLE_SERVICE_ACCOUNT_JSON</span>{" "}
+                yet. Add that key on the <strong>Future FG</strong> Vercel
+                project (not DCF), for <strong>Production</strong>, then
+                click <strong>Redeploy</strong>. Adding the key does not
+                take effect until a new deploy.
+              </>
+            )}
           </p>
         )}
         {status?.connected ? (

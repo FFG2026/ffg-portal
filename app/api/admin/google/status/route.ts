@@ -8,6 +8,7 @@ import {
   getAgreementsFolderId,
   isDriveConnected,
 } from "../../../../../lib/google/drive";
+import { inspectServiceAccountEnv } from "../../../../../lib/google/service-account";
 import { getSetting } from "../../../../../lib/google/settings";
 
 export const dynamic = "force-dynamic";
@@ -26,11 +27,15 @@ export async function GET(request: Request) {
     (await getSetting(supabase, "google_connected_email"));
   const folderId = await getAgreementsFolderId(supabase);
   const lastScan = await getSetting(supabase, "google_last_scan");
+  const inspect = inspectServiceAccountEnv();
   return NextResponse.json({
     oauth_configured: googleOAuthConfigured(),
     service_account: Boolean(service),
     connected,
     email: email || null,
+    service_account_present: inspect.present,
+    service_account_valid: inspect.valid,
+    service_account_length: inspect.length,
     agreements_folder_id: folderId,
     agreements_folder_url: `https://drive.google.com/drive/folders/${folderId}`,
     using_default_folder: folderId === DEFAULT_AGREEMENTS_FOLDER_ID,
