@@ -349,6 +349,13 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
 .lookup-flags{display:flex; gap:5px; flex-wrap:wrap; margin-top:4px;}
 .lookup-warn{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.05em; text-transform:uppercase; background:#FBEAEA; color:#B4232C; padding:2px 6px; border-radius:4px;}
 .lookup-table td{vertical-align:top;}
+.lookup-docs{background:var(--paper); border:1px solid var(--rule); border-radius:10px; padding:16px 18px; margin-bottom:18px;}
+.lookup-docs h3{font-size:15px; color:var(--navy); margin-bottom:6px;}
+.lookup-docs-help{font-size:13px; color:var(--slate); line-height:1.5; margin-bottom:12px;}
+.lookup-docs-list{list-style:none; display:flex; flex-direction:column; gap:8px;}
+.lookup-docs-list a{display:flex; justify-content:space-between; gap:12px; align-items:baseline; padding:10px 12px; border:1px solid var(--rule); border-radius:8px; background:var(--paper-raised); font-size:13.5px; color:var(--ink);}
+.lookup-docs-list a:hover{border-color:var(--blue); color:var(--blue-deep);}
+.lookup-docs-kind{font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate); flex-shrink:0;}
 
 @media (max-width:600px){
   .lookup-form{flex-direction:column; align-items:stretch;}

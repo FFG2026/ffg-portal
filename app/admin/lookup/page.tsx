@@ -361,6 +361,10 @@ function LookupInner() {
                 />
               )}
 
+              <DriveDocuments
+                agreementNumber={result.agreement.agreement_number}
+              />
+
               <div
                 className="lookup-toggle"
                 onClick={() => setScheduleOpen((v) => !v)}
@@ -407,6 +411,87 @@ function LookupInner() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function DriveDocuments({ agreementNumber }: { agreementNumber: string }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [data, setData] = useState<{
+    connected: boolean;
+    folder: { name: string; company: string | null; url: string } | null;
+    files: { id: string; name: string; kind: string; url: string }[];
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(
+          `/api/admin/google/documents?agreement=${encodeURIComponent(agreementNumber)}`,
+          { headers: adminHeaders() }
+        );
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Could not load documents");
+        if (!cancelled) setData(json);
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || "Could not load documents");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [agreementNumber]);
+
+  return (
+    <div className="lookup-docs">
+      <h3>Google Drive</h3>
+      {loading && <p className="lookup-docs-help">Loading documents…</p>}
+      {!loading && error && <div className="lookup-error">{error}</div>}
+      {!loading && data && !data.connected && (
+        <p className="lookup-docs-help">
+          Connect Google Drive under Drive in the admin menu to pull through
+          signed agreements and invoices for this deal.
+        </p>
+      )}
+      {!loading && data?.connected && !data.folder && (
+        <p className="lookup-docs-help">
+          No matching folder in Agreements for {agreementNumber}. Folders are
+          named like HP143 - Company.
+        </p>
+      )}
+      {data?.folder && (
+        <>
+          <p className="lookup-docs-help">
+            {data.folder.company
+              ? `${data.folder.company} — `
+              : ""}
+            <a href={data.folder.url} target="_blank" rel="noreferrer">
+              Open {data.folder.name} in Drive
+            </a>
+          </p>
+          {data.files.length === 0 ? (
+            <p className="lookup-docs-help">That folder is empty.</p>
+          ) : (
+            <ul className="lookup-docs-list">
+              {data.files.map((file) => (
+                <li key={file.id}>
+                  <a href={file.url} target="_blank" rel="noreferrer">
+                    <span>{file.name}</span>
+                    <span className="lookup-docs-kind">{file.kind}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </div>
   );
 }
