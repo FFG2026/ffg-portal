@@ -5,6 +5,7 @@ import {
 import {
   matchGcPaymentsToInstalments,
   unmatchedCollectedPayments,
+  scheduleCollectionsOnly,
   type GoCardlessPayment,
   type Instalment,
 } from "./match-payments";
@@ -74,7 +75,9 @@ async function applyMatches(
 ): Promise<SyncResult> {
   const headerRes = await supabase
     .from("agreements")
-    .select("term_months, monthly_instalment, start_date, status, gocardless_mandate_id")
+    .select(
+      "term_months, monthly_instalment, start_date, status, gocardless_mandate_id, documentation_fee"
+    )
     .eq("id", agreement.id)
     .maybeSingle();
   if (headerRes.error) throw new Error(headerRes.error.message);
@@ -111,10 +114,14 @@ async function applyMatches(
     else markedFailed += 1;
   }
 
-  const leftover = unmatchedCollectedPayments(
-    gcPayments,
-    matches,
-    instalments.map((row) => row.gocardless_payment_id)
+  const leftover = scheduleCollectionsOnly(
+    unmatchedCollectedPayments(
+      gcPayments,
+      matches,
+      instalments.map((row) => row.gocardless_payment_id)
+    ),
+    header?.documentation_fee,
+    header?.monthly_instalment
   );
   let nextNumber =
     Math.max(0, ...instalments.map((row) => Number(row.instalment_number || 0))) +

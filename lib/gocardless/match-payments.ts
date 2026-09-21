@@ -58,6 +58,46 @@ export function amountsClose(
   return diff <= 100 || diff <= Math.round(inst * 0.02);
 }
 
+const DEFAULT_DOCUMENTATION_FEE_PENCE = 19500;
+
+/**
+ * Documentation fees are sometimes collected on the same mandate as the
+ * instalments. They must not be ticked onto the schedule or used to reduce
+ * remaining owing.
+ */
+export function isDocumentationFeeCollection(
+  gcAmountPence: number,
+  documentationFee?: number | string | null,
+  monthlyInstalment?: number | string | null
+) {
+  const feePence =
+    documentationFee != null && Number(documentationFee) > 0
+      ? Math.round(Number(documentationFee) * 100)
+      : DEFAULT_DOCUMENTATION_FEE_PENCE;
+  if (gcAmountPence === DEFAULT_DOCUMENTATION_FEE_PENCE) return true;
+  if (gcAmountPence === feePence) return true;
+  const monthlyPence =
+    monthlyInstalment != null && Number(monthlyInstalment) > 0
+      ? Math.round(Number(monthlyInstalment) * 100)
+      : 0;
+  return monthlyPence > 0 && gcAmountPence === monthlyPence + feePence;
+}
+
+export function scheduleCollectionsOnly(
+  payments: GoCardlessPayment[],
+  documentationFee?: number | string | null,
+  monthlyInstalment?: number | string | null
+) {
+  return payments.filter(
+    (p) =>
+      !isDocumentationFeeCollection(
+        p.amount,
+        documentationFee,
+        monthlyInstalment
+      )
+  );
+}
+
 function nearestInstalment(
   instalments: Instalment[],
   gcPayment: GoCardlessPayment,
