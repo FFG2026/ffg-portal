@@ -101,7 +101,7 @@ export async function GET(request: Request) {
       live,
       outstanding: Math.round(outstanding * 100) / 100,
       overdue: Math.round(overdue * 100) / 100,
-      has_mandate: !!a.gocardless_mandate_id,
+      has_mandate: book === "gg" ? true : !!a.gocardless_mandate_id,
       has_schedule: rows.length > 0,
     };
   });
