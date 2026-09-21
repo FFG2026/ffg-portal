@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import AdminShell, { adminHeaders } from "../AdminShell";
 
 type LookupResult = {
   agreement: {
@@ -59,7 +62,17 @@ type CompanyResult = {
 };
 
 export default function AgreementLookupPage() {
-  const [secret, setSecret] = useState("");
+  return (
+    <Suspense>
+      <AdminShell>
+        <LookupInner />
+      </AdminShell>
+    </Suspense>
+  );
+}
+
+function LookupInner() {
+  const searchParams = useSearchParams();
   const [searchMode, setSearchMode] = useState<"agreement" | "company">(
     "agreement"
   );
@@ -86,7 +99,7 @@ export default function AgreementLookupPage() {
     mode: "agreement" | "company",
     value: string
   ) => {
-    if (!secret.trim() || !value.trim()) return;
+    if (!value.trim()) return;
     setLoading(true);
     setError("");
     setResult(null);
@@ -94,7 +107,8 @@ export default function AgreementLookupPage() {
     setScheduleOpen(false);
     try {
       const res = await fetch(
-        `/api/admin/agreement-lookup?secret=${encodeURIComponent(secret.trim())}&${mode}=${encodeURIComponent(value.trim())}`
+        `/api/admin/agreement-lookup?${mode}=${encodeURIComponent(value.trim())}`,
+        { headers: adminHeaders() }
       );
       const data = await res.json();
       if (!res.ok) {
@@ -111,13 +125,23 @@ export default function AgreementLookupPage() {
     }
   };
 
+  useEffect(() => {
+    const preset = searchParams.get("agreement");
+    if (preset) {
+      setQuery(preset);
+      setSearchMode("agreement");
+      runLookup("agreement", preset);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const lookup = (e: React.FormEvent) => {
     e.preventDefault();
     runLookup(searchMode, query);
   };
 
   return (
-    <div className="lookup-page">
+    <div className="lookup-page" style={{ padding: 0 }}>
       <div className="lookup-wrap">
         <div className="lookup-head">
           <div className="lookup-dot"></div>
@@ -146,16 +170,6 @@ export default function AgreementLookupPage() {
         </div>
 
         <form className="lookup-form" onSubmit={lookup}>
-          <div className="lookup-field">
-            <label>Admin secret</label>
-            <input
-              type="password"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-              placeholder="Your admin secret"
-              autoComplete="off"
-            />
-          </div>
           <div className="lookup-field">
             <label>
               {searchMode === "agreement" ? "Agreement number" : "Company name"}

@@ -1,0 +1,69 @@
+.admin-page{min-height:100vh; background:var(--paper); color:var(--ink);}
+.admin-top{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:28px; padding:14px 28px; background:rgba(247,248,250,0.94); backdrop-filter:blur(8px); border-bottom:1px solid var(--rule);}
+.admin-brand{display:flex; align-items:center; gap:10px; font-family:'Fraunces', serif; font-weight:700; font-size:18px; color:var(--navy); white-space:nowrap;}
+.admin-brand .dot{width:9px; height:9px; border-radius:50%; background:var(--blue);}
+.admin-top nav{display:flex; gap:6px; flex-wrap:wrap;}
+.admin-top nav a{font-size:13.5px; font-weight:600; color:var(--ink-soft); padding:8px 12px; border-radius:8px;}
+.admin-top nav a:hover{color:var(--blue-deep); background:var(--blue-pale);}
+.admin-top nav a.active{color:var(--navy); background:#fff; border:1px solid var(--rule);}
+.admin-home{margin-left:auto; font-size:13px; font-weight:600; color:var(--blue-deep);}
+.admin-main{padding:28px clamp(20px, 4vw, 40px) 72px; max-width:1280px; margin:0 auto;}
+.admin-lock{max-width:420px; margin:12vh auto; background:#fff; border:1px solid var(--rule); border-radius:16px; padding:36px;}
+.admin-lock h1{font-size:28px; color:var(--navy); margin:18px 0 8px;}
+.admin-lock p{color:var(--slate); font-size:14.5px; margin-bottom:22px;}
+.admin-lock form{display:flex; gap:10px;}
+.admin-lock input{flex:1; padding:12px 14px; border:1px solid var(--rule); border-radius:8px; font-size:14px;}
+.admin-lock button{padding:12px 18px; border:none; border-radius:8px; background:var(--blue); color:#fff; font-weight:600; cursor:pointer;}
+.admin-error{margin-top:14px; color:#B4232C; font-size:13px;}
+.admin-kicker{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--blue-deep); margin-bottom:8px;}
+.admin-page h1{font-size:30px; color:var(--navy); margin-bottom:8px;}
+.admin-lead{color:var(--ink-soft); font-size:14.5px; margin-bottom:28px; max-width:640px; line-height:1.55;}
+.admin-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px;}
+.admin-stat{background:#fff; border:1px solid var(--rule); border-radius:14px; padding:18px 20px;}
+.admin-stat .lbl{font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--slate); margin-bottom:8px;}
+.admin-stat .num{font-family:'Fraunces', serif; font-size:28px; color:var(--navy); font-weight:600; line-height:1.1;}
+.admin-stat .sub{font-size:12px; color:var(--slate); margin-top:6px;}
+.admin-stat.warn .num{color:#8A6A24;}
+.admin-stat.good .num{color:var(--green);}
+.admin-grid-2{display:grid; grid-template-columns:1.3fr 0.9fr; gap:16px; margin-bottom:22px;}
+.admin-card{background:#fff; border:1px solid var(--rule); border-radius:14px; padding:22px;}
+.admin-card h2{font-size:18px; color:var(--navy); margin-bottom:16px;}
+.admin-chart{display:flex; align-items:flex-end; gap:8px; height:180px;}
+.admin-col{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;}
+.admin-bars{width:100%; display:flex; flex-direction:column; justify-content:flex-end; height:150px; border-radius:6px 6px 0 0; overflow:hidden;}
+.admin-bar-unpaid{background:#EBD9AE; width:100%;}
+.admin-bar-paid{background:var(--blue); width:100%;}
+.admin-col span{font-family:'IBM Plex Mono', monospace; font-size:9.5px; color:var(--slate);}
+.admin-legend{display:flex; gap:16px; font-size:12px; color:var(--slate); margin-top:12px;}
+.admin-swatch{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px;}
+.admin-attn{width:100%; border-collapse:collapse; font-size:13px;}
+.admin-attn th{text-align:left; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate); padding:8px 6px; border-bottom:1px solid var(--rule);}
+.admin-attn td{padding:10px 6px; border-bottom:1px solid var(--rule);}
+.admin-attn tr:hover td{background:var(--blue-pale); cursor:pointer;}
+.admin-pill{display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; padding:3px 8px; border-radius:5px; background:var(--gold-pale); color:#8A6A24;}
+.admin-toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px;}
+.admin-toolbar input{padding:10px 12px; border:1px solid var(--rule); border-radius:8px; min-width:220px; font-size:14px;}
+.admin-tabs{display:flex; gap:8px;}
+.admin-tab{padding:8px 14px; border-radius:8px; border:1px solid var(--rule); background:#fff; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
+.admin-tab.on{background:var(--navy); color:#fff; border-color:var(--navy);}
+.admin-table{width:100%; border-collapse:collapse; font-size:13.5px; background:#fff; border:1px solid var(--rule); border-radius:14px; overflow:hidden;}
+.admin-table th{text-align:left; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate); padding:12px 12px; background:#fff; border-bottom:1px solid var(--rule);}
+.admin-table td{padding:11px 12px; border-bottom:1px solid var(--rule);}
+.admin-table tr:last-child td{border-bottom:none;}
+.admin-table tbody tr{cursor:pointer;}
+.admin-table tbody tr:hover{background:var(--blue-pale);}
+.admin-form{display:grid; grid-template-columns:1fr 1fr; gap:14px 18px; background:#fff; border:1px solid var(--rule); border-radius:14px; padding:24px;}
+.admin-form label{display:block; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.07em; text-transform:uppercase; color:var(--slate); margin-bottom:6px;}
+.admin-form input, .admin-form select, .admin-form textarea{width:100%; padding:10px 12px; border:1px solid var(--rule); border-radius:8px; font-size:14px; font-family:inherit;}
+.admin-form .full{grid-column:1 / -1;}
+.admin-form button{grid-column:1 / -1; justify-self:start; padding:12px 22px; border:none; border-radius:8px; background:var(--blue); color:#fff; font-weight:600; cursor:pointer;}
+.admin-form button:disabled{background:var(--rule); color:var(--slate);}
+.admin-ok{background:var(--green-pale); color:#1B7A46; padding:12px 14px; border-radius:8px; margin-bottom:16px; font-size:14px;}
+.admin-actions{display:flex; gap:10px; margin-bottom:22px;}
+.admin-actions button{padding:10px 16px; border-radius:8px; border:1px solid var(--rule); background:#fff; font-weight:600; cursor:pointer;}
+.admin-actions button.primary{background:var(--navy); color:#fff; border-color:var(--navy);}
+@media (max-width: 900px){
+  .admin-stats, .admin-grid-2, .admin-form{grid-template-columns:1fr;}
+  .admin-top{flex-wrap:wrap;}
+  .admin-home{margin-left:0;}
+}

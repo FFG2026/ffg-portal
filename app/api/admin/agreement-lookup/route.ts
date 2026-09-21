@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +9,11 @@ export const fetchCache = "force-no-store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const secret = searchParams.get("secret");
+  const secret = getAdminSecret(request);
   const agreementNumber = searchParams.get("agreement");
   const company = searchParams.get("company");
 
-  if (secret !== process.env.ADMIN_SECRET) {
+  if (!isAuthorizedAdmin(secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
