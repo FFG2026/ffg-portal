@@ -3,9 +3,13 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { isOwenBrunning } from "../../../../lib/owen";
+import { getSetting, setSetting } from "../../../../lib/google/settings";
 import {
   buildLivePortfolio,
   isDealAddedAfterSnapshot,
+  parseCashAtBank,
+  CASH_AT_BANK_SETTING,
+  PORTFOLIO_BASE,
 } from "../../../../lib/portfolio-live";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +23,12 @@ const NO_CACHE = {
   "Vercel-CDN-Cache-Control": "no-store",
 };
 
-export async function GET(request: Request) {
-  const auth = await authorizeAdminRequest(request);
+async function requireOwen(request: Request, body?: { secret?: string }) {
+  const auth = await authorizeAdminRequest(request, body);
   if (!auth.ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
   if (
     !isOwenBrunning({
@@ -30,34 +36,31 @@ export async function GET(request: Request) {
       name: "name" in auth ? auth.name : null,
     })
   ) {
-    return NextResponse.json(
-      { error: "This figures page is only for Owen Brunning." },
-      { status: 403 }
-    );
+    return {
+      error: NextResponse.json(
+        { error: "This figures page is only for Owen Brunning." },
+        { status: 403 }
+      ),
+    };
   }
+  return { auth };
+}
 
+async function liveFigures(cashOverride?: number | null) {
   const supabase = createAdminClient();
-  let agreements;
-  let payments;
-  try {
-    [agreements, payments] = await Promise.all([
-      fetchAllRows(() =>
-        supabase
-          .from("agreements")
-          .select(
-            "id, agreement_number, agreement_type, total_lend, commission, monthly_instalment, term_months"
-          )
-      ),
-      fetchAllRows(() =>
-        supabase.from("payments").select("agreement_id, amount, status")
-      ),
-    ]);
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || "Could not load figures" },
-      { status: 500 }
-    );
-  }
+  const [agreements, payments, savedCash] = await Promise.all([
+    fetchAllRows(() =>
+      supabase
+        .from("agreements")
+        .select(
+          "id, agreement_number, agreement_type, total_lend, commission, monthly_instalment, term_months"
+        )
+    ),
+    fetchAllRows(() =>
+      supabase.from("payments").select("agreement_id, amount, status")
+    ),
+    getSetting(supabase, CASH_AT_BANK_SETTING),
+  ]);
 
   const rowsByAgreement = new Map<string, typeof payments>();
   for (const p of payments || []) {
@@ -78,9 +81,60 @@ export async function GET(request: Request) {
       payments: rowsByAgreement.get(a.id) || [],
     }));
 
-  return NextResponse.json(buildLivePortfolio(deals), { headers: NO_CACHE });
+  const cashAtBank =
+    cashOverride != null
+      ? cashOverride
+      : parseCashAtBank(savedCash) ?? PORTFOLIO_BASE.cash_at_bank;
+
+  return buildLivePortfolio(deals, { cashAtBank });
+}
+
+export async function GET(request: Request) {
+  const gate = await requireOwen(request);
+  if (gate.error) return gate.error;
+  try {
+    return NextResponse.json(await liveFigures(), { headers: NO_CACHE });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Could not load figures" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  if (body && Object.prototype.hasOwnProperty.call(body, "cash_at_bank")) {
+    return PATCH(
+      new Request(request.url, {
+        method: "PATCH",
+        headers: request.headers,
+        body: JSON.stringify(body),
+      })
+    );
+  }
   return GET(request);
+}
+
+export async function PATCH(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const gate = await requireOwen(request, body);
+  if (gate.error) return gate.error;
+  const cash = parseCashAtBank(body.cash_at_bank);
+  if (cash == null) {
+    return NextResponse.json(
+      { error: "Enter a cash at bank amount." },
+      { status: 400 }
+    );
+  }
+  try {
+    const supabase = createAdminClient();
+    await setSetting(supabase, CASH_AT_BANK_SETTING, String(cash));
+    return NextResponse.json(await liveFigures(cash), { headers: NO_CACHE });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Could not save cash at bank" },
+      { status: 500 }
+    );
+  }
 }

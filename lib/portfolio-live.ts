@@ -163,10 +163,25 @@ function profitOn(deal: LiveDealInput) {
   return roundMoney(contractedOn(deal) - Number(deal.total_lend || 0));
 }
 
+export const CASH_AT_BANK_SETTING = "portfolio_cash_at_bank";
+
+export function parseCashAtBank(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) return roundMoney(raw);
+  const s = String(raw ?? "").replace(/[£,\s]/g, "").trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? roundMoney(n) : null;
+}
+
 export function buildLivePortfolio(
   deals: LiveDealInput[],
-  generatedAt = new Date().toISOString()
+  opts?: { generatedAt?: string; cashAtBank?: number | null }
 ): LivePortfolio {
+  const generatedAt = opts?.generatedAt || new Date().toISOString();
+  const cashAtBank =
+    opts?.cashAtBank != null && Number.isFinite(opts.cashAtBank)
+      ? roundMoney(opts.cashAtBank)
+      : PORTFOLIO_BASE.cash_at_bank;
   const added = deals.filter((d) => isDealAddedAfterSnapshot(d.agreement_number));
   const summary = {
     total_deals: PORTFOLIO_BASE.total_deals,
@@ -177,7 +192,7 @@ export function buildLivePortfolio(
     total_outstanding: PORTFOLIO_BASE.total_outstanding,
     total_profit: PORTFOLIO_BASE.total_profit,
     blended_yield: 0,
-    cash_at_bank: PORTFOLIO_BASE.cash_at_bank,
+    cash_at_bank: cashAtBank,
     net_position: 0,
   };
   const types: Record<DealType, { deals: number; total_lent: number; total_profit: number }> = {

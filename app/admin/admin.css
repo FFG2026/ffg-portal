@@ -87,6 +87,11 @@
 .book-table th:nth-child(n+2){text-align:right;}
 .book-table .book-total td{font-weight:700; background:var(--paper);}
 .book-table tr:last-child td{border-bottom:none;}
+.book-cash{display:flex; align-items:center; justify-content:flex-end; gap:8px;}
+.book-cash span{font-family:'IBM Plex Mono', monospace;}
+.book-cash input{width:140px; padding:6px 8px; border:1px solid var(--rule); border-radius:6px; text-align:right; font-family:'IBM Plex Mono', monospace; font-size:14px;}
+.book-cash button{padding:6px 10px; border-radius:6px; border:1px solid var(--navy); background:var(--navy); color:#fff; font-size:12px; font-weight:600; cursor:pointer;}
+.book-cash button:disabled{opacity:0.55; cursor:wait;}
 @media (max-width: 900px){
   .admin-stats, .admin-grid-2, .admin-form{grid-template-columns:1fr;}
   .admin-top{flex-wrap:wrap;}
