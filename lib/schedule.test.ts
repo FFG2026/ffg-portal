@@ -132,3 +132,5 @@ assert(
 
 assert(visibleScheduleNote("GoCardless collection") == null, "hide internal GC label");
 assert(visibleScheduleNote("Refund of double payment") === "Refund of double payment", "keep real notes");
+
+console.log("schedule tests ok");
