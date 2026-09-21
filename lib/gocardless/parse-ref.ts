@@ -13,6 +13,18 @@ export function normalizeAgreementNumber(type: string, n: string | number) {
   return `${type.toUpperCase()}${Number(n)}`;
 }
 
+const NUMBERED = /^(HP|FL|L)(\d+)$/i;
+
+export function compareAgreementNumber(a: string, b: string) {
+  const ma = String(a || "").toUpperCase().match(NUMBERED);
+  const mb = String(b || "").toUpperCase().match(NUMBERED);
+  if (ma && mb) {
+    if (ma[1] !== mb[1]) return ma[1].localeCompare(mb[1]);
+    return Number(ma[2]) - Number(mb[2]);
+  }
+  return String(a || "").localeCompare(String(b || ""), "en", { numeric: true });
+}
+
 export function parseAgreementRef(
   ...texts: (string | null | undefined)[]
 ): AgreementRef | null {

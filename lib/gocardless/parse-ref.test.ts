@@ -1,6 +1,7 @@
 import {
   parseAgreementRef,
   parseAgreementRefFromPayment,
+  compareAgreementNumber,
 } from "./parse-ref";
 
 function assert(cond: unknown, msg: string) {
@@ -34,5 +35,10 @@ assert(
   })?.instalment_number === 2,
   "metadata instalment"
 );
+
+assert(compareAgreementNumber("HP14", "HP141") < 0, "hp14 before hp141");
+assert(compareAgreementNumber("HP140", "HP141") < 0, "hp140 before hp141");
+assert(compareAgreementNumber("HP142", "HP143") < 0, "hp142 before hp143");
+assert(compareAgreementNumber("FL16", "HP1") < 0, "FL before HP");
 
 console.log("parse-ref tests ok");

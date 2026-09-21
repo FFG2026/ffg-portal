@@ -3,6 +3,7 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { isLiveDeal, paidCount, unpaidSum, overdueSum } from "../../../../lib/deal-status";
+import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,10 @@ export async function GET(request: Request) {
       (a.asset_description || "").toLowerCase().includes(q)
     );
   });
+
+  filtered.sort((a, b) =>
+    compareAgreementNumber(a.agreement_number, b.agreement_number)
+  );
 
   return NextResponse.json(
     {
