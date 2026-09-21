@@ -177,7 +177,9 @@ export async function GET(request: Request) {
         term_months: agreement.term_months,
         live: paidCount < agreement.term_months,
         settlement_figure: settlementFigure,
-        last_payment_date: lastPaid ? lastPaid.due_date : null,
+        last_payment_date: lastPaid
+          ? lastPaid.paid_date || lastPaid.due_date
+          : null,
       },
       schedule: schedule.map((p) => ({
         instalment_number: p.instalment_number,
@@ -186,6 +188,8 @@ export async function GET(request: Request) {
         status: p.status,
         paid_date: p.paid_date,
         balance_after: p.balance_after,
+        notes: p.notes || null,
+        source: p.source || null,
       })),
     },
     { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } }

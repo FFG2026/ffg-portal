@@ -35,6 +35,8 @@ type LookupResult = {
     status: string;
     paid_date: string | null;
     balance_after: number;
+    notes: string | null;
+    source: string | null;
   }[];
 };
 
@@ -341,6 +343,18 @@ function LookupInner() {
                 )}
               </div>
 
+              {result.status.live && result.status.settlement_figure > 0 && (
+                <ManualPaymentForm
+                  agreementNumber={result.agreement.agreement_number}
+                  owing={result.status.settlement_figure}
+                  onDone={() => {
+                    setScheduleOpen(true);
+                    runLookup("agreement", result.agreement.agreement_number);
+                  }}
+                  gbp={gbp}
+                />
+              )}
+
               <div
                 className="lookup-toggle"
                 onClick={() => setScheduleOpen((v) => !v)}
@@ -367,9 +381,14 @@ function LookupInner() {
                         <td className="mono">{gbp(row.amount)}</td>
                         <td>
                           {row.status === "paid" ? (
-                            <span className="lookup-paid">Paid</span>
+                            <span className="lookup-paid">
+                              {row.source === "manual" ? "Part settlement" : "Paid"}
+                            </span>
                           ) : (
                             <span className="lookup-due">Due</span>
+                          )}
+                          {row.notes && (
+                            <div className="lookup-row-note">{row.notes}</div>
                           )}
                         </td>
                         <td className="mono">{gbp(row.balance_after)}</td>
@@ -382,6 +401,123 @@ function LookupInner() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function ManualPaymentForm({
+  agreementNumber,
+  owing,
+  onDone,
+  gbp,
+}: {
+  agreementNumber: string;
+  owing: number;
+  onDone: () => void;
+  gbp: (n: number) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [paidDate, setPaidDate] = useState(todayIso);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMsg("");
+    setError("");
+    try {
+      const res = await fetch("/api/admin/manual-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({
+          agreement_number: agreementNumber,
+          amount,
+          paid_date: paidDate,
+          note,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not save");
+      setMsg(
+        json.settled
+          ? `Recorded ${gbp(json.applied)} — this agreement is now settled.`
+          : `Recorded ${gbp(json.applied)}. Settlement figure is updated.`
+      );
+      setAmount("");
+      setNote("");
+      setOpen(false);
+      onDone();
+    } catch (err: any) {
+      setError(err.message || "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="lookup-manual">
+      <button
+        type="button"
+        className="lookup-manual-toggle"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? "Cancel" : "Record a part settlement"}
+      </button>
+      <p className="lookup-manual-help">
+        For a lump that is not a monthly Direct Debit — insurance on a stolen
+        van, a vehicle sold off the agreement, or a customer paying down
+        part of the balance. It comes off the remaining instalments from the
+        end of the schedule, so collections still due stay in place.
+      </p>
+      {msg && <div className="lookup-ok">{msg}</div>}
+      {open && (
+        <form className="lookup-manual-form" onSubmit={submit}>
+          <div className="lookup-field">
+            <label>Amount</label>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              max={owing}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder={gbp(owing)}
+              required
+            />
+          </div>
+          <div className="lookup-field">
+            <label>Date received</label>
+            <input
+              type="date"
+              value={paidDate}
+              onChange={(e) => setPaidDate(e.target.value)}
+              required
+            />
+          </div>
+          <div className="lookup-field lookup-field-wide">
+            <label>What was this for?</label>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Insurance payout — stolen van"
+              required
+            />
+          </div>
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Apply to this agreement"}
+          </button>
+          {error && <div className="lookup-error">{error}</div>}
+        </form>
+      )}
     </div>
   );
 }
