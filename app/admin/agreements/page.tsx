@@ -38,8 +38,17 @@ function AgreementsInner() {
 
   const load = useCallback(async () => {
     const res = await fetch(
-      `/api/admin/agreements?status=${status}&q=${encodeURIComponent(q)}&ts=${Date.now()}`,
-      { headers: adminHeaders(), cache: "no-store" }
+      `/api/admin/agreements?status=${status}&q=${encodeURIComponent(q)}&t=${Date.now()}`,
+      {
+        method: "POST",
+        headers: {
+          ...adminHeaders(),
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+        body: JSON.stringify({ refresh: true }),
+        cache: "no-store",
+      }
     );
     if (!res.ok) return;
     const json = await res.json();
