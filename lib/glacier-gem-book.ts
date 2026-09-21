@@ -251,12 +251,29 @@ export const GLACIER_DRIVE_FOLDERS: Record<
   },
 };
 
+export const GLACIER_FOLDER_CREATED: Record<string, string> = {
+  GG01: "2025-04-10",
+  GG02: "2025-04-10",
+  GG03: "2025-04-10",
+  GG04: "2025-05-26",
+  GG05: "2025-06-05",
+  GG06: "2025-06-16",
+  GG07: "2025-06-19",
+  GG08: "2025-07-11",
+  GG09: "2025-09-02",
+  GG10: "2025-11-05",
+  GG11: "2026-02-18",
+  GG12: "2026-03-16",
+  GG13: "2026-08-24",
+  GG14: "2026-08-29",
+};
+
 export const GLACIER_KNOWN_DEALS: Record<string, GlacierExtras> = {
   GG01: {
     company_name: "Rocket Hire Limited",
     asset_description:
       "Ford Transit L3H3 DV72XEA, CK72YPG, CK72YPL, WR22SYX",
-    first_due: "2025-05-15",
+    first_due: "2025-05-10",
   },
   GG02: {
     company_name: "Rocket Hire Limited",
@@ -335,9 +352,11 @@ export const GLACIER_KNOWN_DEALS: Record<string, GlacierExtras> = {
 export function glacierExtrasFor(agreementNumber: string): GlacierExtras {
   const folder = GLACIER_DRIVE_FOLDERS[agreementNumber];
   const known = GLACIER_KNOWN_DEALS[agreementNumber] || {};
+  const created = GLACIER_FOLDER_CREATED[agreementNumber];
   return {
     ...known,
     company_name: known.company_name || folder?.company,
+    first_due: known.first_due || (created ? addMonths(created, 1) : null),
     google_folder_id: folder?.id || null,
     google_folder_name: folder?.name || null,
   };

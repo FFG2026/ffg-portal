@@ -8,6 +8,19 @@ export function addMonths(isoDate: string, months: number): string {
   return cursor.toISOString().slice(0, 10);
 }
 
+/** Commencement is the Drive folder created date; first instalment is one month later. */
+export function startDateFromDriveFolder(
+  createdTime?: string | null,
+  modifiedTime?: string | null
+) {
+  const raw = String(createdTime || modifiedTime || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+}
+
+export function instalmentDueFromStart(startDate: string, instalmentNumber: number) {
+  return addMonths(String(startDate).slice(0, 10), instalmentNumber);
+}
+
 /** Commencement is always one calendar month before the first instalment. */
 export function startDateFromFirstPayment(
   rows: { due_date?: string | null }[] | null | undefined,
