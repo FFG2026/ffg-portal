@@ -107,6 +107,10 @@ export async function GET(request: Request) {
     paymentsByAgreement.set(p.agreement_id, list);
   }
 
+  const agreementNumberById = new Map(
+    (agreements || []).map((agreement) => [agreement.id, agreement.agreement_number as string])
+  );
+
   const liveById = new Map<string, boolean>();
   for (const a of agreements || []) {
     const rows = paymentsByAgreement.get(a.id) || [];
@@ -241,6 +245,36 @@ export async function GET(request: Request) {
 
   attention.sort((a, b) => (b.amount || 0) - (a.amount || 0));
 
+  const todayUtc = new Date(`${today}T00:00:00.000Z`);
+  const cashflow = [30, 60, 90].map((days) => {
+    const end = new Date(todayUtc);
+    end.setUTCDate(end.getUTCDate() + days);
+    const endDate = end.toISOString().slice(0, 10);
+    const upcoming = (payments || []).filter(
+      (payment) =>
+        !isPaidRow(payment.status) &&
+        liveById.get(payment.agreement_id) !== false &&
+        payment.due_date >= today &&
+        payment.due_date <= endDate
+    );
+    return {
+      days,
+      amount: round2(upcoming.reduce((sum, payment) => sum + num(payment.amount), 0)),
+      count: upcoming.length,
+    };
+  });
+
+  const recentActivity = (payments || [])
+    .filter((payment) => isPaidRow(payment.status) && payment.paid_date)
+    .sort((a, b) => String(b.paid_date).localeCompare(String(a.paid_date)))
+    .slice(0, 4)
+    .map((payment) => ({
+      date: payment.paid_date,
+      description: `Payment received (${formatGbp(num(payment.amount))})`,
+      agreement_number: agreementNumberById.get(payment.agreement_id) || "—",
+      source: String(payment.source || "Book"),
+    }));
+
   return NextResponse.json(
     {
     generated_at: new Date().toISOString(),
@@ -259,6 +293,8 @@ export async function GET(request: Request) {
     },
     chart,
     attention: attention.slice(0, 40),
+    cashflow,
+    recent_activity: recentActivity,
     },
     { headers: NO_CACHE }
   );
@@ -270,4 +306,8 @@ export async function POST(request: Request) {
 
 function round2(n: number) {
   return Math.round(n * 100) / 100;
+}
+
+function formatGbp(n: number) {
+  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
