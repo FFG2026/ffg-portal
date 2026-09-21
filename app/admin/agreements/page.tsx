@@ -63,8 +63,8 @@ function AgreementsInner() {
       <div className="admin-kicker">Book</div>
       <h1>Agreements</h1>
       <p className="admin-lead">
-        Live deals are still collecting. Past deals have had every instalment
-        marked paid.
+        Live deals are still collecting. Outstanding here is only arrears —
+        an account that is up to date shows as such, not the rest of the term.
       </p>
       <div className="admin-toolbar">
         <div className="admin-tabs">
@@ -125,11 +125,15 @@ function AgreementsInner() {
                 {a.paid_count}/{a.term_months}
               </td>
               <td className="mono">
-                {gbp(a.outstanding)}
-                {a.overdue > 0 && (
-                  <div style={{ color: "#8A6A24", fontSize: 11 }}>
-                    {gbp(a.overdue)} overdue
-                  </div>
+                {a.overdue > 0 ? (
+                  <>
+                    {gbp(a.overdue)}
+                    <div style={{ color: "#8A6A24", fontSize: 11 }}>overdue</div>
+                  </>
+                ) : (
+                  <span style={{ color: "var(--green)", fontWeight: 600 }}>
+                    Up to date
+                  </span>
                 )}
               </td>
               <td>
