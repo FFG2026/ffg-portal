@@ -298,7 +298,9 @@ function LookupInner() {
                 <div className="lookup-settlement">
                   <div className="lookup-settlement-label">
                     {result.status.live
-                      ? "Settlement figure — close of business today"
+                      ? result.agreement.agreement_type === "FL"
+                        ? "Settlement figure — close of business today, including VAT"
+                        : "Settlement figure — close of business today"
                       : "Paid in full"}
                   </div>
                   <div className="lookup-settlement-amt">
