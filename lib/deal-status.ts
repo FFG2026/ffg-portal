@@ -41,17 +41,52 @@ export function isLiveDeal(
   return paidCount(list) < Number(agreement.term_months || 0) || list.length === 0;
 }
 
-export function overdueSum(
-  rows:
-    | {
-        status?: string | null;
-        amount?: number | string | null;
-        due_date?: string | null;
-      }[]
-    | null
-    | undefined,
+export type PaymentDateRow = {
+  status?: string | null;
+  amount?: number | string | null;
+  due_date?: string | null;
+  paid_date?: string | null;
+};
+
+export function addCalendarMonths(iso: string, months: number) {
+  const y = Number(iso.slice(0, 4));
+  const m = Number(iso.slice(5, 7));
+  const d = Number(iso.slice(8, 10));
+  return new Date(Date.UTC(y, m - 1 + months, d)).toISOString().slice(0, 10);
+}
+
+/** Latest collected date on paid rows (paid_date, else the instalment due date). */
+export function lastReceivedPaymentDate(
+  rows: PaymentDateRow[] | null | undefined
+) {
+  let latest: string | null = null;
+  for (const r of rows || []) {
+    if (!isPaidRow(r.status)) continue;
+    const d = String(r.paid_date || r.due_date || "").slice(0, 10);
+    if (d.length >= 10 && (!latest || d > latest)) latest = d;
+  }
+  return latest;
+}
+
+/** True if a collection landed on or after one calendar month before today. */
+export function receivedPaymentInLastMonth(
+  rows: PaymentDateRow[] | null | undefined,
   today: string
 ) {
+  const last = lastReceivedPaymentDate(rows);
+  return !!last && last >= addCalendarMonths(today, -1);
+}
+
+/**
+ * Past-due unpaid instalments, but only if we have not received a payment
+ * in the last calendar month. Regular monthly collections should not sit
+ * on the chase list just because an older row is still marked due.
+ */
+export function overdueSum(
+  rows: PaymentDateRow[] | null | undefined,
+  today: string
+) {
+  if (receivedPaymentInLastMonth(rows, today)) return 0;
   return roundMoney(
     (rows || [])
       .filter(
@@ -69,11 +104,7 @@ export function overdueSum(
  */
 export function liveOverdueSum(
   agreement: { status?: string | null; term_months?: number | null },
-  rows: {
-    status?: string | null;
-    amount?: number | string | null;
-    due_date?: string | null;
-  }[] | null | undefined,
+  rows: PaymentDateRow[] | null | undefined,
   today: string
 ) {
   if (!isLiveDeal(agreement, rows)) return 0;

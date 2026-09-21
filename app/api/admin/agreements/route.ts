@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       fetchAllRows(() =>
         supabase
           .from("payments")
-          .select("agreement_id, amount, status, due_date")
+          .select("agreement_id, amount, status, due_date, paid_date")
       ),
     ]);
   } catch (err: any) {
