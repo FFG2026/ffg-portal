@@ -93,16 +93,9 @@ export async function fetchGoCardlessPaymentsChargedBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  const last = new Date(Date.parse(`${toExclusive}T00:00:00Z`) - 86400000)
-    .toISOString()
-    .slice(0, 10);
-  const createdFrom = new Date(Date.parse(`${fromInclusive}T00:00:00Z`) - 40 * 86400000)
-    .toISOString()
-    .slice(0, 10);
   const path = gcListPaymentsPath({
-    "charge_date[gte]": fromInclusive,
-    "charge_date[lte]": last,
-    "created_at[gte]": createdFrom,
+    "created_at[gte]": `${fromInclusive}T00:00:00.000Z`,
+    "created_at[lt]": `${toExclusive}T00:00:00.000Z`,
     status: "paid_out",
     limit: "500",
   });

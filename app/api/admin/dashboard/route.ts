@@ -254,6 +254,7 @@ export async function GET(request: Request) {
       due_this_month: round2(dueThisMonth),
       collected_this_month: round2(collectedThisMonth),
       collected_count: gcMonthLoaded ? gcMonthCount : null,
+      collected_from_gocardless: gcMonthLoaded,
       no_mandate: noMandate,
     },
     chart,
