@@ -85,9 +85,9 @@ function DashboardInner() {
       <h1>Company dashboard</h1>
       <p className="admin-lead">
         Live book, collections and anything that needs a look. Payments come
-        from GoCardless. Refresh after a collection run. New deals go on
-        New deal — the workbook can still be dropped there if you have a
-        batch of tabs to load.
+        from GoCardless, including descriptions like HP41/1. Refresh after a
+        collection run. New deals go on New deal — the workbook can still be
+        dropped there if you have a batch of tabs to load.
       </p>
 
       <div className="admin-actions">

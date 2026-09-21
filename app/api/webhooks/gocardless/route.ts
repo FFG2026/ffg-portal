@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchGoCardlessPayment } from "../../../../lib/gocardless/client";
 import { syncAgreementPayments } from "../../../../lib/gocardless/sync-payments";
+import { parseAgreementRefFromPayment } from "../../../../lib/gocardless/parse-ref";
 
 const PAYMENT_ACTIONS = new Set([
   "confirmed",
@@ -52,21 +53,38 @@ export async function POST(request: Request) {
         if (gcPaymentId) {
           const gcPayment = await fetchGoCardlessPayment(gcPaymentId);
           gcMandateId = gcPayment?.links?.mandate || null;
+          const ref = parseAgreementRefFromPayment({
+            description: gcPayment?.description,
+            reference: gcPayment?.reference,
+            metadata: gcPayment?.metadata,
+          });
 
-          if (gcMandateId) {
-            const { data: agreement } = await supabase
+          let agreement = null;
+          if (ref?.agreement_number) {
+            const found = await supabase
               .from("agreements")
-              .select("id, gocardless_mandate_id")
+              .select("id, agreement_number, gocardless_mandate_id")
+              .ilike("agreement_number", ref.agreement_number)
+              .maybeSingle();
+            agreement = found.data;
+          }
+          if (!agreement && gcMandateId) {
+            const found = await supabase
+              .from("agreements")
+              .select("id, agreement_number, gocardless_mandate_id")
               .eq("gocardless_mandate_id", gcMandateId)
               .maybeSingle();
+            agreement = found.data;
+          }
 
-            if (agreement) {
-              const result = await syncAgreementPayments(supabase, agreement);
-              if ((result.markedPaid || result.markedFailed) && !result.error) {
-                matchStatus = "matched";
-              }
-              if (result.error) matchStatus = "error";
+          if (agreement && gcPayment) {
+            const result = await syncAgreementPayments(supabase, agreement, [
+              gcPayment,
+            ]);
+            if ((result.markedPaid || result.markedFailed) && !result.error) {
+              matchStatus = "matched";
             }
+            if (result.error) matchStatus = "error";
           }
         }
       }
