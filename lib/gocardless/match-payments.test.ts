@@ -5,6 +5,8 @@ import {
   isDocumentationFeeCollection,
   scheduleCollectionsOnly,
   collectedPoundsFromGoCardlessPayments,
+  amountsClose,
+  collectedScheduleAmount,
 } from "./match-payments";
 
 function assert(cond: unknown, msg: string) {
@@ -97,6 +99,33 @@ assert(
     { status: "pending_submission", amount: 275866 },
   ]) === 1403.26,
   "collected this month is confirmed GoCardless cash without the doc fee"
+);
+
+const flNet = [
+  {
+    id: "n9",
+    due_date: "2026-07-26",
+    status: "due",
+    amount: "955.04",
+    gocardless_payment_id: null,
+    instalment_number: 12,
+  },
+];
+const flVat = matchGcPaymentsToInstalments(flNet, [
+  {
+    id: "PM_JUL_VAT",
+    charge_date: "2026-07-27",
+    status: "paid_out",
+    amount: 114605,
+  },
+]);
+assert(
+  flVat.length === 1 && flVat[0].instalmentId === "n9",
+  "GoCardless VAT-inclusive £1,146.05 ticks the net £955.04 FL rent"
+);
+assert(
+  amountsClose(955.04, 114605) && collectedScheduleAmount(955.04, 114605, 1146.05) === 1146.05,
+  "matched FL rent is stored at the VAT-inclusive monthly"
 );
 
 console.log("match-payments tests ok");

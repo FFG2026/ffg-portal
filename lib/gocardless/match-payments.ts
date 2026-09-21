@@ -48,14 +48,51 @@ function amountPence(amount: number | string): number {
   return Math.round(Number(amount) * 100);
 }
 
-/** Same collection, allowing a small GC fee / rounding difference. */
+function penceClose(a: number, b: number) {
+  const diff = Math.abs(a - b);
+  return diff <= 100 || diff <= Math.round(Math.max(a, b) * 0.02);
+}
+
+/** UK VAT 20% — FL spreadsheets often store net while GoCardless collects gross. */
+export function withVatPence(netPence: number) {
+  return Math.round(netPence * 1.2);
+}
+
+/** Same collection, allowing a small GC fee / rounding difference, or net vs VAT-gross. */
 export function amountsClose(
   instalmentAmount: number | string,
   gcAmountPence: number
 ) {
   const inst = amountPence(instalmentAmount);
-  const diff = Math.abs(inst - gcAmountPence);
-  return diff <= 100 || diff <= Math.round(inst * 0.02);
+  if (penceClose(inst, gcAmountPence)) return true;
+  if (penceClose(withVatPence(inst), gcAmountPence)) return true;
+  return false;
+}
+
+export function looksLikeVatExclusive(
+  amount: number | string,
+  grossMonthly: number | string
+) {
+  return penceClose(withVatPence(amountPence(amount)), amountPence(grossMonthly));
+}
+
+/** Prefer the contracted monthly (VAT-inclusive) when a collection matches it. */
+export function collectedScheduleAmount(
+  instalmentAmount: number | string,
+  gcAmountPence: number,
+  monthlyInstalment?: number | string | null
+) {
+  const monthly =
+    monthlyInstalment != null && Number(monthlyInstalment) > 0
+      ? Number(monthlyInstalment)
+      : null;
+  if (monthly != null && amountsClose(monthly, gcAmountPence)) {
+    return Math.round(monthly * 100) / 100;
+  }
+  if (looksLikeVatExclusive(instalmentAmount, gcAmountPence / 100)) {
+    return Math.round(gcAmountPence) / 100;
+  }
+  return Math.round(Number(instalmentAmount) * 100) / 100;
 }
 
 const DEFAULT_DOCUMENTATION_FEE_PENCE = 19500;
@@ -116,7 +153,8 @@ function nearestInstalment(
   instalments: Instalment[],
   gcPayment: GoCardlessPayment,
   usedInstalmentIds: Set<string>,
-  mode: "paid" | "failed"
+  mode: "paid" | "failed",
+  maxDays: number = MATCH_WINDOW_DAYS
 ): Instalment | null {
   const chargeDate = gcPayment.charge_date;
   if (!chargeDate) return null;
@@ -135,7 +173,7 @@ function nearestInstalment(
     }
 
     const diff = Math.abs(daysBetween(instalment.due_date, chargeDate));
-    if (diff > MATCH_WINDOW_DAYS) continue;
+    if (diff > maxDays) continue;
     if (!amountsClose(instalment.amount, gcPayment.amount)) continue;
     if (diff < bestScore) {
       bestScore = diff;
@@ -163,15 +201,16 @@ function instalmentByNumber(
   });
   if (matches.length === 0) return null;
   if (matches.length === 1) return matches[0];
-  const exactAmount = matches.find(
-    (row) => amountPence(row.amount) === gcPayment.amount
+  const exactAmount = matches.find((row) =>
+    amountsClose(row.amount, gcPayment.amount)
   );
   return exactAmount || matches[0];
 }
 
 export function matchGcPaymentsToInstalments(
   instalments: Instalment[],
-  gcPayments: GoCardlessPayment[]
+  gcPayments: GoCardlessPayment[],
+  opts?: { looseDateDays?: number }
 ): PaymentMatch[] {
   const usedInstalmentIds = new Set<string>();
   const usedGcIds = new Set(
@@ -194,7 +233,16 @@ export function matchGcPaymentsToInstalments(
         payment,
         usedInstalmentIds,
         "paid"
-      );
+      ) ||
+      (opts?.looseDateDays
+        ? nearestInstalment(
+            instalments,
+            payment,
+            usedInstalmentIds,
+            "paid",
+            opts.looseDateDays
+          )
+        : null);
     if (!instalment) continue;
     usedInstalmentIds.add(instalment.id);
     usedGcIds.add(payment.id);
@@ -219,7 +267,16 @@ export function matchGcPaymentsToInstalments(
         payment,
         usedInstalmentIds,
         "failed"
-      );
+      ) ||
+      (opts?.looseDateDays
+        ? nearestInstalment(
+            instalments,
+            payment,
+            usedInstalmentIds,
+            "failed",
+            opts.looseDateDays
+          )
+        : null);
     if (!instalment) continue;
     usedInstalmentIds.add(instalment.id);
     usedGcIds.add(payment.id);
