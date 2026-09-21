@@ -5,6 +5,7 @@ import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
 import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
+import { startDateFromFirstPayment } from "../../../../lib/schedule";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -155,7 +156,7 @@ export async function GET(request: Request) {
         agreement_type: agreement.agreement_type,
         asset_description: agreement.asset_description,
         monthly_instalment: agreement.monthly_instalment,
-        start_date: agreement.start_date,
+        start_date: startDateFromFirstPayment(schedule, agreement.start_date),
         term_months: agreement.term_months,
         total_lend: agreement.total_lend,
         purchase_price: agreement.purchase_price,

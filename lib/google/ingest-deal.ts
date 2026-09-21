@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildPaymentSchedule } from "../schedule";
+import { addMonths, buildPaymentSchedule } from "../schedule";
 import { findOrCreateCustomer } from "../admin-deal";
 import { parseDealFolderTitle } from "./folder-match";
 import {
@@ -98,6 +98,17 @@ export async function ingestDealFromFolder(
   const startDate = details.start_date;
 
   if (existing) {
+    const { data: firstPay } = await supabase
+      .from("payments")
+      .select("due_date")
+      .eq("agreement_id", existing.id)
+      .order("due_date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const alignedStart = firstPay?.due_date
+      ? addMonths(String(firstPay.due_date).slice(0, 10), -1)
+      : startDate || existing.start_date;
+
     await supabase
       .from("agreements")
       .update({
@@ -111,7 +122,7 @@ export async function ingestDealFromFolder(
         documentation_fee: details.documentation_fee,
         monthly_instalment: monthly ?? existing.monthly_instalment,
         term_months: termMonths ?? existing.term_months,
-        start_date: startDate || existing.start_date,
+        start_date: alignedStart,
       })
       .eq("id", existing.id);
 

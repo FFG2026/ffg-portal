@@ -1,3 +1,5 @@
+import { addMonths } from "./schedule";
+
 export type SheetPayment = {
   instalment_number: number;
   due_date: string;
@@ -141,7 +143,7 @@ export function parseAgreementRows(
     documentation_fee,
     monthly_instalment: payments[0].amount,
     term_months: payments.length,
-    start_date: payments[0].due_date,
+    start_date: addMonths(payments[0].due_date, -1),
     payments,
   };
 }

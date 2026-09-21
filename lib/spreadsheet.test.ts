@@ -23,7 +23,7 @@ assert(hp119?.term_months === 3, "term from payment rows");
 assert(hp119?.payments[0].due_date === "2026-02-25", "excel date");
 assert(hp119?.payments[0].paid === true, "tick");
 assert(hp119?.payments[2].paid === false, "unticked");
-assert(hp119?.start_date === "2026-02-25", "first due is start");
+assert(hp119?.start_date === "2026-01-25", "start is first due minus one month");
 
 const empty = parseAgreementRows("HP140", [
   [null, "HP00140 - Customer Name"],
