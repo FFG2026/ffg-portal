@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
-import { isLiveDeal, paidCount, unpaidSum, overdueSum } from "../../../../lib/deal-status";
+import { isLiveDeal, paidCount, overdueSum } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment } from "../../../../lib/schedule";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
 
@@ -76,8 +76,8 @@ export async function GET(request: Request) {
   const list = (agreements || []).map((a) => {
     const rows = rowsByAgreement.get(a.id) || [];
     const live = isLiveDeal(a, rows);
-    const outstanding = live ? unpaidSum(rows) : 0;
     const overdue = live ? overdueSum(rows, today) : 0;
+    const outstanding = overdue;
     const customer = nameById.get(a.customer_id);
     return {
       id: a.id,
