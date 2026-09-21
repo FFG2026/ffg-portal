@@ -31,7 +31,7 @@ export function adminBasePath(pathname?: string) {
 
 const NAV = [
   { href: "", label: "Dashboard" },
-  { href: "/figures", label: "Live figures", owenOnly: true, ffgOnly: true },
+  { href: "/figures", label: "Live figures", owenOnly: true },
   { href: "/customers", label: "Customers" },
   { href: "/agreements", label: "Agreements" },
   { href: "/new-deal", label: "New deal" },
