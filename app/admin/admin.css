@@ -66,6 +66,7 @@
 .admin-actions{display:flex; gap:10px; margin-bottom:22px;}
 .admin-actions button{padding:10px 16px; border-radius:8px; border:1px solid var(--rule); background:#fff; font-weight:600; cursor:pointer;}
 .admin-actions button.primary{background:var(--navy); color:#fff; border-color:var(--navy);}
+.admin-actions button:disabled{opacity:0.55; cursor:wait;}
 .admin-file{display:inline-flex; align-items:center; gap:10px; padding:10px 16px; border-radius:8px; border:1px solid var(--rule); background:var(--navy); color:#fff; font-weight:600; cursor:pointer;}
 .admin-file input{display:none;}
 .admin-card .admin-ok,.admin-card .admin-error{margin-top:14px;}

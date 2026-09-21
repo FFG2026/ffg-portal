@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminShell, { adminHeaders } from "./AdminShell";
 import { useBookReload } from "../../lib/admin-book-reload";
@@ -47,19 +47,37 @@ function DashboardInner() {
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [reloading, setReloading] = useState(false);
+  const loadSeq = useRef(0);
 
-  const load = useCallback(async () => {
-    const res = await fetch("/api/admin/dashboard", {
-      method: "POST",
-      headers: adminHeaders(),
-      cache: "no-store",
-    });
-    if (!res.ok) {
+  const load = useCallback(async (opts?: { showBusy?: boolean }) => {
+    const seq = ++loadSeq.current;
+    if (opts?.showBusy) setReloading(true);
+    try {
+      const res = await fetch(`/api/admin/dashboard?t=${Date.now()}`, {
+        method: "POST",
+        headers: {
+          ...adminHeaders(),
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+          Pragma: "no-cache",
+        },
+        body: JSON.stringify({ refresh: true }),
+        cache: "no-store",
+      });
+      if (seq !== loadSeq.current) return;
+      if (!res.ok) {
+        setError("Couldn't load the dashboard.");
+        return;
+      }
+      setError("");
+      setData(await res.json());
+    } catch {
+      if (seq !== loadSeq.current) return;
       setError("Couldn't load the dashboard.");
-      return;
+    } finally {
+      if (seq === loadSeq.current) setReloading(false);
     }
-    setError("");
-    setData(await res.json());
   }, []);
 
   useBookReload(load);
@@ -108,11 +126,15 @@ function DashboardInner() {
       </p>
 
       <div className="admin-actions">
-        <button className="primary" onClick={refreshCollections} disabled={syncing}>
+        <button className="primary" onClick={refreshCollections} disabled={syncing || reloading}>
           {syncing ? "Refreshing from GoCardless…" : "Refresh collections from GoCardless"}
         </button>
-        <button onClick={() => load()} type="button">
-          Reload figures
+        <button
+          onClick={() => load({ showBusy: true })}
+          type="button"
+          disabled={reloading || syncing}
+        >
+          {reloading ? "Reloading…" : "Reload figures"}
         </button>
         <button onClick={() => router.push("/admin/new-deal")}>Load a new deal</button>
       </div>
