@@ -15,8 +15,7 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const { data: agreements, error } = await supabase
     .from("agreements")
-    .select("id, agreement_number, gocardless_mandate_id")
-    .not("gocardless_mandate_id", "is", null);
+    .select("id, agreement_number, gocardless_mandate_id");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

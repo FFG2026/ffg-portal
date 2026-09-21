@@ -59,3 +59,7 @@ export async function fetchPaymentsForMandate(mandateId: string) {
     "payments"
   );
 }
+
+export async function fetchAllGoCardlessPayments() {
+  return fetchGoCardlessPages("/payments", "payments");
+}

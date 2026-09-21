@@ -13,6 +13,7 @@ export type Instalment = {
   status: string;
   amount: number | string;
   gocardless_payment_id: string | null;
+  instalment_number?: number | null;
 };
 
 export type GoCardlessPayment = {
@@ -20,6 +21,8 @@ export type GoCardlessPayment = {
   charge_date: string | null;
   status: string;
   amount: number;
+  /** Set when the GC description is HP41/2 (instalment 2 on HP41). */
+  instalment_number?: number | null;
 };
 
 export type PaymentMatch = {
@@ -81,6 +84,29 @@ function nearestInstalment(
   return best;
 }
 
+function instalmentByNumber(
+  instalments: Instalment[],
+  gcPayment: GoCardlessPayment,
+  usedInstalmentIds: Set<string>,
+  mode: "paid" | "failed"
+): Instalment | null {
+  const n = gcPayment.instalment_number;
+  if (n == null) return null;
+  const matches = instalments.filter((instalment) => {
+    if (usedInstalmentIds.has(instalment.id)) return false;
+    if (instalment.gocardless_payment_id) return false;
+    if (instalment.instalment_number !== n) return false;
+    if (mode === "failed" && instalment.status === "paid") return false;
+    return true;
+  });
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0];
+  const exactAmount = matches.find(
+    (row) => amountPence(row.amount) === gcPayment.amount
+  );
+  return exactAmount || matches[0];
+}
+
 export function matchGcPaymentsToInstalments(
   instalments: Instalment[],
   gcPayments: GoCardlessPayment[]
@@ -99,12 +125,14 @@ export function matchGcPaymentsToInstalments(
 
   for (const payment of collected) {
     if (usedGcIds.has(payment.id)) continue;
-    const instalment = nearestInstalment(
-      instalments,
-      payment,
-      usedInstalmentIds,
-      "paid"
-    );
+    const instalment =
+      instalmentByNumber(instalments, payment, usedInstalmentIds, "paid") ||
+      nearestInstalment(
+        instalments,
+        payment,
+        usedInstalmentIds,
+        "paid"
+      );
     if (!instalment) continue;
     usedInstalmentIds.add(instalment.id);
     usedGcIds.add(payment.id);
@@ -122,12 +150,14 @@ export function matchGcPaymentsToInstalments(
 
   for (const payment of failed) {
     if (usedGcIds.has(payment.id)) continue;
-    const instalment = nearestInstalment(
-      instalments,
-      payment,
-      usedInstalmentIds,
-      "failed"
-    );
+    const instalment =
+      instalmentByNumber(instalments, payment, usedInstalmentIds, "failed") ||
+      nearestInstalment(
+        instalments,
+        payment,
+        usedInstalmentIds,
+        "failed"
+      );
     if (!instalment) continue;
     usedInstalmentIds.add(instalment.id);
     usedGcIds.add(payment.id);

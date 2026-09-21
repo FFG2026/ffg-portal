@@ -38,4 +38,13 @@ assert(isDirectDebitUpToDate(afterSync, "2026-09-16") === true, "up to date on 1
 assert(isDirectDebitUpToDate(instalments, "2026-09-16") === false, "unsynced July/Aug is behind");
 assert(isDirectDebitUpToDate(afterSync, "2026-09-26") === false, "Sep 26 without Sept collection is behind");
 
+const numbered = [
+  { id: "a", due_date: "2023-06-27", status: "due", amount: "6303.76", gocardless_payment_id: null, instalment_number: 1 },
+  { id: "b", due_date: "2023-07-27", status: "due", amount: "6303.76", gocardless_payment_id: null, instalment_number: 2 },
+];
+const byRef = matchGcPaymentsToInstalments(numbered, [
+  { id: "PM_HP41_2", charge_date: "2025-01-10", status: "paid_out", amount: 630376, instalment_number: 2 },
+]);
+assert(byRef.length === 1 && byRef[0].instalmentId === "b", "HP41/2 attaches to instalment 2 even if the date is off");
+
 console.log("match-payments tests ok");
