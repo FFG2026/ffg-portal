@@ -81,8 +81,8 @@ function FiguresInner() {
       <div className="admin-kicker">Owner</div>
       <h1>Live figures</h1>
       <p className="admin-lead">
-        Base book from 28 Aug 2026. New agreements from HP142, FL16 and L5
-        onwards are added into these boxes as they go on.
+        Base book from 28 Aug 2026. That sheet does not include HP from 139,
+        so HP139+, FL16+ and L5+ are added into these boxes as they go on.
         {data.added_deals.length > 0
           ? ` Added since then: ${data.added_deals
               .map((d) => d.agreement_number)

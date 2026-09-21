@@ -8,7 +8,9 @@ function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
 }
 
-assert(isDealAddedAfterSnapshot("HP141") === false, "HP141 is in the 28 Aug book");
+assert(isDealAddedAfterSnapshot("HP138") === false, "HP138 stays in the August book");
+assert(isDealAddedAfterSnapshot("HP139") === true, "HP139 is after the sheet");
+assert(isDealAddedAfterSnapshot("HP141") === true, "HP141 is after the sheet");
 assert(isDealAddedAfterSnapshot("HP5") === false, "older HP numbers stay in the base");
 assert(isDealAddedAfterSnapshot("HP142") === true, "HP142 is after the snapshot");
 assert(isDealAddedAfterSnapshot("FL16") === true, "next FL is after the snapshot");
