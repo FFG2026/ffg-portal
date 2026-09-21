@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
 
 export const dynamic = "force-dynamic";
@@ -22,18 +23,31 @@ export async function GET(request: Request) {
     return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
   })();
 
-  const [{ data: agreements }, { data: payments }, { data: customers }] =
-    await Promise.all([
-      supabase
-        .from("agreements")
-        .select(
-          "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend"
-        ),
-      supabase
-        .from("payments")
-        .select("agreement_id, amount, status, due_date, paid_date"),
-      supabase.from("customers").select("id, company_name"),
+  let agreements;
+  let payments;
+  let customers;
+  try {
+    [agreements, payments, customers] = await Promise.all([
+      fetchAllRows(() =>
+        supabase
+          .from("agreements")
+          .select(
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend"
+          )
+      ),
+      fetchAllRows(() =>
+        supabase
+          .from("payments")
+          .select("agreement_id, amount, status, due_date, paid_date")
+      ),
+      fetchAllRows(() => supabase.from("customers").select("id, company_name")),
     ]);
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Could not load the book" },
+      { status: 500 }
+    );
+  }
 
   const nameById = new Map(
     (customers || []).map((c) => [c.id, c.company_name as string])
@@ -66,9 +80,9 @@ export async function GET(request: Request) {
         collectedThisMonth += amount;
       }
     } else {
-      outstanding += amount;
       bucket.unpaid += amount;
       if (p.due_date && p.due_date < today) overdue += amount;
+      else outstanding += amount;
       if (p.due_date && p.due_date >= monthStart && p.due_date < nextMonth) {
         dueThisMonth += amount;
       }

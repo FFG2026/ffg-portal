@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
 
 export const dynamic = "force-dynamic";
@@ -29,13 +30,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const { data: agreements } = await supabase
-    .from("agreements")
-    .select("id, customer_id, agreement_number, monthly_instalment, term_months");
-
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("agreement_id, status");
+  const [agreements, payments] = await Promise.all([
+    fetchAllRows(() =>
+      supabase
+        .from("agreements")
+        .select("id, customer_id, agreement_number, monthly_instalment, term_months")
+    ),
+    fetchAllRows(() =>
+      supabase.from("payments").select("agreement_id, status")
+    ),
+  ]);
 
   const paidByAgreement = new Map<string, number>();
   for (const p of payments || []) {

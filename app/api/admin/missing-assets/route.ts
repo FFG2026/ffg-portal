@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -27,10 +28,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("agreement_id, status")
-    .eq("status", "paid");
+  const payments = await fetchAllRows(() =>
+    supabase.from("payments").select("agreement_id, status").eq("status", "paid")
+  );
 
   const { data: allAgreements } = await supabase
     .from("agreements")

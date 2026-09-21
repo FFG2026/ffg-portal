@@ -112,9 +112,9 @@ function DashboardInner() {
               <div className="sub">{data.totals.finished} finished</div>
             </div>
             <div className="admin-stat">
-              <div className="lbl">Outstanding</div>
+              <div className="lbl">Owed in</div>
               <div className="num">{gbp(data.totals.outstanding)}</div>
-              <div className="sub">Still to collect on the book</div>
+              <div className="sub">Unpaid instalments from today</div>
             </div>
             <div className="admin-stat good">
               <div className="lbl">Collected this month</div>

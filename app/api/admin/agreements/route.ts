@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
 
 export const dynamic = "force-dynamic";
@@ -17,22 +18,33 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ data: agreements, error }, { data: customers }, { data: payments }] =
-    await Promise.all([
-      supabase
-        .from("agreements")
-        .select(
-          "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend"
-        )
-        .order("agreement_number"),
-      supabase.from("customers").select("id, company_name, email"),
-      supabase
-        .from("payments")
-        .select("agreement_id, amount, status, due_date"),
+  let agreements;
+  let customers;
+  let payments;
+  try {
+    [agreements, customers, payments] = await Promise.all([
+      fetchAllRows(() =>
+        supabase
+          .from("agreements")
+          .select(
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend"
+          )
+          .order("agreement_number")
+      ),
+      fetchAllRows(() =>
+        supabase.from("customers").select("id, company_name, email")
+      ),
+      fetchAllRows(() =>
+        supabase
+          .from("payments")
+          .select("agreement_id, amount, status, due_date")
+      ),
     ]);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Could not load agreements" },
+      { status: 500 }
+    );
   }
 
   const nameById = new Map(
