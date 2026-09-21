@@ -24,6 +24,8 @@ type ScanResult = {
   unmatched_folders: { name: string; id: string; company: string | null }[];
   missing_in_drive: string[];
   created_from_drive?: string[];
+  filled_assets?: string[];
+  pending_assets?: number;
   ingest_errors?: { name: string; error: string }[];
 };
 
@@ -113,10 +115,13 @@ function DriveInner() {
       if (!res.ok) throw new Error(json.error || "Scan failed");
       setScan(json);
       const created = (json.created_from_drive || []).length;
+      const filled = (json.filled_assets || []).length;
       setOk(
         `Matched ${json.linked} existing deals. ${created} new agreement${
           created === 1 ? "" : "s"
-        } added from Drive.`
+        } added from Drive. ${filled} pending asset${
+          filled === 1 ? "" : "s"
+        } filled from the HP documents.`
       );
       await load();
     } catch (err: any) {
@@ -144,9 +149,10 @@ function DriveInner() {
       <div className="admin-kicker">Google Drive</div>
       <h1>Deal documents</h1>
       <p className="admin-lead">
-        Connect the Future FG Google Drive. New HP / FL folders are read from
-        the signed agreement PDF and added to the book. Open lookup to amend
-        anything that came through wrongly.
+        Connect the Future FG Google Drive. Signed HP documents and goods
+        schedules in each deal folder are used for asset details. New folders
+        are added to the book; open lookup to amend anything that came through
+        wrongly.
       </p>
 
       {ok && <div className="admin-ok">{ok}</div>}
@@ -251,6 +257,9 @@ function DriveInner() {
             {scan.linked} existing deals linked to a folder.
             {(scan.created_from_drive || []).length
               ? ` Added ${(scan.created_from_drive || []).join(", ")} from Drive.`
+              : ""}{" "}
+            {(scan.filled_assets || []).length
+              ? ` Filled assets on ${(scan.filled_assets || []).join(", ")}.`
               : ""}{" "}
             {scan.missing_in_drive.length} book deals still have no folder.
           </p>
