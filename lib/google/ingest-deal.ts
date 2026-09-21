@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addMonths, buildPaymentSchedule } from "../schedule";
 import { findOrCreateCustomer } from "../admin-deal";
+import { fetchAllRows } from "../supabase/fetch-all";
 import { parseDealFolderTitle } from "./folder-match";
 import {
   driveAccessToken,
@@ -9,23 +10,101 @@ import {
   type DriveFile,
 } from "./drive";
 import { parseAgreementPdfBuffer } from "./extract-pdf";
+import {
+  isPlaceholderAsset,
+  type ParsedAgreementPdf,
+} from "./parse-agreement-pdf";
 
-function pickAgreementPdf(files: DriveFile[]) {
+function emptyDetails(companyName: string | null, startDate: string | null) {
+  return {
+    company_name: companyName,
+    contact_name: null as string | null,
+    email: null as string | null,
+    phone: null as string | null,
+    asset_description: null as string | null,
+    purchase_price: null as number | null,
+    customer_deposit: null as number | null,
+    total_lend: null as number | null,
+    documentation_fee: null as number | null,
+    monthly_instalment: null as number | null,
+    term_months: null as number | null,
+    start_date: startDate,
+  };
+}
+
+function scoreDealPdf(file: DriveFile) {
+  const name = file.name.toLowerCase();
+  let score = 0;
+  if (name.includes("signed")) score += 6;
+  if (/hire purchase|finance lease|loan agreement|lease agreement/.test(name))
+    score += 5;
+  if (name.includes("agreement")) score += 3;
+  if (/equip(t)?ment sched|goods schedule/.test(name)) score += 4;
+  if (name.includes("signed docs")) score += 2;
+  if (name.includes("invoice") || name.startsWith("inv")) score -= 8;
+  if (name.includes("guarantee") || name.includes("proposal")) score -= 5;
+  return score;
+}
+
+async function listDealDocuments(accessToken: string, folderId: string) {
+  const files = await listDriveChildren(accessToken, folderId, false);
+  const nested: DriveFile[] = [];
+  for (const sub of files.filter(
+    (file) => file.mimeType === "application/vnd.google-apps.folder"
+  ).slice(0, 4)) {
+    nested.push(...(await listDriveChildren(accessToken, sub.id, false)));
+  }
+  return [...files, ...nested];
+}
+
+export function pickAgreementPdfs(files: DriveFile[]) {
   const pdfs = files.filter(
-    (f) =>
-      f.mimeType === "application/pdf" || /\.pdf$/i.test(f.name)
+    (f) => f.mimeType === "application/pdf" || /\.pdf$/i.test(f.name)
   );
-  const scored = pdfs.map((file) => {
-    const name = file.name.toLowerCase();
-    let score = 0;
-    if (name.includes("signed")) score += 6;
-    if (/hire purchase|finance lease|loan agreement/.test(name)) score += 5;
-    if (name.includes("agreement")) score += 3;
-    if (name.includes("invoice") || name.startsWith("inv")) score -= 6;
-    return { file, score };
-  });
-  scored.sort((a, b) => b.score - a.score);
-  return scored[0]?.file || null;
+  return pdfs
+    .map((file) => ({ file, score: scoreDealPdf(file) }))
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((row) => row.file);
+}
+
+function mergeParsed(
+  base: ReturnType<typeof emptyDetails>,
+  extra: ParsedAgreementPdf
+) {
+  return {
+    company_name: base.company_name || extra.company_name,
+    contact_name: base.contact_name || extra.contact_name,
+    email: base.email || extra.email,
+    phone: base.phone || extra.phone,
+    asset_description: base.asset_description || extra.asset_description,
+    purchase_price: base.purchase_price ?? extra.purchase_price,
+    customer_deposit: base.customer_deposit ?? extra.customer_deposit,
+    total_lend: base.total_lend ?? extra.total_lend,
+    documentation_fee: base.documentation_fee ?? extra.documentation_fee,
+    monthly_instalment: base.monthly_instalment ?? extra.monthly_instalment,
+    term_months: base.term_months ?? extra.term_months,
+    start_date: extra.start_date || base.start_date,
+  };
+}
+
+async function detailsFromFolderFiles(
+  accessToken: string,
+  files: DriveFile[],
+  fallback: ReturnType<typeof emptyDetails>
+) {
+  let details = fallback;
+  for (const pdf of pickAgreementPdfs(files).slice(0, 5)) {
+    try {
+      const buffer = await downloadDriveFile(accessToken, pdf.id);
+      const fromPdf = await parseAgreementPdfBuffer(buffer);
+      details = mergeParsed(details, fromPdf);
+      if (details.asset_description && details.monthly_instalment) break;
+    } catch {
+      // Try the next signed agreement / goods schedule in the folder.
+    }
+  }
+  return details;
 }
 
 export async function ingestDealFromFolder(
@@ -38,60 +117,35 @@ export async function ingestDealFromFolder(
   }
   const agreementNumber = parsedFolder.agreement_number;
   const accessToken = await driveAccessToken(supabase);
-  const files = await listDriveChildren(accessToken, folder.id, false);
-  const pdf = pickAgreementPdf(files);
+  const files = await listDealDocuments(accessToken, folder.id);
 
-  let details = {
-    company_name: parsedFolder.company,
-    contact_name: null as string | null,
-    email: null as string | null,
-    phone: null as string | null,
-    asset_description: null as string | null,
-    purchase_price: null as number | null,
-    customer_deposit: null as number | null,
-    total_lend: null as number | null,
-    documentation_fee: null as number | null,
-    monthly_instalment: null as number | null,
-    term_months: null as number | null,
-    start_date: (folder.createdTime || folder.modifiedTime || "").slice(0, 10) || null,
-  };
-
-  if (pdf) {
-    try {
-      const buffer = await downloadDriveFile(accessToken, pdf.id);
-      const fromPdf = await parseAgreementPdfBuffer(buffer);
-      details = {
-        company_name: fromPdf.company_name || details.company_name,
-        contact_name: fromPdf.contact_name,
-        email: fromPdf.email,
-        phone: fromPdf.phone,
-        asset_description: fromPdf.asset_description,
-        purchase_price: fromPdf.purchase_price,
-        customer_deposit: fromPdf.customer_deposit,
-        total_lend: fromPdf.total_lend,
-        documentation_fee: fromPdf.documentation_fee,
-        monthly_instalment: fromPdf.monthly_instalment,
-        term_months: fromPdf.term_months,
-        start_date: fromPdf.start_date || details.start_date,
-      };
-    } catch {
-      // Folder name still lets us create a stub deal to amend.
-    }
-  }
+  const details = await detailsFromFolderFiles(
+    accessToken,
+    files,
+    emptyDetails(
+      parsedFolder.company,
+      (folder.createdTime || folder.modifiedTime || "").slice(0, 10) || null
+    )
+  );
 
   const { data: existing } = await supabase
     .from("agreements")
-    .select("id, monthly_instalment, term_months, start_date")
+    .select(
+      "id, customer_id, monthly_instalment, term_months, start_date, asset_description, purchase_price, customer_deposit, total_lend, documentation_fee"
+    )
     .ilike("agreement_number", agreementNumber)
     .maybeSingle();
 
   const companyName = details.company_name || parsedFolder.company || agreementNumber;
-  const customerId = await findOrCreateCustomer(supabase, {
-    company_name: companyName,
-    contact_name: details.contact_name || undefined,
-    email: details.email || undefined,
-    phone: details.phone || undefined,
-  });
+  let customerId = existing?.customer_id as string | undefined;
+  if (!customerId) {
+    customerId = await findOrCreateCustomer(supabase, {
+      company_name: companyName,
+      contact_name: details.contact_name || undefined,
+      email: details.email || undefined,
+      phone: details.phone || undefined,
+    });
+  }
 
   const monthly = details.monthly_instalment;
   const termMonths = details.term_months;
@@ -107,24 +161,36 @@ export async function ingestDealFromFolder(
       .maybeSingle();
     const alignedStart = firstPay?.due_date
       ? addMonths(String(firstPay.due_date).slice(0, 10), -1)
-      : startDate || existing.start_date;
+      : existing.start_date || startDate;
 
-    await supabase
-      .from("agreements")
-      .update({
-        customer_id: customerId,
-        google_folder_id: folder.id,
-        google_folder_name: folder.name,
-        asset_description: details.asset_description,
-        purchase_price: details.purchase_price,
-        customer_deposit: details.customer_deposit,
-        total_lend: details.total_lend,
-        documentation_fee: details.documentation_fee,
-        monthly_instalment: monthly ?? existing.monthly_instalment,
-        term_months: termMonths ?? existing.term_months,
-        start_date: alignedStart,
-      })
-      .eq("id", existing.id);
+    const patch: Record<string, unknown> = {
+      google_folder_id: folder.id,
+      google_folder_name: folder.name,
+      start_date: alignedStart,
+    };
+    if (isPlaceholderAsset(existing.asset_description) && details.asset_description) {
+      patch.asset_description = details.asset_description;
+    }
+    if (existing.purchase_price == null && details.purchase_price != null) {
+      patch.purchase_price = details.purchase_price;
+    }
+    if (existing.customer_deposit == null && details.customer_deposit != null) {
+      patch.customer_deposit = details.customer_deposit;
+    }
+    if (existing.total_lend == null && details.total_lend != null) {
+      patch.total_lend = details.total_lend;
+    }
+    if (existing.documentation_fee == null && details.documentation_fee != null) {
+      patch.documentation_fee = details.documentation_fee;
+    }
+    if (!existing.monthly_instalment && monthly) {
+      patch.monthly_instalment = monthly;
+    }
+    if (!existing.term_months && termMonths) {
+      patch.term_months = termMonths;
+    }
+
+    await supabase.from("agreements").update(patch).eq("id", existing.id);
 
     const { count } = await supabase
       .from("payments")
@@ -143,7 +209,12 @@ export async function ingestDealFromFolder(
       }).map((row) => ({ ...row, agreement_id: existing.id }));
       await supabase.from("payments").insert(schedule);
     }
-    return { skipped: false as const, created: false, agreement_number: agreementNumber };
+    return {
+      skipped: false as const,
+      created: false,
+      filled_asset: Boolean(patch.asset_description),
+      agreement_number: agreementNumber,
+    };
   }
 
   if (!monthly || !termMonths || !startDate) {
@@ -211,5 +282,48 @@ export async function ingestDealFromFolder(
     created: true,
     incomplete: false,
     agreement_number: created.agreement_number,
+  };
+}
+
+export async function fillPendingAssetsFromDrive(
+  supabase: SupabaseClient,
+  limit = 25
+) {
+  const agreements = await fetchAllRows(() =>
+    supabase
+      .from("agreements")
+      .select(
+        "id, agreement_number, asset_description, google_folder_id, google_folder_name"
+      )
+  );
+
+  const pending = agreements.filter(
+    (row) => row.google_folder_id && isPlaceholderAsset(row.asset_description)
+  );
+
+  const filled: string[] = [];
+  const errors: { name: string; error: string }[] = [];
+
+  for (const row of pending.slice(0, limit)) {
+    try {
+      const added = await ingestDealFromFolder(supabase, {
+        id: row.google_folder_id as string,
+        name: row.google_folder_name || row.agreement_number,
+      });
+      if (!added.skipped && added.filled_asset) {
+        filled.push(added.agreement_number);
+      }
+    } catch (err: any) {
+      errors.push({
+        name: row.agreement_number,
+        error: err.message || "Could not read deal folder",
+      });
+    }
+  }
+
+  return {
+    pending: pending.length,
+    filled,
+    errors,
   };
 }

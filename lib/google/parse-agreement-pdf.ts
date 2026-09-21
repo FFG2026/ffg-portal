@@ -13,6 +13,11 @@ export type ParsedAgreementPdf = {
   start_date: string | null;
 };
 
+export function isPlaceholderAsset(value: string | null | undefined) {
+  const s = String(value || "").trim();
+  return !s || /^pending\b/i.test(s);
+}
+
 function money(raw: string | null | undefined) {
   if (!raw) return null;
   const n = Number(String(raw).replace(/[,£\s]/g, ""));
@@ -36,6 +41,118 @@ function titleCaseName(value: string) {
     .join(" ");
 }
 
+function stripConditionAndPrice(line: string) {
+  return line
+    .replace(/\b(NEW|USED)\b[\s\S]*$/i, "")
+    .replace(/\d{1,2}\/\d{1,2}\/\d{2,4}[\s\S]*$/g, "")
+    .replace(/[£]?\s*[\d,]+\.\d{2}\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function looksLikeJunkAssetLine(line: string) {
+  return /^(as above|✔|yes|no|goods location|cost of goods|unit \d|carried over)\b/i.test(
+    line
+  );
+}
+
+export function cleanAssetLines(block: string | null | undefined) {
+  if (!block) return null;
+  const lines = String(block)
+    .split(/\n+/)
+    .map((line) => stripConditionAndPrice(line.replace(/\s+/g, " ").trim()))
+    .filter((line) => line.length >= 4)
+    .filter((line) => !looksLikeJunkAssetLine(line));
+  if (!lines.length) return null;
+  return Array.from(new Set(lines)).join(" & ");
+}
+
+const UK_REG = /^[A-Z]{1,3}\d{1,3}\s?[A-Z]{3}$/i;
+
+export function parseEquipmentScheduleAssets(text: string): string | null {
+  const blob = String(text || "").replace(/\r/g, "");
+  if (
+    !/equipment schedule/i.test(blob) &&
+    !/Description of Goods[\s\S]{0,80}Registration/i.test(blob)
+  ) {
+    return null;
+  }
+  const cut = blob.match(
+    /Date of Registration\s*([\s\S]*?)(?:Confirmed By Hirer|Final Audit Report|YOUR SIGNATURE)/i
+  );
+  const body = cut?.[1] || blob;
+  const lines = body
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const skip =
+    /^(used|new|signature|email|position|date:|director|agreement no)/i;
+  const isYear = /^(19|20)\d{2}$/;
+  const isDate = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/;
+  const isChassis = /^[A-HJ-NPR-Z0-9]{11,17}$/i;
+
+  const assets: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const next = lines[i + 1] || "";
+    if (!/^(used|new)$/i.test(next)) continue;
+    if (
+      skip.test(line) ||
+      UK_REG.test(line) ||
+      isYear.test(line) ||
+      isDate.test(line) ||
+      isChassis.test(line)
+    ) {
+      continue;
+    }
+    const maybeReg = lines[i + 2] || "";
+    const desc = UK_REG.test(maybeReg)
+      ? `${line} ${maybeReg.replace(/\s+/g, " ").toUpperCase()}`
+      : line;
+    assets.push(desc);
+  }
+  if (!assets.length) return null;
+  return Array.from(new Set(assets)).join(" & ");
+}
+
+export function parseCostOfGoodsAssets(text: string): string | null {
+  const blob = String(text || "").replace(/\r/g, "");
+  const cut = blob.match(
+    /COST OF GOODS[^\n]*\n([\s\S]*?)(?:This agreement is an invoice|HIRE PAYMENTS|Goods Location)/i
+  );
+  if (!cut) return null;
+  return cleanAssetLines(cut[1]);
+}
+
+export function parseLeaseAgreementAssets(text: string): string | null {
+  const blob = String(text || "").replace(/\r/g, "");
+  if (!/Lease Agreement/i.test(blob) || !/The Goods \(Make\/Model\)/i.test(blob)) {
+    return null;
+  }
+  const cut = blob.match(
+    /The Goods \(Make\/Model\)[\s\S]{0,240}?applicable\)\s*([\s\S]*?)Supplier Name/i
+  );
+  if (!cut) return null;
+  const lines = cut[1]
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .filter((line) => !/^(new\/used|\(if applicable\))$/i.test(line));
+  const assets: string[] = [];
+  for (const line of lines) {
+    const cleaned = stripConditionAndPrice(line)
+      .replace(/\s*-\s*[A-Z0-9]{11,17}\s*$/i, "")
+      .replace(/\s*-\s*$/, "")
+      .trim();
+    if (cleaned.length < 6) continue;
+    if (/^new\/used$/i.test(cleaned)) continue;
+    assets.push(cleaned);
+  }
+  if (!assets.length) return null;
+  return Array.from(new Set(assets)).join(" & ");
+}
+
 export function parseAgreementPdfText(text: string): ParsedAgreementPdf {
   const blob = String(text || "").replace(/\r/g, "");
 
@@ -56,20 +173,14 @@ export function parseAgreementPdfText(text: string): ParsedAgreementPdf {
   );
   const phone = after(/Telephone Number:\s*([0-9\s]+)/i, blob);
 
-  const assetLine = after(
-    /OF MANUFACTURE\s*([\s\S]*?)(?:Separate Goods Schedule|FINANCIAL DETAILS)/i,
-    blob
-  );
-  let asset: string | null = null;
-  if (assetLine) {
-    asset = assetLine
-      .replace(/\bUSED\b.*$/i, "")
-      .replace(/\bNEW\b.*$/i, "")
-      .replace(/\d{1,2}\/\d{1,2}\/\d{2,4}.*$/g, "")
-      .replace(/[\d,]+\.\d{2}\s*$/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
+  const manufactureBlock = blob.match(
+    /OF MANUFACTURE\s*([\s\S]*?)(?:Separate Goods Schedule|FINANCIAL DETAILS|AMOUNT OF EACH|HIRE PAYMENTS)/i
+  )?.[1];
+  let asset =
+    cleanAssetLines(manufactureBlock || null) ||
+    parseCostOfGoodsAssets(blob) ||
+    parseEquipmentScheduleAssets(blob) ||
+    parseLeaseAgreementAssets(blob);
 
   const purchase = money(
     after(/a\)\s*Cash price[^\n]*\n+\s*([\d,]+(?:\.\d{2})?)/i, blob)

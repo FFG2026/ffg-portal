@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../../lib/supabase/admin";
 import { authorizeAdminRequest } from "../../../../../lib/admin";
 import { scanDealFolders } from "../../../../../lib/google/drive";
-import { ingestDealFromFolder } from "../../../../../lib/google/ingest-deal";
+import {
+  fillPendingAssetsFromDrive,
+  ingestDealFromFolder,
+} from "../../../../../lib/google/ingest-deal";
 import { parseDealFolderTitle } from "../../../../../lib/google/folder-match";
 import { setSetting } from "../../../../../lib/google/settings";
 
@@ -26,7 +29,7 @@ export async function POST(request: Request) {
     const ingest_errors: { name: string; error: string }[] = [];
     const ingest = body.ingest !== false;
     if (ingest) {
-      for (const folder of result.unmatched_folders.slice(0, 30)) {
+      for (const folder of result.unmatched_folders.slice(0, 20)) {
         try {
           const added = await ingestDealFromFolder(supabase, folder);
           if (!added.skipped && added.created) {
@@ -40,6 +43,10 @@ export async function POST(request: Request) {
         }
       }
     }
+    const assets = ingest
+      ? await fillPendingAssetsFromDrive(supabase, 12)
+      : { pending: 0, filled: [] as string[], errors: [] as { name: string; error: string }[] };
+    ingest_errors.push(...assets.errors);
     return NextResponse.json({
       ...result,
       unmatched_folders: result.unmatched_folders.filter((folder) => {
@@ -47,6 +54,8 @@ export async function POST(request: Request) {
         return !parsed || !created.includes(parsed.agreement_number);
       }),
       created_from_drive: created,
+      filled_assets: assets.filled,
+      pending_assets: assets.pending,
       ingest_errors,
     });
   } catch (err: any) {
