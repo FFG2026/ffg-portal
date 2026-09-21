@@ -2,6 +2,7 @@ import {
   PORTFOLIO_BASE,
   isDealAddedAfterSnapshot,
   buildLivePortfolio,
+  parseCashAtBank,
 } from "./portfolio-live";
 
 function assert(cond: unknown, msg: string) {
@@ -57,5 +58,14 @@ assert(
 );
 assert(withHp142.added_deals.map((d) => d.agreement_number).join() === "HP142", "HP5 is not listed as added");
 assert(PORTFOLIO_BASE.as_of === "2026-08-28", "snapshot date");
+
+assert(parseCashAtBank("£67,000.00") === 67000, "cash parses from printed sterling");
+assert(parseCashAtBank("77000") === 77000, "cash parses from a plain number");
+const moreCash = buildLivePortfolio([], { cashAtBank: 77000 });
+assert(moreCash.summary.cash_at_bank === 77000, "cash override is used");
+assert(
+  moreCash.summary.net_position === 825587.33,
+  "net position moves with cash at bank"
+);
 
 console.log("portfolio-live tests ok");

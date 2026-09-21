@@ -27,6 +27,19 @@ export default function OwnerFiguresPage() {
 function FiguresInner() {
   const [data, setData] = useState<LivePortfolio | null>(null);
   const [error, setError] = useState("");
+  const [cashText, setCashText] = useState("");
+  const [savingCash, setSavingCash] = useState(false);
+  const [cashMsg, setCashMsg] = useState("");
+
+  const applyPortfolio = (json: LivePortfolio) => {
+    setData(json);
+    setCashText(
+      Number(json.summary.cash_at_bank).toLocaleString("en-GB", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
+  };
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/portfolio?t=${Date.now()}`, {
@@ -49,8 +62,34 @@ function FiguresInner() {
       return;
     }
     setError("");
-    setData(await res.json());
+    applyPortfolio(await res.json());
   }, []);
+
+  const saveCash = async () => {
+    setSavingCash(true);
+    setCashMsg("");
+    try {
+      const res = await fetch("/api/admin/portfolio", {
+        method: "PATCH",
+        headers: {
+          ...adminHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cash_at_bank: cashText }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCashMsg(json.error || "Couldn't save cash at bank.");
+        return;
+      }
+      applyPortfolio(json);
+      setCashMsg("Cash at bank saved.");
+    } catch {
+      setCashMsg("Couldn't save cash at bank.");
+    } finally {
+      setSavingCash(false);
+    }
+  };
 
   useBookReload(load);
 
@@ -89,6 +128,15 @@ function FiguresInner() {
               .join(", ")}.`
           : " No deals added since that book yet."}
       </p>
+      {cashMsg && (
+        <div
+          className={
+            cashMsg.startsWith("Cash at bank saved") ? "admin-ok" : "admin-error"
+          }
+        >
+          {cashMsg}
+        </div>
+      )}
 
       <div className="book-dash">
         <section>
@@ -128,7 +176,27 @@ function FiguresInner() {
             </div>
             <div>
               <dt>Cash at bank</dt>
-              <dd>{gbp(data.summary.cash_at_bank)}</dd>
+              <dd className="book-cash">
+                <span>£</span>
+                <input
+                  value={cashText}
+                  onChange={(e) => {
+                    setCashText(e.target.value);
+                    setCashMsg("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      saveCash();
+                    }
+                  }}
+                  inputMode="decimal"
+                  aria-label="Cash at bank"
+                />
+                <button type="button" onClick={saveCash} disabled={savingCash}>
+                  {savingCash ? "Saving…" : "Save"}
+                </button>
+              </dd>
             </div>
             <div>
               <dt>Net position (incl. facility)</dt>
