@@ -4,6 +4,7 @@ import {
   daysBetween,
   isDocumentationFeeCollection,
   scheduleCollectionsOnly,
+  collectedPoundsFromGoCardlessPayments,
 } from "./match-payments";
 
 function assert(cond: unknown, msg: string) {
@@ -87,6 +88,15 @@ assert(
     640
   ).map((p) => p.id).join() === "rent",
   "only the monthly collection stays on the HP21 schedule"
+);
+assert(
+  collectedPoundsFromGoCardlessPayments([
+    { status: "paid_out", amount: 55326 },
+    { status: "confirmed", amount: 85000 },
+    { status: "paid_out", amount: 19500 },
+    { status: "pending_submission", amount: 275866 },
+  ]) === 1403.26,
+  "collected this month is confirmed GoCardless cash without the doc fee"
 );
 
 console.log("match-payments tests ok");

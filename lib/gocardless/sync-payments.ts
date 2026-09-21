@@ -71,7 +71,8 @@ export function paymentsForAgreement(
 async function applyMatches(
   supabase: AdminClient,
   agreement: AgreementToSync,
-  gcPayments: GoCardlessPayment[]
+  gcPayments: GoCardlessPayment[],
+  opts?: { leftover?: boolean }
 ): Promise<SyncResult> {
   const headerRes = await supabase
     .from("agreements")
@@ -114,15 +115,18 @@ async function applyMatches(
     else markedFailed += 1;
   }
 
-  const leftover = scheduleCollectionsOnly(
-    unmatchedCollectedPayments(
-      gcPayments,
-      matches,
-      instalments.map((row) => row.gocardless_payment_id)
-    ),
-    header?.documentation_fee,
-    header?.monthly_instalment
-  );
+  const leftover =
+    opts?.leftover === false
+      ? []
+      : scheduleCollectionsOnly(
+          unmatchedCollectedPayments(
+            gcPayments,
+            matches,
+            instalments.map((row) => row.gocardless_payment_id)
+          ),
+          header?.documentation_fee,
+          header?.monthly_instalment
+        );
   let nextNumber =
     Math.max(0, ...instalments.map((row) => Number(row.instalment_number || 0))) +
     1;
@@ -280,6 +284,37 @@ export async function syncAgreementPayments(
       error: err?.message || "sync failed",
     };
   }
+}
+
+export async function applyGoCardlessCollections(
+  supabase: AdminClient,
+  agreements: AgreementToSync[],
+  gcRaw: any[],
+  concurrency = 4
+) {
+  const results: SyncResult[] = [];
+  for (let i = 0; i < agreements.length; i += concurrency) {
+    const batch = agreements.slice(i, i + concurrency);
+    const batchResults = await Promise.all(
+      batch.map(async (agreement) => {
+        const gcPayments = paymentsForAgreement(gcRaw, agreement);
+        if (!gcPayments.length) {
+          return {
+            agreementId: agreement.id,
+            mandateId: agreement.gocardless_mandate_id || "",
+            gcPayments: 0,
+            markedPaid: 0,
+            markedFailed: 0,
+          } as SyncResult;
+        }
+        return applyMatches(supabase, agreement, gcPayments, {
+          leftover: false,
+        });
+      })
+    );
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 export async function syncAgreementsPayments(

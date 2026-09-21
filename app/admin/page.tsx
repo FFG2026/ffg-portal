@@ -107,10 +107,10 @@ function DashboardInner() {
       <div className="admin-kicker">Book</div>
       <h1>Company dashboard</h1>
       <p className="admin-lead">
-        Live book, collections and anything that needs a look. Payments come
-        from GoCardless, including descriptions like HP41/1. Refresh after a
-        collection run. New deals go on New deal — the workbook can still be
-        dropped there if you have a batch of tabs to load.
+        Live book, collections and anything that needs a look. Collected this
+        month is what actually landed in GoCardless this calendar month (plus
+        any manual receipts), not only the instalments already ticked on the
+        book. Refresh after a collection run.
         {data?.generated_at && (
           <>
             {" "}
@@ -162,7 +162,8 @@ function DashboardInner() {
               <div className="lbl">Collected this month</div>
               <div className="num">{gbp(data.totals.collected_this_month)}</div>
               <div className="sub">
-                {gbp(data.totals.due_this_month)} still due this month
+                GoCardless cash this month · {gbp(data.totals.due_this_month)} still
+                due on this month’s instalments
               </div>
             </div>
             <div className="admin-stat warn">
