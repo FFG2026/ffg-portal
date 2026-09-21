@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
-import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
+import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
 import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
@@ -12,11 +12,11 @@ export const fetchCache = "force-no-store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const secret = getAdminSecret(request);
   const agreementNumber = searchParams.get("agreement");
   const company = searchParams.get("company");
 
-  if (!isAuthorizedAdmin(secret)) {
+  const auth = await authorizeAdminRequest(request);
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

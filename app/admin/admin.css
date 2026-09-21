@@ -6,14 +6,18 @@
 .admin-top nav a{font-size:13.5px; font-weight:600; color:var(--ink-soft); padding:8px 12px; border-radius:8px;}
 .admin-top nav a:hover{color:var(--blue-deep); background:var(--blue-pale);}
 .admin-top nav a.active{color:var(--navy); background:#fff; border:1px solid var(--rule);}
-.admin-home{margin-left:auto; font-size:13px; font-weight:600; color:var(--blue-deep);}
+.admin-home{font-size:13px; font-weight:600; color:var(--blue-deep);}
+.admin-home-wrap{margin-left:auto; display:flex; align-items:center; gap:14px;}
+.admin-who{font-size:12.5px; color:var(--slate);}
+.admin-signout{border:none; background:none; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
+.admin-signout:hover{color:var(--blue-deep);}
 .admin-main{padding:28px clamp(20px, 4vw, 40px) 72px; max-width:1280px; margin:0 auto;}
 .admin-lock{max-width:420px; margin:12vh auto; background:#fff; border:1px solid var(--rule); border-radius:16px; padding:36px;}
 .admin-lock h1{font-size:28px; color:var(--navy); margin:18px 0 8px;}
 .admin-lock p{color:var(--slate); font-size:14.5px; margin-bottom:22px;}
-.admin-lock form{display:flex; gap:10px;}
-.admin-lock input{flex:1; padding:12px 14px; border:1px solid var(--rule); border-radius:8px; font-size:14px;}
-.admin-lock button{padding:12px 18px; border:none; border-radius:8px; background:var(--blue); color:#fff; font-weight:600; cursor:pointer;}
+.admin-lock-form{display:flex; flex-direction:column; gap:10px;}
+.admin-lock-form input{width:100%; padding:12px 14px; border:1px solid var(--rule); border-radius:8px; font-size:14px;}
+.admin-lock-form button{padding:12px 18px; border:none; border-radius:8px; background:var(--blue); color:#fff; font-weight:600; cursor:pointer;}
 .admin-error{margin-top:14px; color:#B4232C; font-size:13px;}
 .admin-kicker{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--blue-deep); margin-bottom:8px;}
 .admin-page h1{font-size:30px; color:var(--navy); margin-bottom:8px;}

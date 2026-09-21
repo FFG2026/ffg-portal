@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
-import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
+import { authorizeAdminRequest } from "../../../../lib/admin";
 import { buildPaymentSchedule } from "../../../../lib/schedule";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ function n(v: unknown) {
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const secret = getAdminSecret(request, body);
-  if (!isAuthorizedAdmin(secret)) {
+  const auth = await authorizeAdminRequest(request, body);
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

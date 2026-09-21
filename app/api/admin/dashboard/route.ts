@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
-import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
+import { authorizeAdminRequest } from "../../../../lib/admin";
 import { isLiveDeal, liveOverdueSum, isPaidRow, unpaidSum } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ function num(v: unknown) {
 }
 
 export async function GET(request: Request) {
-  const secret = getAdminSecret(request);
-  if (!isAuthorizedAdmin(secret)) {
+  const auth = await authorizeAdminRequest(request);
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
