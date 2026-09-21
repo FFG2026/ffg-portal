@@ -5,6 +5,8 @@ import {
   isDocumentationFeeCollection,
   scheduleCollectionsOnly,
   collectedPoundsFromGoCardlessPayments,
+  collectedThisMonthPounds,
+  collectedThisMonthFromLinkedRows,
   amountsClose,
   collectedScheduleAmount,
 } from "./match-payments";
@@ -99,6 +101,49 @@ assert(
     { status: "pending_submission", amount: 275866 },
   ]) === 1403.26,
   "collected this month is confirmed GoCardless cash without the doc fee"
+);
+assert(
+  collectedThisMonthPounds({
+    gcPayments: [
+      { status: "paid_out", amount: 3510414 },
+      { status: "pending_submission", amount: 50000 },
+    ],
+    manualPounds: 4069.2,
+  }) === 39173.34,
+  "dashboard collected this month is GC cash plus manual receipts"
+);
+assert(
+  collectedThisMonthFromLinkedRows(
+    [
+      {
+        status: "paid",
+        amount: 430.64,
+        paid_date: "2026-09-04",
+        gocardless_payment_id: "PM1",
+      },
+      {
+        status: "paid",
+        amount: 430.64,
+        paid_date: "2026-09-04",
+        gocardless_payment_id: "PM1",
+      },
+      {
+        status: "paid",
+        amount: 1139.44,
+        paid_date: "2026-09-27",
+        gocardless_payment_id: null,
+      },
+      {
+        status: "paid",
+        amount: 4069.2,
+        paid_date: "2026-09-21",
+        source: "manual",
+      },
+    ],
+    "2026-09-01",
+    "2026-10-01"
+  ) === 4499.84,
+  "fallback ignores unticked-style rows with no GoCardless id"
 );
 
 const flNet = [

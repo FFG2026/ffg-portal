@@ -134,6 +134,49 @@ export function collectedPoundsFromGoCardlessPayments(
   return Math.round(pence) / 100;
 }
 
+/**
+ * Cash actually collected this calendar month: GoCardless confirmed/paid_out
+ * (skipping the £195 documentation fee) plus manual bank receipts.
+ * Book yellow ticks without a GoCardless id are not cash in.
+ */
+export function collectedThisMonthPounds(opts: {
+  gcPayments?: { status?: string; amount?: number | string | null }[] | null;
+  manualPounds?: number;
+}) {
+  const gc = collectedPoundsFromGoCardlessPayments(opts.gcPayments || []);
+  return Math.round((gc + Number(opts.manualPounds || 0)) * 100) / 100;
+}
+
+/** If GoCardless is unreachable, sum unique linked collections by paid_date. */
+export function collectedThisMonthFromLinkedRows(
+  rows: {
+    status?: string | null;
+    amount?: number | string | null;
+    paid_date?: string | null;
+    gocardless_payment_id?: string | null;
+    source?: string | null;
+  }[],
+  monthStart: string,
+  nextMonth: string
+) {
+  const seen = new Set<string>();
+  let pounds = 0;
+  for (const row of rows || []) {
+    if (String(row.status || "") !== "paid") continue;
+    const on = String(row.paid_date || "").slice(0, 10);
+    if (on < monthStart || on >= nextMonth) continue;
+    const gc = row.gocardless_payment_id || "";
+    const manual = String(row.source || "") === "manual";
+    if (!gc && !manual) continue;
+    if (gc) {
+      if (seen.has(gc)) continue;
+      seen.add(gc);
+    }
+    pounds += Number(row.amount || 0);
+  }
+  return Math.round(pounds * 100) / 100;
+}
+
 export function scheduleCollectionsOnly(
   payments: GoCardlessPayment[],
   documentationFee?: number | string | null,
