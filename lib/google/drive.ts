@@ -8,6 +8,7 @@ import {
   parseServiceAccountJson,
   serviceAccountFromEnv,
 } from "./service-account";
+import { GLACIER_GEM_FOLDER_ID, type AdminBook } from "../admin-book";
 
 export const DEFAULT_AGREEMENTS_FOLDER_ID =
   "13pGew1ioaAll792h3sCXfWbAl62rSczv";
@@ -49,7 +50,17 @@ export async function isDriveConnected(supabase: SupabaseClient) {
   return Boolean(await getRefreshToken(supabase));
 }
 
-export async function getAgreementsFolderId(supabase: SupabaseClient) {
+export async function getAgreementsFolderId(
+  supabase: SupabaseClient,
+  book: AdminBook = "ffg"
+) {
+  if (book === "gg") {
+    return (
+      (await getSetting(supabase, "google_glacier_gem_folder_id")) ||
+      process.env.GOOGLE_GLACIER_GEM_FOLDER_ID ||
+      GLACIER_GEM_FOLDER_ID
+    );
+  }
   return (
     (await getSetting(supabase, "google_agreements_folder_id")) ||
     process.env.GOOGLE_AGREEMENTS_FOLDER_ID ||
@@ -132,16 +143,22 @@ export async function downloadDriveFile(accessToken: string, fileId: string) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-export async function scanDealFolders(supabase: SupabaseClient) {
+export async function scanDealFolders(
+  supabase: SupabaseClient,
+  opts?: { book?: AdminBook; folderId?: string }
+) {
   const accessToken = await driveAccessToken(supabase);
-  const folderId = await getAgreementsFolderId(supabase);
+  const book = opts?.book || "ffg";
+  const folderId = opts?.folderId || (await getAgreementsFolderId(supabase, book));
   const folders = await listDriveChildren(accessToken, folderId, true);
 
-  const agreements = await fetchAllRows(() =>
-    supabase
+  const agreements = await fetchAllRows(() => {
+    let q = supabase
       .from("agreements")
-      .select("id, agreement_number, google_folder_id")
-  );
+      .select("id, agreement_number, google_folder_id, book");
+    if (book) q = q.eq("book", book);
+    return q;
+  });
 
   let linked = 0;
   const unmatchedFolders: {
@@ -212,9 +229,10 @@ export async function filesForAgreement(
   const accessToken = await driveAccessToken(supabase);
   let folderId = agreement.google_folder_id || "";
   let folderName = agreement.google_folder_name || "";
+  const book: AdminBook = /^GG/i.test(agreement.agreement_number) ? "gg" : "ffg";
 
   if (!folderId) {
-    const parentId = await getAgreementsFolderId(supabase);
+    const parentId = await getAgreementsFolderId(supabase, book);
     const folders = await listDriveChildren(accessToken, parentId, true);
     const match = pickFolderForAgreement(agreement.agreement_number, folders);
     if (match) {

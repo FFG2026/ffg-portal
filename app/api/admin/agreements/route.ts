@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
+import { bookFromRequest } from "../../../../lib/admin-book";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { isLiveDeal, paidCount, overdueSum } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment } from "../../../../lib/schedule";
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") || "live";
   const q = searchParams.get("q")?.trim().toLowerCase() || "";
+  const book = bookFromRequest(request);
 
   const supabase = createAdminClient();
   const today = new Date().toISOString().slice(0, 10);
@@ -34,24 +36,29 @@ export async function GET(request: Request) {
   let customers;
   let payments;
   try {
-    [agreements, customers, payments] = await Promise.all([
+    [agreements, customers] = await Promise.all([
       fetchAllRows(() =>
         supabase
           .from("agreements")
           .select(
-            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend, status"
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend, status, book"
           )
+          .eq("book", book)
           .order("agreement_number")
       ),
       fetchAllRows(() =>
         supabase.from("customers").select("id, company_name, email")
       ),
-      fetchAllRows(() =>
-        supabase
-          .from("payments")
-          .select("agreement_id, amount, status, due_date, paid_date")
-      ),
     ]);
+    const ids = (agreements || []).map((a) => a.id);
+    payments = ids.length
+      ? await fetchAllRows(() =>
+          supabase
+            .from("payments")
+            .select("agreement_id, amount, status, due_date, paid_date")
+            .in("agreement_id", ids)
+        )
+      : [];
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Could not load agreements" },

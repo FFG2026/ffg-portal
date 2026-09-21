@@ -12,23 +12,38 @@ export function getStoredAdminSecret() {
   return sessionStorage.getItem(SECRET_KEY) || "";
 }
 
+export function currentAdminBook() {
+  if (typeof window === "undefined") return "ffg";
+  return window.location.pathname.startsWith("/admin/gg") ? "gg" : "ffg";
+}
+
 export function adminHeaders() {
-  return { "x-admin-secret": getStoredAdminSecret() };
+  return {
+    "x-admin-secret": getStoredAdminSecret(),
+    "x-admin-book": currentAdminBook(),
+  };
+}
+
+export function adminBasePath(pathname?: string) {
+  const path = pathname || (typeof window !== "undefined" ? window.location.pathname : "");
+  return path.startsWith("/admin/gg") ? "/admin/gg" : "/admin";
 }
 
 const NAV = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/figures", label: "Live figures", owenOnly: true },
-  { href: "/admin/customers", label: "Customers" },
-  { href: "/admin/agreements", label: "Agreements" },
-  { href: "/admin/new-deal", label: "New deal" },
-  { href: "/admin/lookup", label: "Lookup" },
-  { href: "/admin/drive", label: "Drive" },
-  { href: "/admin/staff", label: "Staff" },
+  { href: "", label: "Dashboard" },
+  { href: "/figures", label: "Live figures", owenOnly: true, ffgOnly: true },
+  { href: "/customers", label: "Customers" },
+  { href: "/agreements", label: "Agreements" },
+  { href: "/new-deal", label: "New deal" },
+  { href: "/lookup", label: "Lookup" },
+  { href: "/drive", label: "Drive" },
+  { href: "/staff", label: "Staff", ffgOnly: true },
 ];
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const base = adminBasePath(pathname);
+  const isGg = base === "/admin/gg";
   const [unlocked, setUnlocked] = useState(false);
   const [mode, setMode] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -97,7 +112,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <div className="admin-lock">
           <div className="admin-brand">
             <span className="dot" />
-            Future FG admin
+            {isGg ? "Glacier Gem admin" : "Future FG admin"}
           </div>
           <h1>Staff only</h1>
           <p>Sign in with your admin email, or the staff code.</p>
@@ -158,30 +173,52 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   return (
     <div className="admin-page">
       <header className="admin-top">
-        <Link href="/admin" className="admin-brand">
+        <Link href={base} className="admin-brand">
           <span className="dot" />
-          Future FG admin
+          {isGg ? "Glacier Gem admin" : "Future FG admin"}
         </Link>
         <nav>
-          {NAV.filter((item) => !item.owenOnly || ownerDash).map((item) => (
+          {NAV.filter(
+            (item) =>
+              (!item.owenOnly || ownerDash) &&
+              (!item.ffgOnly || !isGg)
+          ).map((item) => {
+            const href = `${base}${item.href}` || base;
+            const path = href || base;
+            return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={path}
+              href={path}
               className={
-                pathname === item.href ||
-                (item.href !== "/admin" && pathname.startsWith(item.href))
+                pathname === path ||
+                (item.href !== "" && pathname.startsWith(path))
                   ? "active"
                   : ""
               }
             >
               {item.label}
             </Link>
-          ))}
+            );
+          })}
         </nav>
         <div className="admin-home-wrap">
           {who && who !== "Staff" && (
             <span className="admin-who">{who}</span>
           )}
+          <div className="admin-book-switch">
+            <Link
+              href="/admin"
+              className={!isGg ? "on" : ""}
+            >
+              Future FG
+            </Link>
+            <Link
+              href="/admin/gg"
+              className={isGg ? "on" : ""}
+            >
+              Glacier Gem
+            </Link>
+          </div>
           <button type="button" className="admin-signout" onClick={signOut}>
             Sign out
           </button>

@@ -16,6 +16,7 @@ export async function POST(request: Request) {
   const amount = Number(body.amount);
   const paidDate = String(body.paid_date || "").slice(0, 10);
   const note = String(body.note || "").trim();
+  const mode = String(body.mode || "settlement");
 
   if (!agreementNumber) {
     return NextResponse.json({ error: "Missing agreement number." }, { status: 400 });
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate)) {
     return NextResponse.json({ error: "Pick the date the money arrived." }, { status: 400 });
   }
-  if (!note) {
+  if (mode !== "next" && !note) {
     return NextResponse.json(
       { error: "Add a note — e.g. insurance payout for stolen van." },
       { status: 400 }
@@ -60,6 +61,47 @@ export async function POST(request: Request) {
       amount: Number(p.amount),
       due_date: p.due_date,
     }));
+
+  if (mode === "next") {
+    const next = unpaid[0];
+    if (!next) {
+      return NextResponse.json(
+        { error: "There is nothing left to mark paid on this agreement." },
+        { status: 400 }
+      );
+    }
+    const paidAmount = Number.isFinite(amount) && amount > 0 ? amount : next.amount;
+    const { error } = await supabase
+      .from("payments")
+      .update({
+        status: "paid",
+        paid_date: paidDate,
+        amount: Math.round(paidAmount * 100) / 100,
+        notes: note || "Manual collection",
+        source: "manual",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", next.id);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    const { data: remaining } = await supabase
+      .from("payments")
+      .select("id, status")
+      .eq("agreement_id", agreement.id);
+    const stillDue = (remaining || []).some((p) => p.status !== "paid");
+    await supabase
+      .from("agreements")
+      .update({ status: stillDue ? "active" : "settled" })
+      .eq("id", agreement.id);
+    return NextResponse.json({
+      success: true,
+      agreement_number: agreement.agreement_number,
+      applied: Math.round(paidAmount * 100) / 100,
+      instalment_number: next.instalment_number,
+      settled: !stillDue,
+    });
+  }
 
   let plan;
   try {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { parseWorkbookSheets, type SheetDeal } from "../../../../lib/spreadsheet";
+import { bookFromRequest } from "../../../../lib/admin-book";
 import { importDealBook } from "../../../../lib/import-book";
 
 export const dynamic = "force-dynamic";
@@ -38,8 +39,9 @@ export async function POST(request: Request) {
   }
 
   const apply = body.apply === true;
+  const book = bookFromRequest(request, body);
   const supabase = createAdminClient();
-  const summary = await importDealBook(supabase, deals, { apply });
+  const summary = await importDealBook(supabase, deals, { apply, book });
   return NextResponse.json({
     success: true,
     apply,

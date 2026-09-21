@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import AdminShell, { adminHeaders } from "../AdminShell";
+import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
 import { notifyBookChanged } from "../../../lib/admin-book-reload";
 
 type LookupResult = {
@@ -344,9 +344,15 @@ function LookupInner() {
                     </div>
                   </div>
                   <div className="lookup-item lookup-item-wide">
-                    <div className="lookup-label">GoCardless mandate</div>
+                    <div className="lookup-label">
+                      {currentAdminBook() === "gg"
+                        ? "Collections"
+                        : "GoCardless mandate"}
+                    </div>
                     <div className="lookup-value mono">
-                      {result.agreement.gocardless_mandate_id || "Not linked"}
+                      {currentAdminBook() === "gg"
+                        ? "Manual — standing order / bank"
+                        : result.agreement.gocardless_mandate_id || "Not linked"}
                     </div>
                   </div>
                 </div>
@@ -361,16 +367,37 @@ function LookupInner() {
                 }}
               />
 
-              {result.status.live && result.status.settlement_figure > 0 && (
-                <ManualPaymentForm
-                  agreementNumber={result.agreement.agreement_number}
-                  owing={result.status.settlement_figure}
-                  onDone={() => {
-                    runLookup("agreement", result.agreement.agreement_number);
-                    notifyBookChanged();
-                  }}
-                  gbp={gbp}
-                />
+              {result.status.live && (
+                <>
+                  {currentAdminBook() === "gg" && (
+                    <RecordInstalmentForm
+                      agreementNumber={result.agreement.agreement_number}
+                      nextDue={
+                        result.schedule.find((row) => row.status !== "paid") ||
+                        null
+                      }
+                      onDone={() => {
+                        runLookup("agreement", result.agreement.agreement_number);
+                        notifyBookChanged();
+                      }}
+                      gbp={gbp}
+                    />
+                  )}
+                {result.status.settlement_figure > 0 && (
+                  <ManualPaymentForm
+                    agreementNumber={result.agreement.agreement_number}
+                    owing={result.status.settlement_figure}
+                    onDone={() => {
+                      runLookup(
+                        "agreement",
+                        result.agreement.agreement_number
+                      );
+                      notifyBookChanged();
+                    }}
+                    gbp={gbp}
+                  />
+                )}
+                </>
               )}
 
               <DriveDocuments
@@ -643,6 +670,118 @@ function DriveDocuments({ agreementNumber }: { agreementNumber: string }) {
             </ul>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+function RecordInstalmentForm({
+  agreementNumber,
+  nextDue,
+  onDone,
+  gbp,
+}: {
+  agreementNumber: string;
+  nextDue: {
+    amount: number;
+    due_date: string;
+    instalment_number: number;
+  } | null;
+  onDone: () => void;
+  gbp: (n: number) => string;
+}) {
+  const [open, setOpen] = useState(true);
+  const [amount, setAmount] = useState(nextDue ? String(nextDue.amount) : "");
+  const [paidDate, setPaidDate] = useState(todayIso());
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [error, setError] = useState("");
+
+  if (!nextDue) return null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMsg("");
+    setError("");
+    try {
+      const res = await fetch("/api/admin/manual-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({
+          agreement_number: agreementNumber,
+          amount,
+          paid_date: paidDate,
+          note: note || "Standing order / bank payment",
+          mode: "next",
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not save");
+      setMsg(`Recorded ${gbp(json.applied)} against instalment ${nextDue.instalment_number}.`);
+      setNote("");
+      setOpen(false);
+      onDone();
+    } catch (err: any) {
+      setError(err.message || "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="lookup-manual">
+      <button
+        type="button"
+        className="lookup-manual-toggle"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? "Cancel" : "Record a payment"}
+      </button>
+      {msg && <div className="lookup-ok">{msg}</div>}
+      {open && (
+        <form className="lookup-manual-form" onSubmit={submit}>
+          <p className="lookup-manual-help">
+            Tick the next instalment as paid. Glacier Gem collections are
+            standing orders, not GoCardless.
+          </p>
+          <div className="lookup-field">
+            <label>Amount</label>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+            />
+          </div>
+          <div className="lookup-field">
+            <label>Date received</label>
+            <input
+              type="date"
+              value={paidDate}
+              onChange={(e) => setPaidDate(e.target.value)}
+              required
+            />
+          </div>
+          <div className="lookup-field lookup-field-wide">
+            <label>Note (optional)</label>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Standing order 21 Sep"
+            />
+          </div>
+          <button type="submit" disabled={saving}>
+            {saving
+              ? "Saving…"
+              : `Mark instalment ${nextDue.instalment_number} paid`}
+          </button>
+          {error && <div className="lookup-error">{error}</div>}
+        </form>
       )}
     </div>
   );

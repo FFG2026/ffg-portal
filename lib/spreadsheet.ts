@@ -9,7 +9,7 @@ export type SheetPayment = {
 
 export type SheetDeal = {
   agreement_number: string;
-  agreement_type: "HP" | "FL" | "L";
+  agreement_type: "HP" | "FL" | "L" | "GG";
   company_name: string;
   purchase_price: number | null;
   customer_deposit: number | null;
@@ -20,6 +20,10 @@ export type SheetDeal = {
   term_months: number;
   start_date: string;
   payments: SheetPayment[];
+  book?: "ffg" | "gg";
+  asset_description?: string | null;
+  google_folder_id?: string | null;
+  google_folder_name?: string | null;
 };
 
 const SKIP_SHEETS = new Set([
@@ -72,9 +76,9 @@ function label(v: unknown) {
     .trim();
 }
 
-function agreementTypeFromTab(tab: string): "HP" | "FL" | "L" | null {
-  const m = tab.trim().toUpperCase().match(/^(HP|FL|L)\d+$/);
-  return m ? (m[1] as "HP" | "FL" | "L") : null;
+function agreementTypeFromTab(tab: string): "HP" | "FL" | "L" | "GG" | null {
+  const m = tab.trim().toUpperCase().match(/^(HP|FL|GG|L)\d+$/);
+  return m ? (m[1] as "HP" | "FL" | "L" | "GG") : null;
 }
 
 function isPaidCell(v: unknown) {

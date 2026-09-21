@@ -7,6 +7,7 @@ import {
   ingestDealFromFolder,
 } from "../../../../../lib/google/ingest-deal";
 import { parseDealFolderTitle } from "../../../../../lib/google/folder-match";
+import { bookFromRequest } from "../../../../../lib/admin-book";
 import { setSetting } from "../../../../../lib/google/settings";
 
 export const dynamic = "force-dynamic";
@@ -19,12 +20,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const supabase = createAdminClient();
+  const book = bookFromRequest(request, body);
   const folderId = String(body.agreements_folder_id || "").trim();
   if (folderId) {
-    await setSetting(supabase, "google_agreements_folder_id", folderId);
+    await setSetting(
+      supabase,
+      book === "gg" ? "google_glacier_gem_folder_id" : "google_agreements_folder_id",
+      folderId
+    );
   }
   try {
-    const result = await scanDealFolders(supabase);
+    const result = await scanDealFolders(supabase, { book });
     const created: string[] = [];
     const ingest_errors: { name: string; error: string }[] = [];
     const ingest = body.ingest !== false;

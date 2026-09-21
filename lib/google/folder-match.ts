@@ -17,7 +17,7 @@ export function parseDealFolderTitle(
   if (looksLikeInstalmentOnly(title, ref)) return null;
 
   const stripped = title
-    .replace(/^(HP|FL|L)\s*0*\d+/i, "")
+    .replace(/^(HP|FL|GG|L)\s*0*\d+/i, "")
     .replace(/^[\s\-–—_:]+/, "")
     .trim();
 
@@ -30,7 +30,7 @@ export function parseDealFolderTitle(
 function looksLikeInstalmentOnly(title: string, ref: AgreementRef) {
   return (
     ref.instalment_number != null &&
-    /^(HP|FL|L)\s*0*\d+\s*[\/\-]\s*0*\d+\s*$/i.test(title.trim())
+    /^(HP|FL|GG|L)\s*0*\d+\s*[\/\-]\s*0*\d+\s*$/i.test(title.trim())
   );
 }
 

@@ -8,6 +8,7 @@ import {
   isDriveConnected,
   resolveServiceAccount,
 } from "../../../../../lib/google/drive";
+import { bookFromRequest, GLACIER_GEM_FOLDER_ID } from "../../../../../lib/admin-book";
 import { inspectServiceAccountEnv } from "../../../../../lib/google/service-account";
 import { getSetting } from "../../../../../lib/google/settings";
 
@@ -19,11 +20,12 @@ export async function GET(request: Request) {
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const book = bookFromRequest(request);
   const supabase = createAdminClient();
   const service = await resolveServiceAccount(supabase);
   const connected = await isDriveConnected(supabase);
   const email = service?.client_email || null;
-  const folderId = await getAgreementsFolderId(supabase);
+  const folderId = await getAgreementsFolderId(supabase, book);
   const lastScan = await getSetting(supabase, "google_last_scan");
   const inspect = inspectServiceAccountEnv();
   return NextResponse.json({
@@ -36,7 +38,10 @@ export async function GET(request: Request) {
     service_account_length: inspect.length,
     agreements_folder_id: folderId,
     agreements_folder_url: `https://drive.google.com/drive/folders/${folderId}`,
-    using_default_folder: folderId === DEFAULT_AGREEMENTS_FOLDER_ID,
+    using_default_folder:
+      book === "gg"
+        ? folderId === GLACIER_GEM_FOLDER_ID
+        : folderId === DEFAULT_AGREEMENTS_FOLDER_ID,
     last_scan: lastScan || null,
     callback_url: `${(process.env.APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://ffg.finance").replace(/\/$/, "")}/api/admin/google/callback`,
   });

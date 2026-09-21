@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AdminShell, { adminHeaders } from "../AdminShell";
+import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
 
 type Status = {
   oauth_configured: boolean;
@@ -116,12 +116,13 @@ function DriveInner() {
       setScan(json);
       const created = (json.created_from_drive || []).length;
       const filled = (json.filled_assets || []).length;
+      const pack = currentAdminBook() === "gg" ? "deal packs" : "HP documents";
       setOk(
         `Matched ${json.linked} existing deals. ${created} new agreement${
           created === 1 ? "" : "s"
         } added from Drive. ${filled} pending asset${
           filled === 1 ? "" : "s"
-        } filled from the HP documents.`
+        } filled from the ${pack}.`
       );
       await load();
     } catch (err: any) {
@@ -149,10 +150,9 @@ function DriveInner() {
       <div className="admin-kicker">Google Drive</div>
       <h1>Deal documents</h1>
       <p className="admin-lead">
-        Connect the Future FG Google Drive. Signed HP documents and goods
-        schedules in each deal folder are used for asset details. New folders
-        are added to the book; open lookup to amend anything that came through
-        wrongly.
+        {currentAdminBook() === "gg"
+          ? "This book uses the Glacier Gem Ltd folder in the same Google Drive as Future FG. Scan it to match GG01–GG14 packs, pull asset details, and add any new deal folders onto this book."
+          : "Connect the Future FG Google Drive. Signed HP documents and goods schedules in each deal folder are used for asset details. New folders are added to the book; open lookup to amend anything that came through wrongly."}
       </p>
 
       {ok && <div className="admin-ok">{ok}</div>}

@@ -113,7 +113,7 @@ export async function ingestDealFromFolder(
 ) {
   const parsedFolder = parseDealFolderTitle(folder.name);
   if (!parsedFolder) {
-    return { skipped: true as const, reason: "Folder name is not an HP / FL / L deal" };
+    return { skipped: true as const, reason: "Folder name is not an HP / FL / L / GG deal" };
   }
   const agreementNumber = parsedFolder.agreement_number;
   const accessToken = await driveAccessToken(supabase);
@@ -217,12 +217,15 @@ export async function ingestDealFromFolder(
     };
   }
 
+  const agreementType = agreementNumber.replace(/\d+$/, "");
+  const book = agreementType === "GG" ? "gg" : "ffg";
+
   if (!monthly || !termMonths || !startDate) {
     const { data: stub, error } = await supabase
       .from("agreements")
       .insert({
         agreement_number: agreementNumber,
-        agreement_type: agreementNumber.replace(/\d+$/, ""),
+        agreement_type: agreementType,
         customer_id: customerId,
         asset_description: details.asset_description,
         purchase_price: details.purchase_price,
@@ -233,6 +236,7 @@ export async function ingestDealFromFolder(
         term_months: termMonths || 0,
         start_date: startDate || new Date().toISOString().slice(0, 10),
         status: "active",
+        book,
         google_folder_id: folder.id,
         google_folder_name: folder.name,
       })
@@ -251,7 +255,7 @@ export async function ingestDealFromFolder(
     .from("agreements")
     .insert({
       agreement_number: agreementNumber,
-      agreement_type: agreementNumber.replace(/\d+$/, ""),
+      agreement_type: agreementType,
       customer_id: customerId,
       asset_description: details.asset_description,
       purchase_price: details.purchase_price,
@@ -262,6 +266,7 @@ export async function ingestDealFromFolder(
       term_months: termMonths,
       start_date: startDate,
       status: "active",
+      book,
       google_folder_id: folder.id,
       google_folder_name: folder.name,
     })

@@ -6,6 +6,7 @@ import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/g
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
 import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment } from "../../../../lib/schedule";
+import { bookFromRequest } from "../../../../lib/admin-book";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
   };
 
+  const book = bookFromRequest(request);
   const supabase = createAdminClient();
 
   // --- Company search: returns every agreement for matching customers ---
@@ -48,16 +50,19 @@ export async function GET(request: Request) {
     const { data: allAgreements } = await supabase
       .from("agreements")
       .select("*")
+      .eq("book", book)
       .in(
         "customer_id",
         customers.map((c) => c.id)
       )
       .order("agreement_number");
 
-    try {
-      await syncAgreementsPayments(supabase, allAgreements || []);
-    } catch {
-      // Lookup still works from the schedule we already hold.
+    if (book === "ffg") {
+      try {
+        await syncAgreementsPayments(supabase, allAgreements || []);
+      } catch {
+        // Lookup still works from the schedule we already hold.
+      }
     }
 
     const agreementIds = (allAgreements || []).map((a) => a.id);
@@ -110,6 +115,7 @@ export async function GET(request: Request) {
   const { data: agreement, error: agrErr } = await supabase
     .from("agreements")
     .select("*")
+    .eq("book", book)
     .ilike("agreement_number", agreementNumber.trim())
     .maybeSingle();
 
@@ -123,10 +129,12 @@ export async function GET(request: Request) {
     );
   }
 
-  try {
-    await syncAgreementPayments(supabase, agreement);
-  } catch {
-    // Fall through and show stored schedule.
+  if (book === "ffg") {
+    try {
+      await syncAgreementPayments(supabase, agreement);
+    } catch {
+      // Fall through and show stored schedule.
+    }
   }
 
   const { data: customer } = await supabase

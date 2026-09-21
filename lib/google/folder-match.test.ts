@@ -35,6 +35,8 @@ assert(
     "HP111",
   "no separator"
 );
+assert(parseDealFolderTitle("GG14 - Prior Construction Limited")?.agreement_number === "GG14", "gg14");
+assert(parseDealFolderTitle("GG01")?.agreement_number === "GG01", "gg01");
 assert(parseDealFolderTitle("HP Finance Douments V2.pdf") === null, "pdf pack");
 assert(parseDealFolderTitle("HP41/1") === null, "instalment ref is not a deal folder");
 
