@@ -48,7 +48,7 @@ function DashboardInner() {
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
-  const [reloading, setReloading] = useState(false);
+  const [reloading, setReloading] = useState(true);
   const loadSeq = useRef(0);
 
   const load = useCallback(async (opts?: { showBusy?: boolean }) => {
@@ -67,12 +67,13 @@ function DashboardInner() {
         cache: "no-store",
       });
       if (seq !== loadSeq.current) return;
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError("Couldn't load the dashboard.");
+        setError(json.error || "Couldn't load the dashboard.");
         return;
       }
       setError("");
-      setData(await res.json());
+      setData(json);
     } catch {
       if (seq !== loadSeq.current) return;
       setError("Couldn't load the dashboard.");
@@ -146,6 +147,9 @@ function DashboardInner() {
         </div>
       )}
       {error && <div className="admin-error">{error}</div>}
+      {reloading && !data && !error && (
+        <p className="admin-lead">Loading the book…</p>
+      )}
 
       {data && (
         <>

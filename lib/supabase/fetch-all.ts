@@ -6,6 +6,8 @@ type QueryLike<T> = {
 };
 
 const PAGE = 1000;
+/** Stay under PostgREST URL limits for `.in()` filters (UUIDs are long). */
+const IN_CHUNK = 80;
 
 /** PostgREST caps a single select at 1,000 rows. Page until the table is done. */
 export async function fetchAllRows<T>(
@@ -20,6 +22,19 @@ export async function fetchAllRows<T>(
     rows.push(...batch);
     if (batch.length < PAGE) break;
     from += PAGE;
+  }
+  return rows;
+}
+
+export async function fetchAllIn<T>(
+  makeQuery: (chunk: string[]) => QueryLike<T>,
+  ids: string[],
+  chunkSize = IN_CHUNK
+): Promise<T[]> {
+  if (!ids.length) return [];
+  const rows: T[] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    rows.push(...(await fetchAllRows(() => makeQuery(ids.slice(i, i + chunkSize)))));
   }
   return rows;
 }
