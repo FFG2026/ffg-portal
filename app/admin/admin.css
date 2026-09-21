@@ -58,6 +58,7 @@
 .admin-table tbody tr:hover{background:var(--blue-pale);}
 .admin-form{display:grid; grid-template-columns:1fr 1fr; gap:14px 18px; background:#fff; border:1px solid var(--rule); border-radius:14px; padding:24px;}
 .admin-form label{display:block; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.07em; text-transform:uppercase; color:var(--slate); margin-bottom:6px;}
+.admin-field-hint{font-size:12px; color:var(--slate); margin-top:6px;}
 .admin-form input, .admin-form select, .admin-form textarea{width:100%; padding:10px 12px; border:1px solid var(--rule); border-radius:8px; font-size:14px; font-family:inherit;}
 .admin-form .full{grid-column:1 / -1;}
 .admin-form button{grid-column:1 / -1; justify-self:start; padding:12px 22px; border:none; border-radius:8px; background:var(--blue); color:#fff; font-weight:600; cursor:pointer;}

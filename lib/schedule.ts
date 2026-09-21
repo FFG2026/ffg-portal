@@ -8,6 +8,19 @@ export function addMonths(isoDate: string, months: number): string {
   return cursor.toISOString().slice(0, 10);
 }
 
+/** Commencement is always one calendar month before the first instalment. */
+export function startDateFromFirstPayment(
+  rows: { due_date?: string | null }[] | null | undefined,
+  fallback?: string | null
+) {
+  const first = (rows || [])
+    .map((r) => String(r.due_date || "").slice(0, 10))
+    .filter((d) => d.length >= 10)
+    .sort()[0];
+  if (!first) return fallback ? String(fallback).slice(0, 10) : null;
+  return addMonths(first, -1);
+}
+
 export function buildPaymentSchedule(opts: {
   termMonths: number;
   monthlyInstalment: number;

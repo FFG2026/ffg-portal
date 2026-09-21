@@ -5,6 +5,7 @@ import { syncAgreementsPayments } from "../../lib/gocardless/sync-payments";
 import { isDirectDebitUpToDate } from "../../lib/gocardless/match-payments";
 import { fetchAllRows } from "../../lib/supabase/fetch-all";
 import { isLiveDeal, paidCount as countPaid, unpaidSum } from "../../lib/deal-status";
+import { startDateFromFirstPayment } from "../../lib/schedule";
 import PortalClient from "./PortalClient";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +78,9 @@ export default async function PortalPage() {
       agreementType: agreement.agreement_type,
       assetDescription: agreement.asset_description,
       monthlyInstalment: Number(agreement.monthly_instalment),
-      startDate: agreement.start_date,
+      startDate:
+        startDateFromFirstPayment(schedule, agreement.start_date) ||
+        String(agreement.start_date || ""),
       termMonths: agreement.term_months,
       paidCount,
       settlementFigure,

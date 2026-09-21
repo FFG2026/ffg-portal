@@ -212,6 +212,9 @@ function NewDealInner() {
             value={form.start_date}
             onChange={(e) => set("start_date", e.target.value)}
           />
+          <p className="admin-field-hint">
+            Commencement — first collection is one month after this date.
+          </p>
         </div>
         <div className="full">
           <label>Asset</label>

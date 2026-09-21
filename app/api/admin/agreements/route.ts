@@ -3,6 +3,7 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { isLiveDeal, paidCount, unpaidSum, overdueSum } from "../../../../lib/deal-status";
+import { startDateFromFirstPayment } from "../../../../lib/schedule";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
 
 export const dynamic = "force-dynamic";
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
       asset_description: a.asset_description,
       monthly_instalment: Number(a.monthly_instalment || 0),
       total_lend: Number(a.total_lend || 0),
-      start_date: a.start_date,
+      start_date: startDateFromFirstPayment(rows, a.start_date),
       term_months: a.term_months,
       paid_count: paidCount(rows),
       live,
