@@ -421,12 +421,19 @@ function ManualPaymentForm({
   gbp: (n: number) => string;
 }) {
   const [open, setOpen] = useState(false);
+  const [fullSettle, setFullSettle] = useState(false);
   const [amount, setAmount] = useState("");
   const [paidDate, setPaidDate] = useState(todayIso);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+
+  const payAmount = fullSettle ? owing : Number(amount);
+  const remainingAfter =
+    Number.isFinite(payAmount) && payAmount > 0
+      ? Math.round((owing - payAmount) * 100) / 100
+      : owing;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -439,7 +446,7 @@ function ManualPaymentForm({
         headers: { "Content-Type": "application/json", ...adminHeaders() },
         body: JSON.stringify({
           agreement_number: agreementNumber,
-          amount,
+          amount: fullSettle ? owing : amount,
           paid_date: paidDate,
           note,
         }),
@@ -449,10 +456,11 @@ function ManualPaymentForm({
       setMsg(
         json.settled
           ? `Recorded ${gbp(json.applied)} — this agreement is now settled.`
-          : `Recorded ${gbp(json.applied)}. Settlement figure is updated.`
+          : `Recorded ${gbp(json.applied)}. ${gbp(remainingAfter)} still owing.`
       );
       setAmount("");
       setNote("");
+      setFullSettle(false);
       setOpen(false);
       onDone();
     } catch (err: any) {
@@ -487,10 +495,14 @@ function ManualPaymentForm({
               min="0.01"
               step="0.01"
               max={owing}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={fullSettle ? String(owing) : amount}
+              onChange={(e) => {
+                setFullSettle(false);
+                setAmount(e.target.value);
+              }}
               placeholder={gbp(owing)}
-              required
+              required={!fullSettle}
+              disabled={fullSettle}
             />
           </div>
           <div className="lookup-field">
@@ -512,6 +524,19 @@ function ManualPaymentForm({
               required
             />
           </div>
+          <label className="lookup-check">
+            <input
+              type="checkbox"
+              checked={fullSettle}
+              onChange={(e) => setFullSettle(e.target.checked)}
+            />
+            This pays the agreement off in full ({gbp(owing)})
+          </label>
+          <p className="lookup-manual-preview">
+            {remainingAfter <= 0.009
+              ? "After this, the settlement figure will be £0.00."
+              : `After this, ${gbp(remainingAfter)} will still be owing.`}
+          </p>
           <button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Apply to this agreement"}
           </button>
