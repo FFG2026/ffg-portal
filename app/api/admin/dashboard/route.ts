@@ -49,6 +49,7 @@ export async function GET(request: Request) {
   let customers;
   let gcCollectedThisMonth = 0;
   let gcMonthLoaded = false;
+  let gcMonthCount = 0;
   try {
     [agreements, customers] = await Promise.all([
       fetchAllRows(() =>
@@ -71,6 +72,7 @@ export async function GET(request: Request) {
           ),
         ]);
         gcCollectedThisMonth = paidOutPoundsFromGoCardlessPayments(gcMonth);
+        gcMonthCount = gcMonth.length;
         gcMonthLoaded = true;
       } catch {
         // Book figures still load if GoCardless is down or slow.
@@ -251,6 +253,7 @@ export async function GET(request: Request) {
       overdue: round2(overdue),
       due_this_month: round2(dueThisMonth),
       collected_this_month: round2(collectedThisMonth),
+      collected_count: gcMonthLoaded ? gcMonthCount : null,
       no_mandate: noMandate,
     },
     chart,
