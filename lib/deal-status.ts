@@ -58,6 +58,11 @@ export function addCalendarMonths(iso: string, months: number) {
   return new Date(Date.UTC(y, m - 1 + months, d)).toISOString().slice(0, 10);
 }
 
+/** First day of the calendar month before today. 21 Sep → 1 Aug. */
+export function startOfLastCalendarMonth(today: string) {
+  return addCalendarMonths(`${today.slice(0, 8)}01`, -1);
+}
+
 /** Latest collected date on paid rows (paid_date, else the instalment due date). */
 export function lastReceivedPaymentDate(
   rows: PaymentDateRow[] | null | undefined
@@ -71,33 +76,46 @@ export function lastReceivedPaymentDate(
   return latest;
 }
 
-/** True if a collection landed on or after one calendar month before today. */
+/** True if a collection landed in this calendar month or the previous one. */
 export function receivedPaymentInLastMonth(
   rows: PaymentDateRow[] | null | undefined,
   today: string
 ) {
   const last = lastReceivedPaymentDate(rows);
-  return !!last && last >= addCalendarMonths(today, -1);
+  return !!last && last >= startOfLastCalendarMonth(today);
+}
+
+function lastPaidDueDate(rows: PaymentDateRow[] | null | undefined) {
+  let latest: string | null = null;
+  for (const r of rows || []) {
+    if (!isPaidRow(r.status)) continue;
+    const d = String(r.due_date || "").slice(0, 10);
+    if (d.length >= 10 && (!latest || d > latest)) latest = d;
+  }
+  return latest;
 }
 
 /**
- * Past-due unpaid instalments, but only if we have not received a payment
- * in the last calendar month. Regular monthly collections should not sit
- * on the chase list just because an older row is still marked due.
+ * Chase list: no collection since the start of last month, and at least one
+ * unpaid instalment a full month late. Unticked rows that sit before later
+ * paid instalments are sheet holes, not arrears.
  */
 export function overdueSum(
   rows: PaymentDateRow[] | null | undefined,
   today: string
 ) {
   if (receivedPaymentInLastMonth(rows, today)) return 0;
+  const paidThrough = lastPaidDueDate(rows);
+  const monthLateBy = addCalendarMonths(today, -1);
   return roundMoney(
     (rows || [])
-      .filter(
-        (r) =>
-          !isPaidRow(r.status) &&
-          r.due_date &&
-          String(r.due_date).slice(0, 10) < today
-      )
+      .filter((r) => {
+        if (isPaidRow(r.status) || !r.due_date) return false;
+        const due = String(r.due_date).slice(0, 10);
+        if (due.length < 10 || due >= today || due > monthLateBy) return false;
+        if (paidThrough && due <= paidThrough) return false;
+        return true;
+      })
       .reduce((sum, r) => sum + Number(r.amount || 0), 0)
   );
 }

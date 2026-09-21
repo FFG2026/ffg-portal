@@ -106,18 +106,51 @@ assert(
   "live account that paid in the last month is not overdue"
 );
 
+const paidEarlyLastMonth = [
+  { status: "paid", amount: 844.84, due_date: "2026-08-11", paid_date: "2026-08-11" },
+  { status: "due", amount: 844.84, due_date: "2026-09-11" },
+];
+assert(
+  receivedPaymentInLastMonth(paidEarlyLastMonth, "2026-09-21") === true,
+  "11 Aug still counts as a payment last month on 21 Sep"
+);
+assert(
+  liveOverdueSum({ status: "active", term_months: 36 }, paidEarlyLastMonth, "2026-09-21") ===
+    0,
+  "FL9-style monthly payer is not overdue after an August collection"
+);
+
+const currentCycleUnpaid = [
+  { status: "paid", amount: 868.41, due_date: "2026-07-30", paid_date: "2026-07-30" },
+  { status: "due", amount: 868.41, due_date: "2026-08-30" },
+];
+assert(
+  liveOverdueSum({ status: "active", term_months: 48 }, currentCycleUnpaid, "2026-09-21") ===
+    0,
+  "instalment less than a month late is not overdue"
+);
+
 const missedMonth = [
   { status: "paid", amount: 500, due_date: "2026-07-21", paid_date: "2026-07-21" },
   { status: "due", amount: 500, due_date: "2026-08-21" },
 ];
 assert(
   receivedPaymentInLastMonth(missedMonth, "2026-09-21") === false,
-  "21 Jul is more than one month before 21 Sep"
+  "21 Jul is before the start of last month"
 );
 assert(
   liveOverdueSum({ status: "active", term_months: 36 }, missedMonth, "2026-09-21") ===
     500,
   "no payment in the last month still flags overdue"
+);
+
+const sheetHole = [
+  { status: "due", amount: 3765.7, due_date: "2022-01-10" },
+  { status: "paid", amount: 3765.7, due_date: "2023-03-15", paid_date: "2023-03-15" },
+];
+assert(
+  liveOverdueSum({ status: "active", term_months: 15 }, sheetHole, "2026-09-21") === 0,
+  "unticked first row is not overdue after later instalments were paid"
 );
 
 console.log("deal-status tests ok");

@@ -7,7 +7,7 @@ import {
   liveOverdueSum,
   isPaidRow,
   unpaidSum,
-  receivedPaymentInLastMonth,
+  overdueSum,
 } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
@@ -79,11 +79,9 @@ export async function GET(request: Request) {
   }
 
   const liveById = new Map<string, boolean>();
-  const recentPayById = new Map<string, boolean>();
   for (const a of agreements || []) {
     const rows = paymentsByAgreement.get(a.id) || [];
     liveById.set(a.id, isLiveDeal(a, rows));
-    recentPayById.set(a.id, receivedPaymentInLastMonth(rows, today));
   }
 
   let paidTotal = 0;
@@ -107,15 +105,18 @@ export async function GET(request: Request) {
       }
     } else if (liveById.get(p.agreement_id) !== false) {
       bucket.unpaid += amount;
-      if (p.due_date && p.due_date < today && !recentPayById.get(p.agreement_id)) {
-        overdue += amount;
-      } else {
-        outstanding += amount;
-      }
       if (p.due_date && p.due_date >= monthStart && p.due_date < nextMonth) {
         dueThisMonth += amount;
       }
     }
+  }
+
+  for (const a of agreements || []) {
+    if (liveById.get(a.id) === false) continue;
+    const rows = paymentsByAgreement.get(a.id) || [];
+    const od = overdueSum(rows, today);
+    overdue += od;
+    outstanding += unpaidSum(rows) - od;
   }
 
   const chartMonths: string[] = [];
