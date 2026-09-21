@@ -1,7 +1,9 @@
 import {
   addMonths,
   buildPaymentSchedule,
+  instalmentDueFromStart,
   rewritePaymentSchedule,
+  startDateFromDriveFolder,
   startDateFromFirstPayment,
 } from "./schedule";
 
@@ -26,6 +28,14 @@ assert(
 );
 assert(addMonths("2023-01-12", -1) === "2022-12-12", "HP32 first due back one month");
 assert(addMonths("2026-09-10", -1) === "2026-08-10", "HP142 first due back one month");
+assert(
+  startDateFromDriveFolder("2025-04-10T08:16:45.573Z") === "2025-04-10",
+  "drive folder day"
+);
+assert(
+  instalmentDueFromStart("2025-04-10", 1) === "2025-05-10",
+  "first payment a month after the Drive folder"
+);
 
 const rewritten = rewritePaymentSchedule(
   [

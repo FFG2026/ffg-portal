@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addMonths, buildPaymentSchedule } from "../schedule";
+import { addMonths, buildPaymentSchedule, instalmentDueFromStart, startDateFromDriveFolder } from "../schedule";
 import { findOrCreateCustomer } from "../admin-deal";
 import { fetchAllRows } from "../supabase/fetch-all";
 import { parseDealFolderTitle } from "./folder-match";
@@ -119,14 +119,19 @@ export async function ingestDealFromFolder(
   const accessToken = await driveAccessToken(supabase);
   const files = await listDealDocuments(accessToken, folder.id);
 
-  const details = await detailsFromFolderFiles(
+  const driveStart = startDateFromDriveFolder(
+    folder.createdTime,
+    folder.modifiedTime
+  );
+  const isGg = /^GG/i.test(agreementNumber);
+  let details = await detailsFromFolderFiles(
     accessToken,
     files,
-    emptyDetails(
-      parsedFolder.company,
-      (folder.createdTime || folder.modifiedTime || "").slice(0, 10) || null
-    )
+    emptyDetails(parsedFolder.company, driveStart)
   );
+  if (isGg && driveStart) {
+    details = { ...details, start_date: driveStart };
+  }
 
   const { data: existing } = await supabase
     .from("agreements")
@@ -159,9 +164,12 @@ export async function ingestDealFromFolder(
       .order("due_date", { ascending: true })
       .limit(1)
       .maybeSingle();
-    const alignedStart = firstPay?.due_date
-      ? addMonths(String(firstPay.due_date).slice(0, 10), -1)
-      : existing.start_date || startDate;
+    const alignedStart =
+      isGg && driveStart
+        ? driveStart
+        : firstPay?.due_date
+          ? addMonths(String(firstPay.due_date).slice(0, 10), -1)
+          : existing.start_date || startDate;
 
     const patch: Record<string, unknown> = {
       google_folder_id: folder.id,
@@ -191,6 +199,19 @@ export async function ingestDealFromFolder(
     }
 
     await supabase.from("agreements").update(patch).eq("id", existing.id);
+
+    if (isGg && driveStart) {
+      const { data: pays } = await supabase
+        .from("payments")
+        .select("id, instalment_number, status")
+        .eq("agreement_id", existing.id);
+      for (const row of pays || []) {
+        const due = instalmentDueFromStart(driveStart, Number(row.instalment_number));
+        const update: Record<string, string> = { due_date: due };
+        if (row.status === "paid") update.paid_date = due;
+        await supabase.from("payments").update(update).eq("id", row.id);
+      }
+    }
 
     const { count } = await supabase
       .from("payments")
