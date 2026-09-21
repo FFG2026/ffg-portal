@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
+import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
         supabase
           .from("agreements")
           .select(
-            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend"
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend, status"
           )
           .order("agreement_number")
       ),
@@ -63,11 +64,8 @@ export async function GET(request: Request) {
 
   const list = (agreements || []).map((a) => {
     const rows = rowsByAgreement.get(a.id) || [];
-    const paidCount = rows.filter((r) => r.status === "paid").length;
-    const live = paidCount < (a.term_months || 0) || rows.length === 0;
-    const outstanding = rows
-      .filter((r) => r.status !== "paid")
-      .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const live = isLiveDeal(a, rows);
+    const outstanding = unpaidSum(rows);
     const overdue = rows
       .filter((r) => r.status !== "paid" && r.due_date && r.due_date < today)
       .reduce((sum, r) => sum + Number(r.amount || 0), 0);
@@ -83,7 +81,7 @@ export async function GET(request: Request) {
       total_lend: Number(a.total_lend || 0),
       start_date: a.start_date,
       term_months: a.term_months,
-      paid_count: paidCount,
+      paid_count: paidCount(rows),
       live,
       outstanding: Math.round(outstanding * 100) / 100,
       overdue: Math.round(overdue * 100) / 100,

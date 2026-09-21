@@ -331,14 +331,18 @@ function LookupInner() {
 
               <div className="lookup-settlement">
                 <div className="lookup-settlement-label">
-                  Settlement figure — valid to close of business today
+                  {result.status.live
+                    ? "Settlement figure — valid to close of business today"
+                    : "Paid in full"}
                 </div>
                 <div className="lookup-settlement-amt">
                   {gbp(result.status.settlement_figure)}
                 </div>
                 {result.status.last_payment_date && (
                   <div className="lookup-settlement-note">
-                    Last payment recorded {formatDate(result.status.last_payment_date)}
+                    {result.status.live
+                      ? `Last payment recorded ${formatDate(result.status.last_payment_date)}`
+                      : `Nothing owing. Last payment ${formatDate(result.status.last_payment_date)}.`}
                   </div>
                 )}
               </div>

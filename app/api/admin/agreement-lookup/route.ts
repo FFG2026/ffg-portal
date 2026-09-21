@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
+import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -57,13 +59,16 @@ export async function GET(request: Request) {
       // Lookup still works from the schedule we already hold.
     }
 
-    const { data: allPayments } = await supabase
-      .from("payments")
-      .select("agreement_id, amount, status")
-      .in(
-        "agreement_id",
-        (allAgreements || []).map((a) => a.id)
-      );
+    const agreementIds = (allAgreements || []).map((a) => a.id);
+    const allPayments =
+      agreementIds.length === 0
+        ? []
+        : await fetchAllRows(() =>
+            supabase
+              .from("payments")
+              .select("agreement_id, amount, status")
+              .in("agreement_id", agreementIds)
+          );
 
     const results = customers.map((c) => ({
       company_name: c.company_name,
@@ -72,22 +77,16 @@ export async function GET(request: Request) {
       agreements: (allAgreements || [])
         .filter((a) => a.customer_id === c.id)
         .map((a) => {
-          const rows = (allPayments || []).filter(
-            (p) => p.agreement_id === a.id
-          );
-          const paidCount = rows.filter((p) => p.status === "paid").length;
-          const settlement = rows
-            .filter((p) => p.status !== "paid")
-            .reduce((sum, p) => sum + Number(p.amount), 0);
+          const rows = allPayments.filter((p) => p.agreement_id === a.id);
           return {
             agreement_number: a.agreement_number,
             agreement_type: a.agreement_type,
             asset_description: a.asset_description,
             monthly_instalment: a.monthly_instalment,
-            paid_count: paidCount,
+            paid_count: paidCount(rows),
             term_months: a.term_months,
-            live: paidCount < a.term_months,
-            settlement_figure: settlement,
+            live: isLiveDeal(a, rows),
+            settlement_figure: unpaidSum(rows),
             has_schedule: rows.length > 0,
             gocardless_mandate_id: a.gocardless_mandate_id,
           };
@@ -135,23 +134,17 @@ export async function GET(request: Request) {
     .eq("id", agreement.customer_id)
     .maybeSingle();
 
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("*")
-    .eq("agreement_id", agreement.id);
+  const payments = await fetchAllRows(() =>
+    supabase.from("payments").select("*").eq("agreement_id", agreement.id)
+  );
 
   const schedule = sortByDueDate(payments || []);
   const paidPayments = schedule.filter((p) => p.status === "paid");
-  const paidCount = paidPayments.length;
   const lastPaid = [...paidPayments].sort((a, b) =>
     String(a.paid_date || a.due_date).localeCompare(
       String(b.paid_date || b.due_date)
     )
   ).pop();
-
-  const settlementFigure = schedule
-    .filter((p) => p.status !== "paid")
-    .reduce((sum, p) => sum + Number(p.amount), 0);
 
   const scheduleWithBalance = withRemainingBalance(schedule);
 
@@ -166,6 +159,7 @@ export async function GET(request: Request) {
         term_months: agreement.term_months,
         total_lend: agreement.total_lend,
         gocardless_mandate_id: agreement.gocardless_mandate_id,
+        status: agreement.status,
       },
       customer: customer
         ? {
@@ -175,10 +169,10 @@ export async function GET(request: Request) {
           }
         : null,
       status: {
-        paid_count: paidCount,
+        paid_count: paidCount(schedule),
         term_months: agreement.term_months,
-        live: paidCount < agreement.term_months,
-        settlement_figure: settlementFigure,
+        live: isLiveDeal(agreement, schedule),
+        settlement_figure: unpaidSum(schedule),
         last_payment_date: lastPaid
           ? lastPaid.paid_date || lastPaid.due_date
           : null,

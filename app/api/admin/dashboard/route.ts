@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
+import { isLiveDeal } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
         supabase
           .from("agreements")
           .select(
-            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend"
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend, status"
           )
       ),
       fetchAllRows(() =>
@@ -115,8 +116,7 @@ export async function GET(request: Request) {
 
   for (const a of agreements || []) {
     const rows = paymentsByAgreement.get(a.id) || [];
-    const paidCount = rows.filter((r) => r.status === "paid").length;
-    const isLive = paidCount < (a.term_months || 0) || rows.length === 0;
+    const isLive = isLiveDeal(a, rows);
     if (isLive) live += 1;
     else finished += 1;
 

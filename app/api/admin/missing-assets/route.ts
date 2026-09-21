@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
+import { isSettledAgreement } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
 
   const { data: agreements, error } = await supabase
     .from("agreements")
-    .select("agreement_number, customer_id, asset_description, term_months")
+    .select("agreement_number, customer_id, asset_description, term_months, status")
     .or(
       "asset_description.is.null,asset_description.eq.,asset_description.ilike.Pending%"
     )
@@ -64,7 +65,11 @@ export async function GET(request: Request) {
     const paidCount = agreementId
       ? paidCountByAgreementId.get(agreementId) || 0
       : 0;
-    const isLive = a.term_months ? paidCount < a.term_months : true;
+    const isLive = isSettledAgreement(a.status)
+      ? false
+      : a.term_months
+        ? paidCount < a.term_months
+        : true;
 
     return {
       agreement_number: a.agreement_number,

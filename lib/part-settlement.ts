@@ -117,18 +117,20 @@ export function sortByDueDate<T extends { due_date: string; instalment_number: n
   );
 }
 
+/**
+ * Spreadsheet-style running remaining: start from the original book
+ * (every instalment, paid or not) and count down each line. A deal paid
+ * from start to finish ends at £0 — it must not keep showing the original
+ * £93,911 as "balance after" on paid rows.
+ */
 export function withRemainingBalance<
   T extends { amount: number | string; status: string },
 >(rows: T[]) {
   let left = round2(
-    rows
-      .filter((r) => r.status !== "paid")
-      .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+    rows.reduce((sum, r) => sum + Number(r.amount || 0), 0)
   );
   return rows.map((row) => {
-    if (row.status !== "paid") {
-      left = round2(left - Number(row.amount || 0));
-    }
-    return { ...row, balance_after: left };
+    left = round2(left - Number(row.amount || 0));
+    return { ...row, balance_after: Math.max(0, left) };
   });
 }

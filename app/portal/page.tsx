@@ -3,6 +3,8 @@ import { createClient } from "../../lib/supabase/server";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { syncAgreementsPayments } from "../../lib/gocardless/sync-payments";
 import { isDirectDebitUpToDate } from "../../lib/gocardless/match-payments";
+import { fetchAllRows } from "../../lib/supabase/fetch-all";
+import { isLiveDeal, paidCount as countPaid, unpaidSum } from "../../lib/deal-status";
 import PortalClient from "./PortalClient";
 
 export const dynamic = "force-dynamic";
@@ -49,31 +51,26 @@ export default async function PortalPage() {
     // Still show whatever we already hold if GoCardless is unreachable.
   }
 
-  const { data: allPayments } = await supabase
-    .from("payments")
-    .select("*")
-    .in(
-      "agreement_id",
-      agreements!.map((a) => a.id)
-    )
-    .order("instalment_number", { ascending: true });
+  const allPayments = await fetchAllRows(() =>
+    supabase
+      .from("payments")
+      .select("*")
+      .in(
+        "agreement_id",
+        agreements!.map((a) => a.id)
+      )
+      .order("instalment_number", { ascending: true })
+  );
 
   const agreementSummaries = agreements!.map((agreement) => {
     const schedule = (allPayments || []).filter(
       (p) => p.agreement_id === agreement.id
     );
     const paidPayments = schedule.filter((p) => p.status === "paid");
-    const paidCount = paidPayments.length;
+    const paidCount = countPaid(schedule);
     const lastPayment = paidPayments[paidPayments.length - 1];
 
-    // Settlement figure = the total of all instalments not yet paid.
-    // This matches the settlement basis FFG uses (remaining scheduled
-    // payments, no early settlement rebate) and, unlike the old
-    // balance_after fallback, is correct on day one before any
-    // payment has been collected.
-    const settlementFigure = schedule
-      .filter((p) => p.status !== "paid")
-      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const settlementFigure = unpaidSum(schedule);
 
     return {
       agreementNumber: agreement.agreement_number,
@@ -90,8 +87,7 @@ export default async function PortalPage() {
         Math.max(0, paidCount - 2),
         Math.min(schedule.length, paidCount + 3)
       ),
-      // Used only to filter the list below -- not passed to the client.
-      isLive: paidCount < agreement.term_months,
+      isLive: isLiveDeal(agreement, schedule),
     };
   });
 

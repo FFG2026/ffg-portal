@@ -56,6 +56,13 @@ const balances = withRemainingBalance([
   { amount: 2513.94, status: "paid" },
   { amount: 23463.44, status: "paid" },
 ]);
+assert(balances[0].balance_after === 23463.44, "first paid line leaves the rest of the book");
 assert(balances[1].balance_after === 0, "settled book ends at zero");
+
+const l2 = withRemainingBalance(
+  Array.from({ length: 36 }, () => ({ amount: 2608.65, status: "paid" }))
+);
+assert(l2[0].balance_after === 91302.75, "L2 remaining after first collection");
+assert(l2[35].balance_after === 0, "L2 paid in full ends at zero");
 
 console.log("part-settlement tests ok");

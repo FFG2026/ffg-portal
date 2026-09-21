@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { getAdminSecret, isAuthorizedAdmin } from "../../../../lib/admin";
+import { isLiveDeal } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
 
@@ -34,27 +35,24 @@ export async function GET(request: Request) {
     fetchAllRows(() =>
       supabase
         .from("agreements")
-        .select("id, customer_id, agreement_number, monthly_instalment, term_months")
+        .select("id, customer_id, agreement_number, monthly_instalment, term_months, status")
     ),
     fetchAllRows(() =>
       supabase.from("payments").select("agreement_id, status")
     ),
   ]);
 
-  const paidByAgreement = new Map<string, number>();
+  const paidRowsByAgreement = new Map<string, { status: string }[]>();
   for (const p of payments || []) {
-    if (p.status === "paid") {
-      paidByAgreement.set(
-        p.agreement_id,
-        (paidByAgreement.get(p.agreement_id) || 0) + 1
-      );
-    }
+    const list = paidRowsByAgreement.get(p.agreement_id) || [];
+    list.push(p);
+    paidRowsByAgreement.set(p.agreement_id, list);
   }
 
   const list = (customers || []).map((c) => {
     const ags = (agreements || []).filter((a) => a.customer_id === c.id);
-    const live = ags.filter(
-      (a) => (paidByAgreement.get(a.id) || 0) < (a.term_months || 0)
+    const live = ags.filter((a) =>
+      isLiveDeal(a, paidRowsByAgreement.get(a.id) || [])
     ).length;
     return {
       id: c.id,
