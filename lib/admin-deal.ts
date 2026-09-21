@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildPaymentSchedule } from "./schedule";
+import { rewritePaymentSchedule } from "./schedule";
 
 function n(v: unknown) {
   if (v === null || v === undefined || v === "") return null;
@@ -98,7 +98,7 @@ function normalizeCustomerName(name: string | null | undefined) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-async function replaceUnpaidSchedule(
+async function replaceSchedule(
   supabase: SupabaseClient,
   agreementId: string,
   termMonths: number,
@@ -107,20 +107,16 @@ async function replaceUnpaidSchedule(
 ) {
   const { data: rows } = await supabase
     .from("payments")
-    .select("id, status")
+    .select(
+      "amount, status, paid_date, gocardless_payment_id, notes, source"
+    )
     .eq("agreement_id", agreementId);
-  const paid = (rows || []).filter((r) => r.status === "paid");
-  if (paid.length) {
-    throw new Error(
-      "This deal already has paid instalments, so the schedule was left as it is. Header details were still saved."
-    );
-  }
-  await supabase.from("payments").delete().eq("agreement_id", agreementId);
-  const schedule = buildPaymentSchedule({
+  const schedule = rewritePaymentSchedule(rows || [], {
     termMonths,
     monthlyInstalment: monthly,
     startDate,
-  }).map((row: { instalment_number: number; due_date: string; amount: number; status: string; paid_date: string | null; balance_after: number }) => ({ ...row, agreement_id: agreementId }));
+  }).map((row) => ({ ...row, agreement_id: agreementId }));
+  await supabase.from("payments").delete().eq("agreement_id", agreementId);
   const { error } = await supabase.from("payments").insert(schedule);
   if (error) throw new Error(error.message);
   return schedule.length;
@@ -198,7 +194,7 @@ export async function updateAgreementFromFields(
   let scheduleNote = "";
   if (fields.rebuild_schedule || scheduleChanged) {
     try {
-      instalments = await replaceUnpaidSchedule(
+      instalments = await replaceSchedule(
         supabase,
         agreement.id,
         termMonths,
