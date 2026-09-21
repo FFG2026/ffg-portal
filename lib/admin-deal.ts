@@ -41,8 +41,30 @@ export async function findOrCreateCustomer(
     .ilike("company_name", companyName)
     .limit(1)
     .maybeSingle();
+
+  const requestedEmail = fields.email ? String(fields.email).trim() : "";
+  let email = requestedEmail || null;
+  if (email) {
+    const { data: emailOwner } = await supabase
+      .from("customers")
+      .select("id, company_name")
+      .ilike("email", email)
+      .maybeSingle();
+    // A shared office inbox (e.g. HP141 Luke using Fuller's email) must
+    // not attach this deal to a different customer, or copy the address
+    // onto the hirer and collapse the two records later.
+    if (
+      emailOwner &&
+      emailOwner.id !== existing?.id &&
+      normalizeCustomerName(emailOwner.company_name) !==
+        normalizeCustomerName(companyName)
+    ) {
+      email = null;
+    }
+  }
+
   const patch = {
-    ...(fields.email ? { email: String(fields.email).trim() } : {}),
+    ...(email ? { email } : {}),
     ...(fields.phone ? { phone: String(fields.phone).trim() } : {}),
     ...(fields.contact_name
       ? { contact_name: String(fields.contact_name).trim() }
@@ -59,13 +81,21 @@ export async function findOrCreateCustomer(
     .insert({
       company_name: companyName,
       contact_name: fields.contact_name || null,
-      email: fields.email || null,
+      email,
       phone: fields.phone || null,
     })
     .select("id")
     .single();
   if (error || !created) throw new Error(error?.message || "Could not create customer");
   return created.id as string;
+}
+
+function normalizeCustomerName(name: string | null | undefined) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/\bltd\b\.?/g, "")
+    .replace(/\blimited\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 async function replaceUnpaidSchedule(

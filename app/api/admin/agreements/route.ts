@@ -7,6 +7,15 @@ import { startDateFromFirstPayment } from "../../../../lib/schedule";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
+const NO_CACHE = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  Pragma: "no-cache",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+};
 
 export async function GET(request: Request) {
   const auth = await authorizeAdminRequest(request);
@@ -114,6 +123,10 @@ export async function GET(request: Request) {
     },
     agreements: filtered,
     },
-    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } }
+    { headers: NO_CACHE }
   );
+}
+
+export async function POST(request: Request) {
+  return GET(request);
 }

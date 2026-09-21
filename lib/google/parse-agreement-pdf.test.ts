@@ -52,4 +52,26 @@ assert(
   parsed.asset_description || "asset"
 );
 
+const hp141 = parseAgreementPdfText(`
+HIRER DETAILS
+Full Name:
+Luke Lawrence
+Company Registration Number (if applicable):
+Email:
+matt@fullergrabhire.co.uk
+Main Contact Name:
+Address:
+31 Downland walk Chatham kent ME5 8AF
+Telephone Number:
+07548862656
+OF MANUFACTURE
+Mercedes sprinter WDB9066352S344906 WU58 OCL USED 2008 8,000
+AMOUNT OF EACH HIRER PAYMENT (£) 24 Monthly 376.59
+Period of Hire means 24 months commencing on the Start Date.
+`);
+assert(hp141.company_name === "Luke Lawrence", hp141.company_name || "hp141 name");
+assert(hp141.email === "matt@fullergrabhire.co.uk", "hp141 email is on the form but is not the hirer");
+assert(hp141.monthly_instalment === 376.59, "hp141 monthly");
+assert(hp141.term_months === 24, "hp141 term");
+
 console.log("parse-agreement-pdf tests ok");
