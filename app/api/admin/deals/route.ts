@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { buildPaymentSchedule } from "../../../../lib/schedule";
+import { bookFromRequest } from "../../../../lib/admin-book";
+import { glacierAgreementNumber } from "../../../../lib/glacier-gem-book";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +20,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const book = bookFromRequest(request, body);
   const companyName = String(body.company_name || "").trim();
-  const agreementType = String(body.agreement_type || "HP")
+  const agreementType = String(body.agreement_type || (book === "gg" ? "GG" : "HP"))
     .trim()
     .toUpperCase()
     .replace(/^LN$/, "L")
@@ -51,7 +54,10 @@ export async function POST(request: Request) {
       const match = String(row.agreement_number).match(/(\d+)/);
       if (match) maxN = Math.max(maxN, Number(match[1]));
     }
-    agreementNumber = `${agreementType}${maxN + 1}`;
+    agreementNumber =
+      book === "gg" || agreementType === "GG"
+        ? glacierAgreementNumber(maxN + 1)
+        : `${agreementType}${maxN + 1}`;
   } else {
     const { data: clash } = await supabase
       .from("agreements")
@@ -120,6 +126,7 @@ export async function POST(request: Request) {
       term_months: termMonths,
       start_date: startDate,
       status: "active",
+      book,
       gocardless_mandate_id: body.gocardless_mandate_id || null,
     })
     .select("id, agreement_number")

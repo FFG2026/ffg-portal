@@ -1,8 +1,8 @@
 /** FFG GoCardless descriptions look like HP41/1, FL16/4, L2/12. */
 
 const INSTALMENT_REF =
-  /\b(HP|FL|L)\s*0*(\d+)\s*[\/\-]\s*0*(\d+)\b/i;
-const AGREEMENT_ONLY_REF = /\b(HP|FL|L)\s*0*(\d+)\b/i;
+  /\b(HP|FL|GG|L)\s*0*(\d+)\s*[\/\-]\s*0*(\d+)\b/i;
+const AGREEMENT_ONLY_REF = /\b(HP|FL|GG|L)\s*0*(\d+)\b/i;
 
 export type AgreementRef = {
   agreement_number: string;
@@ -10,10 +10,13 @@ export type AgreementRef = {
 };
 
 export function normalizeAgreementNumber(type: string, n: string | number) {
-  return `${type.toUpperCase()}${Number(n)}`;
+  const t = type.toUpperCase();
+  const num = Number(n);
+  if (t === "GG") return `GG${String(num).padStart(2, "0")}`;
+  return `${t}${num}`;
 }
 
-const NUMBERED = /^(HP|FL|L)(\d+)$/i;
+const NUMBERED = /^(HP|FL|GG|L)(\d+)$/i;
 
 export function compareAgreementNumber(a: string, b: string) {
   const ma = String(a || "").toUpperCase().match(NUMBERED);

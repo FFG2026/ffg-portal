@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const { data: agreements, error } = await supabase
     .from("agreements")
     .select("agreement_number, customer_id, asset_description, term_months, status")
+    .eq("book", "ffg")
     .or(
       "asset_description.is.null,asset_description.eq.,asset_description.ilike.Pending%"
     )

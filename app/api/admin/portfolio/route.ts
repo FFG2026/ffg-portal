@@ -55,6 +55,7 @@ async function liveFigures(cashOverride?: number | null) {
         .select(
           "id, agreement_number, agreement_type, total_lend, commission, monthly_instalment, term_months"
         )
+        .eq("book", "ffg")
     ),
     fetchAllRows(() =>
       supabase.from("payments").select("agreement_id, amount, status")

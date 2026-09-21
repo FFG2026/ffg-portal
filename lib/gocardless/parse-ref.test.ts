@@ -18,6 +18,8 @@ assert(parseAgreementRef("L2/12")?.agreement_number === "L2", "loan");
 assert(parseAgreementRef("HP4/1")?.agreement_number === "HP4", "hp4 not hp41");
 assert(parseAgreementRef("FFG HP104")?.agreement_number === "HP104", "ffg prefix");
 assert(parseAgreementRef("Payment for HP41")?.instalment_number === null, "no inst");
+assert(parseAgreementRef("GG14 - Prior")?.agreement_number === "GG14", "gg14");
+assert(parseAgreementRef("GG01")?.agreement_number === "GG01", "gg01");
 assert(parseAgreementRef("rent") === null, "unrelated");
 
 assert(

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
+import { bookFromRequest } from "../../../../lib/admin-book";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { isLiveDeal } from "../../../../lib/deal-status";
 
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const book = bookFromRequest(request);
   const q = new URL(request.url).searchParams.get("q")?.trim() || "";
   const supabase = createAdminClient();
 
@@ -36,6 +38,7 @@ export async function GET(request: Request) {
       supabase
         .from("agreements")
         .select("id, customer_id, agreement_number, monthly_instalment, term_months, status")
+        .eq("book", book)
     ),
     fetchAllRows(() =>
       supabase.from("payments").select("agreement_id, status")
@@ -49,7 +52,8 @@ export async function GET(request: Request) {
     paidRowsByAgreement.set(p.agreement_id, list);
   }
 
-  const list = (customers || []).map((c) => {
+  const list = (customers || [])
+    .map((c) => {
     const ags = (agreements || []).filter((a) => a.customer_id === c.id);
     const live = ags.filter((a) =>
       isLiveDeal(a, paidRowsByAgreement.get(a.id) || [])
@@ -65,7 +69,8 @@ export async function GET(request: Request) {
       live_count: live,
       agreements: ags.map((a) => a.agreement_number).sort(),
     };
-  });
+  })
+    .filter((c) => c.agreement_count > 0);
 
   return NextResponse.json({ customers: list });
 }

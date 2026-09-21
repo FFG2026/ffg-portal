@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import AdminShell, { adminHeaders } from "../AdminShell";
+import AdminShell, { adminHeaders, adminBasePath } from "../AdminShell";
 import { useBookReload } from "../../../lib/admin-book-reload";
 
 type Row = {
@@ -28,6 +28,7 @@ const gbp = (n: number) =>
 
 function AgreementsInner() {
   const router = useRouter();
+  const base = adminBasePath();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"live" | "past" | "all">(
     (searchParams.get("status") as "live" | "past" | "all") || "live"
@@ -109,7 +110,7 @@ function AgreementsInner() {
               key={a.agreement_number}
               onClick={() =>
                 router.push(
-                  `/admin/lookup?agreement=${encodeURIComponent(a.agreement_number)}`
+                  `${base}/lookup?agreement=${encodeURIComponent(a.agreement_number)}`
                 )
               }
             >

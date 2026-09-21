@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import AdminShell, { adminHeaders } from "../AdminShell";
+import AdminShell, { adminHeaders, adminBasePath } from "../AdminShell";
 
 type Customer = {
   id: string;
@@ -26,6 +26,7 @@ export default function AdminCustomersPage() {
 
 function CustomersInner() {
   const router = useRouter();
+  const base = adminBasePath();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Customer[]>([]);
 
@@ -76,7 +77,7 @@ function CustomersInner() {
               key={c.id}
               onClick={() =>
                 router.push(
-                  `/admin/agreements?q=${encodeURIComponent(c.company_name)}`
+                  `${base}/agreements?q=${encodeURIComponent(c.company_name)}`
                 )
               }
             >

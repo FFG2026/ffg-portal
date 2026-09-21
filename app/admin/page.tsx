@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import AdminShell, { adminHeaders } from "./AdminShell";
+import AdminShell, { adminHeaders, adminBasePath } from "./AdminShell";
 import { useBookReload } from "../../lib/admin-book-reload";
 
 type Dashboard = {
@@ -43,6 +43,7 @@ export default function AdminDashboardPage() {
 
 function DashboardInner() {
   const router = useRouter();
+  const base = adminBasePath();
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
@@ -104,13 +105,12 @@ function DashboardInner() {
 
   return (
     <>
-      <div className="admin-kicker">Book</div>
+      <div className="admin-kicker">{base === "/admin/gg" ? "Glacier Gem" : "Future FG"}</div>
       <h1>Company dashboard</h1>
       <p className="admin-lead">
-        Live book, collections and anything that needs a look. Collected this
-        month is what actually landed in GoCardless this calendar month (plus
-        any manual receipts), not only the instalments already ticked on the
-        book. Refresh after a collection run.
+        {base === "/admin/gg"
+          ? "Glacier Gem book. Collections are standing orders — open a deal sheet to record a payment when money lands."
+          : "Live book, collections and anything that needs a look. Collected this month is what actually landed in GoCardless this calendar month (plus any manual receipts), not only the instalments already ticked on the book. Refresh after a collection run."}
         {data?.generated_at && (
           <>
             {" "}
@@ -126,9 +126,11 @@ function DashboardInner() {
       </p>
 
       <div className="admin-actions">
+        {base !== "/admin/gg" && (
         <button className="primary" onClick={refreshCollections} disabled={syncing || reloading}>
           {syncing ? "Refreshing from GoCardless…" : "Refresh collections from GoCardless"}
         </button>
+        )}
         <button
           onClick={() => load({ showBusy: true })}
           type="button"
@@ -136,7 +138,7 @@ function DashboardInner() {
         >
           {reloading ? "Reloading…" : "Reload figures"}
         </button>
-        <button onClick={() => router.push("/admin/new-deal")}>Load a new deal</button>
+        <button onClick={() => router.push(`${base}/new-deal`)}>Load a new deal</button>
       </div>
       {syncMsg && (
         <div className={syncMsg.startsWith("Updated") ? "admin-ok" : "admin-error"}>
@@ -162,8 +164,9 @@ function DashboardInner() {
               <div className="lbl">Collected this month</div>
               <div className="num">{gbp(data.totals.collected_this_month)}</div>
               <div className="sub">
-                GoCardless cash this month · {gbp(data.totals.due_this_month)} still
-                due on this month’s instalments
+                {base === "/admin/gg"
+                  ? `Standing order / bank this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`
+                  : `GoCardless cash this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`}
               </div>
             </div>
             <div className="admin-stat warn">
@@ -233,7 +236,7 @@ function DashboardInner() {
                         key={row.agreement_number + row.reason}
                         onClick={() =>
                           router.push(
-                            `/admin/agreements?q=${encodeURIComponent(
+                            `${base}/agreements?q=${encodeURIComponent(
                               row.agreement_number
                             )}`
                           )

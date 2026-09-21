@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import AdminShell, { adminHeaders } from "../AdminShell";
+import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
 
 export default function NewDealPage() {
   return (
@@ -20,7 +20,7 @@ function NewDealInner() {
   const [importError, setImportError] = useState("");
   const [form, setForm] = useState({
     agreement_number: "",
-    agreement_type: "HP",
+    agreement_type: currentAdminBook() === "gg" ? "GG" : "HP",
     company_name: "",
     contact_name: "",
     email: "",
@@ -54,7 +54,9 @@ function NewDealInner() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not save");
       setMsg(
-        `${json.agreement_number} is on the book with ${json.instalments} instalments. Collections will tick once GoCardless picks them up.`
+        currentAdminBook() === "gg"
+          ? `${json.agreement_number} is on the Glacier Gem book with ${json.instalments} instalments. Open the deal sheet and use Record a payment when money lands.`
+          : `${json.agreement_number} is on the book with ${json.instalments} instalments. Collections will tick once GoCardless picks them up.`
       );
       setForm((prev) => ({
         ...prev,
@@ -86,17 +88,58 @@ function NewDealInner() {
     try {
       const XLSX = await import("xlsx");
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
-      const sheets: Record<string, unknown[][]> = {};
-      for (const name of wb.SheetNames) {
-        sheets[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], {
-          header: 1,
-          raw: true,
-          defval: null,
-        }) as unknown[][];
+      const gg = currentAdminBook() === "gg";
+      const wb = XLSX.read(buf, {
+        type: "array",
+        cellDates: true,
+        cellStyles: gg,
+      });
+      let deals;
+      if (gg) {
+        const { parseGlacierGemTotals, glacierExtrasFor, glacierAgreementNumber } =
+          await import("../../../lib/glacier-gem-book");
+        const totalsName =
+          wb.SheetNames.find((n) => /total/i.test(n)) || wb.SheetNames[0];
+        const sh = wb.Sheets[totalsName];
+        const range = XLSX.utils.decode_range(sh["!ref"] || "A1");
+        const totals: unknown[][] = [];
+        for (let r = range.s.r; r <= range.e.r; r++) {
+          const row: unknown[] = [];
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            row[c] = sh[XLSX.utils.encode_cell({ r, c })] || null;
+          }
+          totals.push(row);
+        }
+        const dealSheets: Record<string, unknown[][]> = {};
+        const extra: Record<string, ReturnType<typeof glacierExtrasFor>> = {};
+        for (const name of wb.SheetNames) {
+          if (/^GG\s*\d+/i.test(name)) {
+            dealSheets[name.toUpperCase().replace(/\s+/g, "")] =
+              XLSX.utils.sheet_to_json(wb.Sheets[name], {
+                header: 1,
+                raw: true,
+                defval: "",
+              }) as unknown[][];
+          }
+        }
+        for (let i = 1; i <= 40; i++) {
+          extra[glacierAgreementNumber(i)] = glacierExtrasFor(
+            glacierAgreementNumber(i)
+          );
+        }
+        deals = parseGlacierGemTotals(totals as never, dealSheets, extra);
+      } else {
+        const sheets: Record<string, unknown[][]> = {};
+        for (const name of wb.SheetNames) {
+          sheets[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], {
+            header: 1,
+            raw: true,
+            defval: null,
+          }) as unknown[][];
+        }
+        const { parseWorkbookSheets } = await import("../../../lib/spreadsheet");
+        deals = parseWorkbookSheets(sheets);
       }
-      const { parseWorkbookSheets } = await import("../../../lib/spreadsheet");
-      const deals = parseWorkbookSheets(sheets);
       const apply = await fetch("/api/admin/import-book", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...adminHeaders() },
@@ -124,22 +167,21 @@ function NewDealInner() {
       <div className="admin-kicker">Origination</div>
       <h1>Load a new deal</h1>
       <p className="admin-lead">
-        New deals should come from Google Drive — put the signed pack in
-        Agreements as HP143 - Company, then scan on the Drive page. Use this
-        form if you need to type one in, or to correct a deal on lookup with
-        Amend this deal.
+        {currentAdminBook() === "gg"
+          ? "New Glacier Gem deals should come from the Glacier Gem Ltd Drive folder (GG15 - Company), then scan on the Drive page. Use this form to type one in. On the deal sheet, Record a payment ticks the next instalment — there is no GoCardless."
+          : "New deals should come from Google Drive — put the signed pack in Agreements as HP143 - Company, then scan on the Drive page. Use this form if you need to type one in, or to correct a deal on lookup with Amend this deal."}
       </p>
       <div className="admin-card" style={{ marginBottom: 28 }}>
         <h2>Or drop in the deal book</h2>
         <p className="admin-lead">
-          The usual FFG workbook still works — one tab per agreement. New tabs
-          are added to the portal. Existing deals only gain missing green ticks;
-          GoCardless collections are never unmarked.
+          {currentAdminBook() === "gg"
+            ? "The Agreement Totals workbook: yellow cells on the Totals tab are collections already received. Existing deals only gain missing paid ticks."
+            : "The usual FFG workbook still works — one tab per agreement. New tabs are added to the portal. Existing deals only gain missing green ticks; GoCardless collections are never unmarked."}
         </p>
         <label className="admin-file">
           <input
             type="file"
-            accept=".xlsx,.xlsm"
+            accept=".xlsx,.xlsm,.xlsb"
             disabled={importing}
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -147,7 +189,11 @@ function NewDealInner() {
               e.target.value = "";
             }}
           />
-          {importing ? "Reading workbook…" : "Upload FFG agreement workbook"}
+          {importing
+            ? "Reading workbook…"
+            : currentAdminBook() === "gg"
+              ? "Upload Glacier Gem totals workbook"
+              : "Upload FFG agreement workbook"}
         </label>
         {importMsg && <div className="admin-ok">{importMsg}</div>}
         {importError && <div className="admin-error">{importError}</div>}
@@ -169,9 +215,15 @@ function NewDealInner() {
             value={form.agreement_type}
             onChange={(e) => set("agreement_type", e.target.value)}
           >
-            <option value="HP">Hire purchase</option>
-            <option value="FL">Finance lease</option>
-            <option value="L">Loan</option>
+            {currentAdminBook() === "gg" ? (
+              <option value="GG">Glacier Gem HP</option>
+            ) : (
+              <>
+                <option value="HP">Hire purchase</option>
+                <option value="FL">Finance lease</option>
+                <option value="L">Loan</option>
+              </>
+            )}
           </select>
         </div>
         <div className="full">
@@ -274,6 +326,7 @@ function NewDealInner() {
             onChange={(e) => set("documentation_fee", e.target.value)}
           />
         </div>
+        {currentAdminBook() !== "gg" && (
         <div className="full">
           <label>GoCardless mandate id</label>
           <input
@@ -282,6 +335,7 @@ function NewDealInner() {
             placeholder="MD… optional"
           />
         </div>
+        )}
         <button type="submit" disabled={saving}>
           {saving ? "Saving…" : "Add to the book"}
         </button>

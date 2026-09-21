@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
+import { bookFromRequest } from "../../../../lib/admin-book";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import {
   isLiveDeal,
@@ -35,6 +36,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const book = bookFromRequest(request);
   const supabase = createAdminClient();
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = today.slice(0, 8) + "01";
@@ -53,13 +55,14 @@ export async function GET(request: Request) {
         supabase
           .from("agreements")
           .select(
-            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend, status"
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend, status, book"
           )
+          .eq("book", book)
       ),
       fetchAllRows(() => supabase.from("customers").select("id, company_name")),
     ]);
 
-    if (process.env.GOCARDLESS_ACCESS_TOKEN) {
+    if (book === "ffg" && process.env.GOCARDLESS_ACCESS_TOKEN) {
       try {
         const gcMonth = await fetchGoCardlessPaymentsChargedBetween(
           monthStart,
@@ -72,12 +75,16 @@ export async function GET(request: Request) {
       }
     }
 
-    payments = await fetchAllRows(() =>
-      supabase
-        .from("payments")
-        .select("agreement_id, amount, status, due_date, paid_date, source")
-        .order("id")
-    );
+    const ids = (agreements || []).map((a) => a.id);
+    payments = ids.length
+      ? await fetchAllRows(() =>
+          supabase
+            .from("payments")
+            .select("agreement_id, amount, status, due_date, paid_date, source")
+            .in("agreement_id", ids)
+            .order("id")
+        )
+      : [];
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Could not load the book" },
@@ -133,7 +140,9 @@ export async function GET(request: Request) {
     }
   }
   collectedThisMonth = round2(
-    Math.max(collectedThisMonth, gcCollectedThisMonth + manualThisMonth)
+    book === "gg"
+      ? collectedThisMonth
+      : Math.max(collectedThisMonth, gcCollectedThisMonth + manualThisMonth)
   );
 
   for (const a of agreements || []) {
@@ -175,7 +184,7 @@ export async function GET(request: Request) {
     else finished += 1;
 
     const company = nameById.get(a.customer_id) || "(unknown)";
-    if (!a.gocardless_mandate_id) {
+    if (book === "ffg" && !a.gocardless_mandate_id) {
       noMandate += 1;
       if (isLive) {
         attention.push({
@@ -223,7 +232,7 @@ export async function GET(request: Request) {
     totals: {
       live,
       finished,
-      customers: (customers || []).length,
+      customers: new Set((agreements || []).map((a) => a.customer_id)).size,
       paid_total: round2(paidTotal),
       outstanding: round2(outstanding),
       overdue: round2(overdue),

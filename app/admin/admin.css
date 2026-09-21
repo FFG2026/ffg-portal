@@ -9,6 +9,11 @@
 .admin-home{font-size:13px; font-weight:600; color:var(--blue-deep);}
 .admin-home-wrap{margin-left:auto; display:flex; align-items:center; gap:14px;}
 .admin-who{font-size:12.5px; color:var(--slate);}
+.admin-book-switch{display:flex; border:1px solid var(--rule); border-radius:8px; overflow:hidden;}
+.admin-book-switch a{font-size:12px; font-weight:600; padding:6px 10px; color:var(--ink-soft);}
+.admin-book-switch a.on{background:var(--navy); color:#fff;}
+.admin-book-switch a:hover{color:var(--blue-deep);}
+.admin-book-switch a.on:hover{color:#fff;}
 .admin-signout{border:none; background:none; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
 .admin-signout:hover{color:var(--blue-deep);}
 .admin-main{padding:28px clamp(20px, 4vw, 40px) 72px; max-width:1360px; margin:0 auto;}

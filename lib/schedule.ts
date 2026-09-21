@@ -35,7 +35,7 @@ export function buildPaymentSchedule(opts: {
       instalment_number: i,
       due_date: dueDate,
       amount: opts.monthlyInstalment,
-      status: "due" as const,
+      status: "due" as "due" | "paid",
       paid_date: null as string | null,
       balance_after: Math.max(0, balanceAfter),
       gocardless_payment_id: null as string | null,

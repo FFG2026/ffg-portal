@@ -71,7 +71,7 @@ async function findCustomerId(
 export async function importDealBook(
   supabase: SupabaseClient,
   deals: SheetDeal[],
-  opts: { apply: boolean }
+  opts: { apply: boolean; book?: "ffg" | "gg" }
 ): Promise<ImportSummary> {
   const summary: ImportSummary = {
     created: [],
@@ -111,7 +111,7 @@ export async function importDealBook(
             agreement_number: deal.agreement_number,
             agreement_type: deal.agreement_type,
             customer_id: customerId,
-            asset_description: deal.company_name,
+            asset_description: deal.asset_description || deal.company_name,
             purchase_price: deal.purchase_price,
             customer_deposit: deal.customer_deposit,
             total_lend: deal.total_lend,
@@ -121,6 +121,9 @@ export async function importDealBook(
             term_months: deal.term_months,
             start_date: deal.start_date,
             status: paidCount >= deal.term_months ? "settled" : "active",
+            book: deal.book || opts.book || "ffg",
+            google_folder_id: deal.google_folder_id || null,
+            google_folder_name: deal.google_folder_name || null,
           })
           .select("id")
           .single();
