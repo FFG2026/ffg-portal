@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import AdminShell, { adminHeaders, adminBasePath } from "../AdminShell";
+import AdminShell, { adminHeaders, adminBasePath, currentAdminBook } from "../AdminShell";
 import { useBookReload } from "../../../lib/admin-book-reload";
 
 type Row = {
@@ -138,7 +138,9 @@ function AgreementsInner() {
                 )}
               </td>
               <td>
-                {!a.has_mandate && <span className="admin-pill">No mandate</span>}
+                {currentAdminBook() !== "gg" && !a.has_mandate && (
+                  <span className="admin-pill">No mandate</span>
+                )}
                 {!a.has_schedule && (
                   <span className="admin-pill">No schedule</span>
                 )}

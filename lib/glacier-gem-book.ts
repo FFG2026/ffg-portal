@@ -187,47 +187,47 @@ export const GLACIER_DRIVE_FOLDERS: Record<
   GG02: {
     id: "1tRFQ0CGjXldRRdMcx2KcM7CMTWAbFxcA",
     name: "GG02",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG03: {
     id: "1d-yL5rFq93f5H0vtcdGgJ30D_xMk7TD_",
     name: "GG03",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG04: {
     id: "1y1X9ETWph4BEHgkTGPqT7kSIf5s-Qw6s",
     name: "GG04",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG05: {
     id: "1KhbkLYzdajvko-DxYItlHqeTsiuiwpBK",
     name: "GG05",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG06: {
     id: "1nMSiMT26-IjDB58-VZZEK_h_opR4LRed",
     name: "GG06",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG07: {
     id: "12Srenu81GnrVTFhPDoOaoIOwaNHZJ4Wg",
     name: "GG07",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG08: {
     id: "1c1R0Jhqi9SIwT9_aoe6QK4kUj4RUeZ4S",
     name: "GG08",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG09: {
     id: "1d8af5f0ry8LQKGmzR4NIjra_-R4V88rv",
     name: "GG09",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG10: {
     id: "1l7P3z6RwUiaaKPY9pQcerpV4hmMabY8U",
     name: "GG10",
-    company: "",
+    company: "Rocket Hire Limited",
   },
   GG11: {
     id: "1pd7ie80viJxxTIorGJPTDtMzlKgbqkeM",
@@ -258,6 +258,57 @@ export const GLACIER_KNOWN_DEALS: Record<string, GlacierExtras> = {
       "Ford Transit L3H3 DV72XEA, CK72YPG, CK72YPL, WR22SYX",
     first_due: "2025-05-15",
   },
+  GG02: {
+    company_name: "Rocket Hire Limited",
+    asset_description:
+      "Ford Transit L3H3 WN72YXZ, Transit Custom EO21TKU, EK71YNW, EK71YUG",
+  },
+  GG03: {
+    company_name: "Rocket Hire Limited",
+    asset_description:
+      "Transit Custom FL21ANV, Ford Transit 350 DN72MVP, WR21FYB, Transit Custom ML71VZZ",
+  },
+  GG04: {
+    company_name: "Rocket Hire Limited",
+    asset_description:
+      "Ford Transit 350 WR71GYH, DV72FKN, DV72SFE, WR72PXO, Transit Custom Auto LD22NNX",
+  },
+  GG05: {
+    company_name: "Rocket Hire Limited",
+    asset_description: "Ford Transit 350 DY72JUF, CK72AYT",
+  },
+  GG06: {
+    company_name: "Rocket Hire Limited",
+    asset_description:
+      "Ford Transit 350 L3H3 DY72JVR, Citroen Relay 35 CE71OGF, Ford Transit 350 L3H3 LD73DAO, CF22UZL",
+  },
+  GG07: {
+    company_name: "Rocket Hire Limited",
+    asset_description:
+      "Transit Custom HV71VML, Ford Transit 350 L3H3 DV72YDZ, WM71FXU, DL22PLZ, WR23RKY, DL22ONK, Ford Transit L4H3 SD22AXB",
+  },
+  GG08: {
+    company_name: "Rocket Hire Limited",
+    asset_description:
+      "Ford Transit 350 L3H3 DV72GKX, WR22SXO, Transit 350 L3H2 Auto WM72CCK, Transit 350 L4H3 HS71BJE, Transit 350 L3H3 DL22PLO",
+  },
+  GG09: {
+    company_name: "Rocket Hire Limited",
+    asset_description:
+      "Ford Transit L3H3 MM72BPZ, Transit Custom 300 FV74GWZ, FV74GWX",
+  },
+  GG10: {
+    company_name: "Rocket Hire Limited",
+    asset_description: "Ford Transit Custom 300 YE74EOR, YE74ESO",
+  },
+  GG11: {
+    company_name: "Prior Construction Limited",
+    asset_description: "Mercedes Sprinter Holeshot Race Van KU72XVM",
+  },
+  GG12: {
+    company_name: "Prior Construction Limited",
+    asset_description: "DAF CF440 Euro 6 32T tipper BV15AAO",
+  },
   GG13: {
     company_name: "Rocket Hire Limited",
     asset_description:
@@ -271,7 +322,7 @@ export const GLACIER_KNOWN_DEALS: Record<string, GlacierExtras> = {
   },
   GG14: {
     company_name: "Prior Construction Limited",
-    asset_description: "Plant / vehicle hire — GG14",
+    asset_description: "Isuzu Forward N75:150 4x2 Day Cab YX19NWM",
     monthly_instalment: 397.24,
     term_months: 36,
     total_lend: 11500,

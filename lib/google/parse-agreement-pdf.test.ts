@@ -157,6 +157,8 @@ This agreement is an invoice for VAT purposes
   "hp121 cost of goods fallback"
 );
 assert(isPlaceholderAsset(null), "null asset");
+assert(isPlaceholderAsset("GG07"), "gg number is a placeholder");
+assert(isPlaceholderAsset("Prior Construction Limited"), "company name only");
 assert(!isPlaceholderAsset("FIAT 500 1.0 Dolcevita"), "real asset");
 
 const fl13 = parseLeaseAgreementAssets(`

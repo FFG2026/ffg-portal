@@ -15,7 +15,9 @@ export type ParsedAgreementPdf = {
 
 export function isPlaceholderAsset(value: string | null | undefined) {
   const s = String(value || "").trim();
-  return !s || /^pending\b/i.test(s);
+  if (!s || /^pending\b/i.test(s) || /^GG\s*\d+$/i.test(s)) return true;
+  if (/limited$/i.test(s) && !/[A-Z]{1,3}\d{1,3}\s?[A-Z]{3}/i.test(s)) return true;
+  return false;
 }
 
 function money(raw: string | null | undefined) {

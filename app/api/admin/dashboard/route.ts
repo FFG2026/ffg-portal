@@ -214,7 +214,11 @@ export async function GET(request: Request) {
       });
     }
     const asset = a.asset_description || "";
-    if (isLive && (!asset || asset.startsWith("Pending"))) {
+    if (
+      book === "ffg" &&
+      isLive &&
+      (!asset || asset.startsWith("Pending"))
+    ) {
       attention.push({
         agreement_number: a.agreement_number,
         company_name: company,
