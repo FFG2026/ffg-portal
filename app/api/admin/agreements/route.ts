@@ -99,12 +99,15 @@ export async function GET(request: Request) {
     );
   });
 
-  return NextResponse.json({
+  return NextResponse.json(
+    {
     counts: {
       live: list.filter((a) => a.live).length,
       past: list.filter((a) => !a.live).length,
       all: list.length,
     },
     agreements: filtered,
-  });
+    },
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } }
+  );
 }

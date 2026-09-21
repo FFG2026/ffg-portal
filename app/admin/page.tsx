@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminShell, { adminHeaders } from "./AdminShell";
+import { useBookReload } from "../../lib/admin-book-reload";
 
 type Dashboard = {
   totals: {
@@ -46,8 +47,8 @@ function DashboardInner() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
 
-  const load = async () => {
-    const res = await fetch("/api/admin/dashboard", {
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/admin/dashboard?ts=${Date.now()}`, {
       headers: adminHeaders(),
       cache: "no-store",
     });
@@ -55,12 +56,11 @@ function DashboardInner() {
       setError("Couldn't load the dashboard.");
       return;
     }
+    setError("");
     setData(await res.json());
-  };
-
-  useEffect(() => {
-    load();
   }, []);
+
+  useBookReload(load);
 
   const refreshCollections = async () => {
     setSyncing(true);

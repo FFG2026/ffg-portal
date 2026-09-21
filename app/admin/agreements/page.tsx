@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import AdminShell, { adminHeaders } from "../AdminShell";
+import { useBookReload } from "../../../lib/admin-book-reload";
 
 type Row = {
   agreement_number: string;
@@ -35,21 +36,18 @@ function AgreementsInner() {
   const [rows, setRows] = useState<Row[]>([]);
   const [counts, setCounts] = useState({ live: 0, past: 0, all: 0 });
 
-  const load = async (st: string, query: string) => {
+  const load = useCallback(async () => {
     const res = await fetch(
-      `/api/admin/agreements?status=${st}&q=${encodeURIComponent(query)}`,
-      { headers: adminHeaders() }
+      `/api/admin/agreements?status=${status}&q=${encodeURIComponent(q)}&ts=${Date.now()}`,
+      { headers: adminHeaders(), cache: "no-store" }
     );
     if (!res.ok) return;
     const json = await res.json();
     setRows(json.agreements || []);
     setCounts(json.counts);
-  };
+  }, [status, q]);
 
-  useEffect(() => {
-    load(status, q);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useBookReload(load);
 
   return (
     <>
@@ -67,7 +65,6 @@ function AgreementsInner() {
               className={`admin-tab ${status === tab ? "on" : ""}`}
               onClick={() => {
                 setStatus(tab);
-                load(tab, q);
               }}
             >
               {tab === "live"
@@ -83,7 +80,6 @@ function AgreementsInner() {
           placeholder="Search HP number, company or asset"
           onChange={(e) => {
             setQ(e.target.value);
-            load(status, e.target.value);
           }}
         />
       </div>

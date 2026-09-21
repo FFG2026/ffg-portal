@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import AdminShell, { adminHeaders } from "../AdminShell";
+import { notifyBookChanged } from "../../../lib/admin-book-reload";
 
 type LookupResult = {
   agreement: {
@@ -354,6 +355,7 @@ function LookupInner() {
                   onDone={() => {
                     setScheduleOpen(true);
                     runLookup("agreement", result.agreement.agreement_number);
+                    notifyBookChanged();
                   }}
                   gbp={gbp}
                 />
