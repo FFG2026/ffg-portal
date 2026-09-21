@@ -2,6 +2,8 @@ import {
   matchGcPaymentsToInstalments,
   isDirectDebitUpToDate,
   daysBetween,
+  isDocumentationFeeCollection,
+  scheduleCollectionsOnly,
 } from "./match-payments";
 
 function assert(cond: unknown, msg: string) {
@@ -61,5 +63,30 @@ const weekly = matchGcPaymentsToInstalments(stub, [
   { id: "PM150", charge_date: "2025-07-24", status: "paid_out", amount: 15000 },
 ]);
 assert(weekly.length === 0, "£150 collection must not tick a £784.20 instalment");
+
+assert(
+  isDocumentationFeeCollection(19500, 195, 640) === true,
+  "£195 is the documentation fee"
+);
+assert(
+  isDocumentationFeeCollection(83500, 195, 640) === true,
+  "first collection of monthly plus fee is not an extra instalment"
+);
+assert(
+  isDocumentationFeeCollection(64000, 195, 640) === false,
+  "the monthly instalment is not a documentation fee"
+);
+assert(
+  scheduleCollectionsOnly(
+    [
+      { id: "fee", charge_date: "2024-05-01", status: "paid_out", amount: 19500 },
+      { id: "combo", charge_date: "2022-10-03", status: "paid_out", amount: 83500 },
+      { id: "rent", charge_date: "2024-05-03", status: "paid_out", amount: 64000 },
+    ],
+    195,
+    640
+  ).map((p) => p.id).join() === "rent",
+  "only the monthly collection stays on the HP21 schedule"
+);
 
 console.log("match-payments tests ok");
