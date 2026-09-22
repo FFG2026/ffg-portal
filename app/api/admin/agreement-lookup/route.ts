@@ -164,6 +164,7 @@ export async function GET(request: Request) {
         asset_description: agreement.asset_description,
         monthly_instalment: agreement.monthly_instalment,
         start_date: startDateFromFirstPayment(schedule, agreement.start_date),
+        written_date: agreement.written_date,
         term_months: agreement.term_months,
         total_lend: agreement.total_lend,
         purchase_price: agreement.purchase_price,
