@@ -133,7 +133,6 @@ export async function GET(request: Request) {
   let outstanding = 0;
   let overdue = 0;
   let dueThisMonth = 0;
-  let scheduledCollectedThisMonth = 0;
   let collectedThisMonth = 0;
   let manualThisMonth = 0;
   const monthMap = new Map<string, { paid: number; unpaid: number }>();
@@ -152,7 +151,6 @@ export async function GET(request: Request) {
     monthStart,
     nextMonth
   );
-  scheduledCollectedThisMonth = monthSchedule.collected;
   dueThisMonth = monthSchedule.still_due;
 
   for (const p of payments || []) {
@@ -327,7 +325,6 @@ export async function GET(request: Request) {
       outstanding: round2(outstanding),
       overdue: round2(overdue),
       due_this_month: round2(dueThisMonth),
-      scheduled_collected_this_month: round2(scheduledCollectedThisMonth),
       collected_this_month: round2(collectedThisMonth),
       collected_count: gcMonthLoaded ? gcMonthCount : null,
       collected_from_gocardless: gcMonthLoaded,

@@ -40,8 +40,8 @@ export type MonthInstalmentRow = {
 };
 
 /**
- * This month's contracted monthly rents on live deals. Used for the
- * collection-rate ring — never mix bank cash with leftover schedule rows.
+ * Unpaid monthly rents this month on live deals. Used with GoCardless
+ * cash-in for the collection-rate ring.
  */
 export function currentMonthInstalmentTotals(
   rows: MonthInstalmentRow[] | null | undefined,
@@ -66,6 +66,18 @@ export function currentMonthInstalmentTotals(
     still_due: stillDue,
     due: roundMoney(collected + stillDue),
   };
+}
+
+/** Ring: GoCardless cash in this month vs unpaid live rents still due. */
+export function collectionRateFromCashAndDue(
+  collectedThisMonth: number,
+  stillDueThisMonth: number
+) {
+  const collected = roundMoney(Number(collectedThisMonth || 0));
+  const stillDue = roundMoney(Number(stillDueThisMonth || 0));
+  const due = roundMoney(collected + stillDue);
+  const rate = due > 0 ? Math.round((collected / due) * 100) : 0;
+  return { collected, still_due: stillDue, due, rate };
 }
 
 /** Sum of instalments not yet marked paid — this is the amount still owing. */

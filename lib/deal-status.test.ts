@@ -9,6 +9,7 @@ import {
   lastReceivedPaymentDate,
   isMonthlyBookAmount,
   currentMonthInstalmentTotals,
+  collectionRateFromCashAndDue,
 } from "./deal-status";
 
 function assert(cond: unknown, msg: string) {
@@ -243,5 +244,12 @@ const sept = currentMonthInstalmentTotals(
 assert(sept.collected === 500, `schedule collected, got ${sept.collected}`);
 assert(sept.still_due === 500, `schedule still due, got ${sept.still_due}`);
 assert(sept.due === 1000, `this month due is paid+unpaid rents, got ${sept.due}`);
+
+const ring = collectionRateFromCashAndDue(50935, 41446.47);
+assert(ring.collected === 50935, "ring collected is GoCardless cash");
+assert(ring.still_due === 41446.47, "ring still due is live unpaid rents");
+assert(ring.due === 92381.47, `cash plus leftover due, got ${ring.due}`);
+assert(ring.rate === 55, `50935/92381 is 55%, got ${ring.rate}`);
+assert(collectionRateFromCashAndDue(0, 0).rate === 0, "empty month is 0%");
 
 console.log("deal-status tests ok");
