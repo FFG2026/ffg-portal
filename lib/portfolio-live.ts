@@ -132,7 +132,6 @@ export type LivePortfolio = {
     name: string;
     shares: number;
     amount_repaid: number;
-    total_owed_in: number | null;
     pct_owned: number;
     value: number;
     projected_2030: number;
@@ -261,7 +260,6 @@ export function buildLivePortfolio(
       name: s.name,
       shares: s.shares,
       amount_repaid: s.amount_repaid,
-      total_owed_in: s.name === "Ron" ? summary.total_outstanding : null,
       pct_owned: Math.round(pct * 1000) / 10,
       value,
       projected_2030: roundMoney(value * PROJECTED_2030_RATIO),

@@ -605,7 +605,8 @@ function FfgFigures({
           <h2>Shareholder loan repayments</h2>
           <p className="book-note">
             Total shares issued {data.shares_issued.toLocaleString("en-GB")} ·
-            Repayment per share {gbp(data.repayment_per_share)}
+            Repayment per share {gbp(data.repayment_per_share)} · Total owed in{" "}
+            {gbp(data.summary.total_outstanding)}
           </p>
           <table className="book-table">
             <thead>
@@ -613,7 +614,6 @@ function FfgFigures({
                 <th>Shareholder</th>
                 <th>Shares</th>
                 <th>Amount repaid</th>
-                <th>Total owed in</th>
               </tr>
             </thead>
             <tbody>
@@ -632,14 +632,12 @@ function FfgFigures({
                     />
                   </td>
                   <td>{gbp(row.amount_repaid)}</td>
-                  <td>{row.total_owed_in != null ? gbp(row.total_owed_in) : ""}</td>
                 </tr>
               ))}
               <tr className="book-total">
                 <td>Total</td>
                 <td>{data.shares_issued.toLocaleString("en-GB")}</td>
                 <td>{gbp(repaidTotal)}</td>
-                <td />
               </tr>
             </tbody>
           </table>
