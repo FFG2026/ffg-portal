@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
+import PageHero from "../PageHero";
 import { notifyBookChanged } from "../../../lib/admin-book-reload";
 
 type LookupResult = {
@@ -151,11 +152,10 @@ function LookupInner() {
   return (
     <div className="lookup-page">
       <div className="lookup-wrap">
-        <div className="admin-kicker">Book</div>
-        <h1>Lookup</h1>
-        <p className="admin-lead lookup-sub">
-          Find one agreement, or a company and every deal they have.
-        </p>
+        <PageHero
+          title="Lookup"
+          subtitle="Find one agreement, or a company and every deal they have."
+        />
 
         <div className="lookup-modes">
           <button

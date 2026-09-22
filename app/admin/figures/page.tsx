@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import AdminShell, { adminHeaders } from "../AdminShell";
 import { useBookReload } from "../../../lib/admin-book-reload";
+import PageHero from "../PageHero";
 import type { LivePortfolio } from "../../../lib/portfolio-live";
 import type { GlacierPortfolio } from "../../../lib/glacier-portfolio";
 
@@ -114,8 +115,7 @@ function FiguresInner() {
   if (error && !ffg && !gg) {
     return (
       <>
-        <div className="admin-kicker">Owner</div>
-        <h1>Live figures</h1>
+        <PageHero title="Live figures" subtitle="Could not load the book." />
         <div className="admin-error">{error}</div>
       </>
     );
@@ -151,17 +151,14 @@ function FiguresInner() {
 
   return (
     <>
-      <div className="admin-kicker">Owner</div>
-      <h1>Live figures</h1>
-      <p className="admin-lead">
-        Base book from 28 Aug 2026. That sheet does not include HP from 139,
-        so HP139+, FL16+ and L5+ are added into these boxes as they go on.
-        {data.added_deals.length > 0
-          ? ` Added since then: ${data.added_deals
-              .map((d) => d.agreement_number)
-              .join(", ")}.`
-          : " No deals added since that book yet."}
-      </p>
+      <PageHero
+        title="Live figures"
+        subtitle={`Base book from 28 Aug 2026. HP139+, FL16+ and L5+ are added into these boxes as they go on.${
+          data.added_deals.length > 0
+            ? ` Added since then: ${data.added_deals.map((d) => d.agreement_number).join(", ")}.`
+            : " No deals added since that book yet."
+        }`}
+      />
       {cashMsg && (
         <div
           className={
@@ -399,17 +396,10 @@ function GlacierFigures({
   );
   return (
     <>
-      <div className="admin-kicker">Glacier Gem</div>
-      <h1>Live figures</h1>
-      <p className="admin-lead">
-        Live Glacier Gem book. Owen, Ron, Bob and Len each put in{" "}
-        {gbp(data.shareholders[0].investment)} (25% each). Projected values
-        compound each share of what is still owed in at the current lending
-        yield ({pct(data.annual_yield)} a year, from a {pct(data.summary.blended_yield)}{" "}
-        blended return over {data.summary.avg_term_months} months), assuming
-        collections are lent again at the same rate through 31 Dec 2030 (
-        {data.years_to_horizon} years).
-      </p>
+      <PageHero
+        title="Live figures"
+        subtitle="Live Glacier Gem book for Owen, Ron, Bob and Len."
+      />
       {cashMsg && (
         <div
           className={
