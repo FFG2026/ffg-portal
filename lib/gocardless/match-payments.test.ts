@@ -192,8 +192,15 @@ assert(
   leftoverPaymentsToRecord(
     [{ id: "PM_EXTRA", charge_date: "2026-05-06", status: "paid_out", amount: 800000 }],
     { startDate: "2025-12-06" }
+  ).length === 0,
+  "leftover lumps stay off the contracted schedule"
+);
+assert(
+  leftoverPaymentsToRecord(
+    [{ id: "PM_EXTRA", charge_date: "2026-05-06", status: "paid_out", amount: 800000 }],
+    { startDate: "2025-12-06", enabled: true }
   ).length === 1,
-  "a leftover after start can still be recorded on a live deal"
+  "leftover recording is opt-in only"
 );
 assert(
   leftoverPaymentsToRecord([l4Fifty], { enabled: false, startDate: "2024-01-01" }).length ===
