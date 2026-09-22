@@ -125,6 +125,7 @@ export async function POST(request: Request) {
       monthly_instalment: monthly,
       term_months: termMonths,
       start_date: startDate,
+      written_date: String(body.written_date || startDate).slice(0, 10),
       status: "active",
       book,
       gocardless_mandate_id: body.gocardless_mandate_id || null,
