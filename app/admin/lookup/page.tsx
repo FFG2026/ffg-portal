@@ -136,6 +136,12 @@ function LookupInner() {
       } else if (data.mode === "company") {
         setResult(null);
         setCompanyResult(data);
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("agreement");
+          url.searchParams.set("company", value.trim());
+          window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+        }
       } else {
         setCompanyResult(null);
         setResult(data);
@@ -154,8 +160,13 @@ function LookupInner() {
   };
 
   useEffect(() => {
+    const company = searchParams.get("company");
     const preset = searchParams.get("agreement");
-    if (preset) {
+    if (company) {
+      setQuery(company);
+      setSearchMode("company");
+      runLookup("company", company);
+    } else if (preset) {
       setQuery(preset);
       setSearchMode("agreement");
       runLookup("agreement", preset);
