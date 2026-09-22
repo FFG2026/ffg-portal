@@ -1,5 +1,7 @@
 name: CI
 
+# Preview substitute for Vercel: tests + a Next.js build on GitHub.
+# Production deploys are manual (see deploy-production.yml).
 on:
   push:
     branches: [main]
