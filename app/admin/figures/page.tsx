@@ -218,15 +218,15 @@ function MonthAtATime() {
   const next = neighbouringMonth(monthKey, 1);
 
   return (
-    <section>
-      <h2>Month at a time</h2>
+    <section className="book-month">
+      <h2>Last 12 months</h2>
       <div className="book-month-bar">
         <button
           type="button"
           disabled={!prev}
           onClick={() => prev && setMonthKey(prev.key)}
         >
-          ← Previous
+          ←
         </button>
         <strong>{monthLabel(row)}</strong>
         <button
@@ -234,42 +234,48 @@ function MonthAtATime() {
           disabled={!next}
           onClick={() => next && setMonthKey(next.key)}
         >
-          Next →
+          →
         </button>
-        <label>
-          <span className="sr-only">Choose month</span>
-          <select
-            value={row.key}
-            onChange={(e) => setMonthKey(e.target.value)}
-            aria-label="Choose month"
-          >
-            {MONTHLY_FIGURES.map((m) => (
-              <option key={m.key} value={m.key}>
-                {monthLabel(m)}
-              </option>
-            ))}
-          </select>
-        </label>
+        {row.mtd && <span className="book-month-mtd">Month to date</span>}
       </div>
-      <dl className="book-kv">
+      <div className="book-month-kpis">
         <div>
-          <dt>Payments received</dt>
-          <dd>{gbp(row.payments_received)}</dd>
+          <span>Payments received</span>
+          <b>{gbp(row.payments_received)}</b>
         </div>
         <div>
-          <dt>New deals</dt>
-          <dd>{row.new_deals}</dd>
+          <span>New deals</span>
+          <b>{row.new_deals}</b>
         </div>
         <div>
-          <dt>Amount lent</dt>
-          <dd>{gbp(row.amount_lent)}</dd>
+          <span>Amount lent</span>
+          <b>{gbp(row.amount_lent)}</b>
         </div>
-      </dl>
-      <p className="book-note">
-        {row.mtd
-          ? `${row.label} is month to date. Use the arrows to step through the last 12 months.`
-          : "Use the arrows to step through the last 12 months one at a time."}
-      </p>
+      </div>
+      <table className="book-table book-month-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Payments received</th>
+            <th>New deals</th>
+            <th>Amount lent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {MONTHLY_FIGURES.map((m) => (
+            <tr
+              key={m.key}
+              className={m.key === row.key ? "book-month-on" : undefined}
+              onClick={() => setMonthKey(m.key)}
+            >
+              <td>{monthLabel(m)}</td>
+              <td>{gbp(m.payments_received)}</td>
+              <td>{m.new_deals}</td>
+              <td>{gbp(m.amount_lent)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }
@@ -305,23 +311,27 @@ function FfgFigures({
 
   return (
     <>
-      <PageHero
-        title="Live figures"
-        subtitle={`Updated ${new Date(data.as_of + "T00:00:00").toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })} — GoCardless reconciled. HP139+, FL16+ and L5+ are added into these boxes as they go on.${
-          data.added_deals.length > 0
-            ? ` Added since then: ${data.added_deals.map((d) => d.agreement_number).join(", ")}.`
-            : " No deals added since that book yet."
-        }`}
-        action={
-          <button className="page-hero-action" type="button" onClick={onReload}>
-            ↻ Reload figures
-          </button>
-        }
-      />
+      <div className="book-titlebar">
+        <div>
+          <p className="book-kicker">FFG Deal Book</p>
+          <h1>Portfolio Dashboard</h1>
+          <p>
+            Updated{" "}
+            {new Date(data.as_of + "T00:00:00").toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}{" "}
+            — GoCardless reconciled
+            {data.added_deals.length > 0
+              ? `. Added since then: ${data.added_deals.map((d) => d.agreement_number).join(", ")}.`
+              : "."}
+          </p>
+        </div>
+        <button className="page-hero-action" type="button" onClick={onReload}>
+          ↻ Reload figures
+        </button>
+      </div>
       {cashMsg && (
         <div
           className={
@@ -333,6 +343,7 @@ function FfgFigures({
       )}
 
       <div className="book-dash">
+        <div className="book-dash-top">
         <section>
           <h2>Portfolio summary</h2>
           <dl className="book-kv">
@@ -385,8 +396,6 @@ function FfgFigures({
           </dl>
         </section>
 
-        <MonthAtATime />
-
         <section>
           <h2>Breakdown by deal type</h2>
           <table className="book-table">
@@ -412,6 +421,9 @@ function FfgFigures({
             </tbody>
           </table>
         </section>
+        </div>
+
+        <MonthAtATime />
 
         <section>
           <h2>Shareholder loan repayments</h2>
