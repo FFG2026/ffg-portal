@@ -83,6 +83,10 @@ type CompanyResult = {
   }[];
 };
 
+function primaryAgreement(agreements: CompanyAgreement[]) {
+  return agreements.find((a) => a.live) || agreements[0] || null;
+}
+
 export default function AgreementLookupPage() {
   return (
     <Suspense>
@@ -118,7 +122,8 @@ function LookupInner() {
 
   const runLookup = async (
     mode: "agreement" | "company",
-    value: string
+    value: string,
+    opts?: { companyName?: string }
   ) => {
     if (!value.trim()) return;
     setLoading(true);
@@ -133,7 +138,38 @@ function LookupInner() {
         setResult(null);
         setCompanyResult(null);
         setError(data.error || "Something went wrong");
-      } else if (data.mode === "company") {
+        return;
+      }
+      if (data.mode === "company") {
+        const only =
+          data.customers.length === 1 ? data.customers[0] : null;
+        const pick = only ? primaryAgreement(only.agreements) : null;
+        if (only && pick) {
+          setCompanyResult(null);
+          setSearchMode("company");
+          setQuery(only.company_name);
+          const agrRes = await fetch(
+            `/api/admin/agreement-lookup?agreement=${encodeURIComponent(
+              pick.agreement_number
+            )}`,
+            { headers: adminHeaders() }
+          );
+          const agr = await agrRes.json();
+          if (!agrRes.ok) {
+            setResult(null);
+            setCompanyResult(data);
+            setError(agr.error || "Something went wrong");
+            return;
+          }
+          setResult(agr);
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            url.searchParams.set("company", only.company_name);
+            url.searchParams.set("agreement", pick.agreement_number);
+            window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+          }
+          return;
+        }
         setResult(null);
         setCompanyResult(data);
         if (typeof window !== "undefined") {
@@ -142,15 +178,27 @@ function LookupInner() {
           url.searchParams.set("company", value.trim());
           window.history.replaceState({}, "", `${url.pathname}${url.search}`);
         }
-      } else {
-        setCompanyResult(null);
-        setResult(data);
-        if (typeof window !== "undefined") {
-          const url = new URL(window.location.href);
+        return;
+      }
+      setCompanyResult(null);
+      setResult(data);
+      const companyName =
+        opts?.companyName ||
+        (searchMode === "company" ? query : "");
+      if (companyName) {
+        setSearchMode("company");
+        setQuery(companyName);
+      }
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (companyName) {
+          url.searchParams.set("company", companyName);
+          url.searchParams.set("agreement", value.trim());
+        } else {
           url.searchParams.delete("company");
           url.searchParams.set("agreement", value.trim());
-          window.history.replaceState({}, "", `${url.pathname}${url.search}`);
         }
+        window.history.replaceState({}, "", `${url.pathname}${url.search}`);
       }
     } catch {
       setError("Couldn't reach the server — try again.");
@@ -162,7 +210,11 @@ function LookupInner() {
   useEffect(() => {
     const company = searchParams.get("company");
     const preset = searchParams.get("agreement");
-    if (company) {
+    if (company && preset) {
+      setQuery(company);
+      setSearchMode("company");
+      runLookup("agreement", preset, { companyName: company });
+    } else if (company) {
       setQuery(company);
       setSearchMode("company");
       runLookup("company", company);
@@ -285,7 +337,9 @@ function LookupInner() {
                         <span
                           className="lookup-toggle"
                           onClick={() =>
-                            runLookup("agreement", a.agreement_number)
+                            runLookup("agreement", a.agreement_number, {
+                              companyName: c.company_name,
+                            })
                           }
                         >
                           Open
@@ -340,11 +394,12 @@ function LookupInner() {
                           type="button"
                           className={`lookup-related-chip ${on ? "on" : ""}`}
                           disabled={loading || on}
-                          onClick={() => {
-                            setQuery(a.agreement_number);
-                            setSearchMode("agreement");
-                            runLookup("agreement", a.agreement_number);
-                          }}
+                          onClick={() =>
+                            runLookup("agreement", a.agreement_number, {
+                              companyName:
+                                result.customer?.company_name || undefined,
+                            })
+                          }
                         >
                           <strong>{a.agreement_number}</strong>
                           <span
