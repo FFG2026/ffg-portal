@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
-import { fetchAllIn, fetchAllRows } from "../../../../lib/supabase/fetch-all";
+import { fetchAllIn } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
 import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment, visibleScheduleNote } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
+import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -142,9 +143,27 @@ export async function GET(request: Request) {
     .eq("id", agreement.customer_id)
     .maybeSingle();
 
-  const payments = await fetchAllRows(() =>
-    supabase.from("payments").select("*").eq("agreement_id", agreement.id)
+  const { data: relatedRows } = agreement.customer_id
+    ? await supabase
+        .from("agreements")
+        .select(
+          "id, agreement_number, agreement_type, status, asset_description, term_months, monthly_instalment, gocardless_mandate_id"
+        )
+        .eq("book", book)
+        .eq("customer_id", agreement.customer_id)
+    : { data: [agreement] };
+
+  const relatedIds = (relatedRows || []).map((a) => a.id);
+  const relatedPayments = await fetchAllIn(
+    (chunk) =>
+      supabase
+        .from("payments")
+        .select("*")
+        .in("agreement_id", chunk),
+    relatedIds
   );
+
+  const payments = relatedPayments.filter((p) => p.agreement_id === agreement.id);
 
   const schedule = sortByDueDate(payments || []);
   const paidPayments = schedule.filter((p) => p.status === "paid");
@@ -183,6 +202,23 @@ export async function GET(request: Request) {
             has_portal_login: !!customer.auth_user_id,
           }
         : null,
+      related_agreements: (relatedRows || [])
+        .slice()
+        .sort((a, b) =>
+          compareAgreementNumber(a.agreement_number, b.agreement_number)
+        )
+        .map((a) => {
+          const rows = relatedPayments.filter((p) => p.agreement_id === a.id);
+          return {
+            agreement_number: a.agreement_number,
+            agreement_type: a.agreement_type,
+            asset_description: a.asset_description,
+            live: isLiveDeal(a, rows),
+            paid_count: paidCount(rows),
+            term_months: a.term_months,
+            settlement_figure: unpaidSum(rows),
+          };
+        }),
       status: {
         paid_count: paidCount(schedule),
         term_months: agreement.term_months,

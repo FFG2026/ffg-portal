@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllIn, fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { bookFromRequest } from "../../../../lib/admin-book";
+import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import {
   isLiveDeal,
@@ -106,7 +107,9 @@ export async function GET(request: Request) {
         has_portal_login: !!c.auth_user_id,
         agreement_count: ags.length,
         live_count: liveAgs.length,
-        agreements: ags.map((a) => a.agreement_number).sort(),
+        agreements: ags
+          .map((a) => a.agreement_number)
+          .sort(compareAgreementNumber),
         exposure: round2(exposure),
         overdue: round2(overdue),
         next_payment: nextPayment,
