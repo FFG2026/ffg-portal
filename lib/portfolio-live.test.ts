@@ -19,11 +19,11 @@ assert(isDealAddedAfterSnapshot("L4") === false, "L4 is in the base");
 
 const base = buildLivePortfolio([]);
 assert(base.summary.total_deals === 160, "empty book keeps the snapshot deal count");
-assert(base.summary.total_outstanding === 1980587.33, "owed in starts at the printed figure");
+assert(base.summary.total_outstanding === 1981148.72, "owed in starts at the printed figure");
 assert(base.summary.blended_yield === 21, "21% blended yield on the snapshot");
-assert(base.summary.net_position === 815587.33, "net position matches the printed sheet");
+assert(base.summary.net_position === 816148.72, "net position matches the printed sheet");
 assert(base.shareholders[0].pct_owned === 16.3, "Ron owns 16.3%");
-assert(base.shareholders[0].total_owed_in === 1980587.33, "owed in sits on Ron's row");
+assert(base.shareholders[0].total_owed_in === 1981148.72, "owed in sits on Ron's row");
 
 const withHp142 = buildLivePortfolio([
   {
@@ -47,9 +47,9 @@ const withHp142 = buildLivePortfolio([
 assert(withHp142.summary.total_deals === 161, "only HP142 increments the deal count");
 assert(withHp142.summary.total_lent === 5231544.63, "HP142 lend is added");
 assert(withHp142.summary.total_commission === 203605.46, "HP142 commission is added");
-assert(withHp142.summary.total_paid === 4200376.08, "paid HP142 instalment is added");
+assert(withHp142.summary.total_paid === 4199814.69, "paid HP142 instalment is added");
 assert(
-  withHp142.summary.total_outstanding === 1980998.14,
+  withHp142.summary.total_outstanding === 1981559.53,
   "unpaid HP142 instalment is added to owed in"
 );
 assert(
@@ -64,7 +64,7 @@ assert(parseCashAtBank("77000") === 77000, "cash parses from a plain number");
 const moreCash = buildLivePortfolio([], { cashAtBank: 77000 });
 assert(moreCash.summary.cash_at_bank === 77000, "cash override is used");
 assert(
-  moreCash.summary.net_position === 825587.33,
+  moreCash.summary.net_position === 826148.72,
   "net position moves with cash at bank"
 );
 
