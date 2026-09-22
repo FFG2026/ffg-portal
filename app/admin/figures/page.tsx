@@ -6,6 +6,8 @@ import { useBookReload } from "../../../lib/admin-book-reload";
 import PageHero from "../PageHero";
 import type { LivePortfolio } from "../../../lib/portfolio-live";
 import type { GlacierPortfolio } from "../../../lib/glacier-portfolio";
+import type { FiguresDashboard } from "../../../lib/figures-dashboard";
+import FiguresTop from "./FiguresTop";
 import {
   LATEST_MONTH_KEY,
   MONTHLY_FIGURES,
@@ -13,6 +15,8 @@ import {
   monthlyFiguresAt,
   neighbouringMonth,
 } from "../../../lib/monthly-figures";
+
+type WithDashboard<T> = T & { dashboard?: FiguresDashboard };
 
 const gbp = (n: number | null | undefined) => {
   if (n == null) return "";
@@ -34,8 +38,9 @@ export default function OwnerFiguresPage() {
 }
 
 function FiguresInner() {
-  const [ffg, setFfg] = useState<LivePortfolio | null>(null);
-  const [gg, setGg] = useState<GlacierPortfolio | null>(null);
+  const [ffg, setFfg] = useState<WithDashboard<LivePortfolio> | null>(null);
+  const [gg, setGg] = useState<WithDashboard<GlacierPortfolio> | null>(null);
+  const [monthKey, setMonthKey] = useState("");
   const [error, setError] = useState("");
   const [cashText, setCashText] = useState("");
   const [savingCash, setSavingCash] = useState(false);
@@ -51,9 +56,11 @@ function FiguresInner() {
     );
   };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (month?: string) => {
     setLoading(true);
-    const res = await fetch(`/api/admin/portfolio?t=${Date.now()}`, {
+    const qs = new URLSearchParams({ t: String(Date.now()) });
+    if (month) qs.set("month", month);
+    const res = await fetch(`/api/admin/portfolio?${qs}`, {
       method: "POST",
       headers: {
         ...adminHeaders(),
@@ -77,6 +84,7 @@ function FiguresInner() {
     }
     setError("");
     const json = await res.json();
+    if (json.dashboard?.month_key) setMonthKey(json.dashboard.month_key);
     if (json.shareholders?.[0]?.investment != null) {
       setGg(json);
       setFfg(null);
@@ -124,6 +132,11 @@ function FiguresInner() {
 
   useBookReload(load);
 
+  const pickMonth = (key: string) => {
+    setMonthKey(key);
+    load(key);
+  };
+
   if (error && !ffg && !gg) {
     return (
       <>
@@ -146,13 +159,15 @@ function FiguresInner() {
     return (
       <GlacierFigures
         data={gg}
+        monthKey={monthKey}
+        onMonth={pickMonth}
         cashText={cashText}
         setCashText={setCashText}
         saveCash={saveCash}
         savingCash={savingCash}
         cashMsg={cashMsg}
         setCashMsg={setCashMsg}
-        onReload={() => load()}
+        onReload={() => load(monthKey)}
       />
     );
   }
@@ -162,14 +177,126 @@ function FiguresInner() {
   return (
     <FfgFigures
       data={ffg}
+      monthKey={monthKey}
+      onMonth={pickMonth}
       cashText={cashText}
       setCashText={setCashText}
       saveCash={saveCash}
       savingCash={savingCash}
       cashMsg={cashMsg}
       setCashMsg={setCashMsg}
-      onReload={() => load()}
+      onReload={() => load(monthKey)}
     />
+  );
+}
+
+/** Flattens the dashboard into a spreadsheet the book can be checked against. */
+function exportCsv(dashboard: FiguresDashboard, bookLabel: string) {
+  const cell = (v: unknown) => {
+    const t = String(v ?? "");
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const rows: (string | number)[][] = [
+    [`${bookLabel} live figures`, dashboard.month_label],
+    [],
+    ["Measure", "Value"],
+    ["Total book", dashboard.kpis.total_book.value],
+    ["Monthly inflow", dashboard.kpis.monthly_inflow.value],
+    ["Cash available", dashboard.kpis.cash_available.value],
+    ["Arrears", dashboard.kpis.arrears.value],
+    ["Collected this month", dashboard.this_month.collected],
+    ["Due this month", dashboard.this_month.due],
+    ["Still due this month", dashboard.this_month.still_due],
+    ["New lending this month", dashboard.this_month.new_lending],
+    ["New agreements this month", dashboard.this_month.new_agreements],
+    ["Capital deployed", dashboard.deployment.deployed],
+    ["Capital available", dashboard.deployment.available],
+    [],
+    ["Month", "Collections", "New lending", "Net cash"],
+    ...dashboard.income.map((m) => [m.key, m.collections, m.new_lending, m.net_cash]),
+  ];
+  if (dashboard.mix.slices.length) {
+    rows.push([], ["Agreement type", "Total lent", "Share %"]);
+    for (const slice of dashboard.mix.slices) {
+      rows.push([slice.label, slice.value, slice.pct]);
+    }
+  }
+  if (dashboard.next_receipts.length) {
+    rows.push([], ["Due date", "Customer", "Agreement", "Amount"]);
+    for (const r of dashboard.next_receipts) {
+      rows.push([r.due_date, r.customer, r.agreement_number, r.amount]);
+    }
+  }
+
+  const csv = rows.map((r) => r.map(cell).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${bookLabel.toLowerCase().replace(/\s+/g, "-")}-live-figures-${dashboard.month_key}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function FiguresHero({
+  subtitle,
+  dashboard,
+  monthKey,
+  onMonth,
+  bookLabel,
+  onReload,
+}: {
+  subtitle: string;
+  dashboard?: FiguresDashboard;
+  monthKey: string;
+  onMonth: (key: string) => void;
+  bookLabel: string;
+  onReload: () => void;
+}) {
+  return (
+    <section className="fig-hero">
+      <div className="fig-hero-copy">
+        <h1>Live figures</h1>
+        <p>{subtitle}</p>
+      </div>
+      <div className="fig-hero-tools">
+        {dashboard && dashboard.months.length > 0 && (
+          <label className="fig-month">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M3 10h18M8 3v4M16 3v4" />
+            </svg>
+            <select
+              value={monthKey || dashboard.month_key}
+              onChange={(e) => onMonth(e.target.value)}
+              aria-label="Month"
+            >
+              {dashboard.months.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                  {m.mtd ? " (to date)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button type="button" className="fig-hero-ghost" onClick={onReload}>
+          ↻ Reload
+        </button>
+        {dashboard && (
+          <button
+            type="button"
+            className="fig-hero-action"
+            onClick={() => exportCsv(dashboard, bookLabel)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 16V4M8 8l4-4 4 4" />
+              <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+            </svg>
+            Export report
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -282,6 +409,8 @@ function MonthAtATime() {
 
 function FfgFigures({
   data,
+  monthKey,
+  onMonth,
   cashText,
   setCashText,
   saveCash,
@@ -290,7 +419,9 @@ function FfgFigures({
   setCashMsg,
   onReload,
 }: {
-  data: LivePortfolio;
+  data: WithDashboard<LivePortfolio>;
+  monthKey: string;
+  onMonth: (key: string) => void;
   cashText: string;
   setCashText: (v: string) => void;
   saveCash: () => void;
@@ -309,28 +440,36 @@ function FfgFigures({
     0
   );
 
+  const asOf = new Date(data.as_of + "T00:00:00").toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
   return (
     <>
+      <FiguresHero
+        subtitle="Your lending book performance and projected cash position."
+        dashboard={data.dashboard}
+        monthKey={monthKey}
+        onMonth={onMonth}
+        bookLabel="Future FG"
+        onReload={onReload}
+      />
+      {data.dashboard && (
+        <FiguresTop dashboard={data.dashboard} bookLabel="Future FG" />
+      )}
       <div className="book-titlebar">
         <div>
           <p className="book-kicker">FFG Deal Book</p>
-          <h1>Portfolio Dashboard</h1>
+          <h2>Portfolio detail</h2>
           <p>
-            Updated{" "}
-            {new Date(data.as_of + "T00:00:00").toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}{" "}
-            — GoCardless reconciled
+            Book snapshot {asOf} — GoCardless reconciled
             {data.added_deals.length > 0
               ? `. Added since then: ${data.added_deals.map((d) => d.agreement_number).join(", ")}.`
               : "."}
           </p>
         </div>
-        <button className="page-hero-action" type="button" onClick={onReload}>
-          ↻ Reload figures
-        </button>
       </div>
       {cashMsg && (
         <div
@@ -498,6 +637,8 @@ function FfgFigures({
 
 function GlacierFigures({
   data,
+  monthKey,
+  onMonth,
   cashText,
   setCashText,
   saveCash,
@@ -506,7 +647,9 @@ function GlacierFigures({
   setCashMsg,
   onReload,
 }: {
-  data: GlacierPortfolio;
+  data: WithDashboard<GlacierPortfolio>;
+  monthKey: string;
+  onMonth: (key: string) => void;
   cashText: string;
   setCashText: (v: string) => void;
   saveCash: () => void;
@@ -523,15 +666,17 @@ function GlacierFigures({
   );
   return (
     <>
-      <PageHero
-        title="Live figures"
+      <FiguresHero
         subtitle={`Glacier Gem · Owen, Ron, Bob and Len · ${pct(data.annual_yield)} a year through ${data.horizon.slice(0, 4)} (${data.years_to_horizon} years).`}
-        action={
-          <button className="page-hero-action" type="button" onClick={onReload}>
-            ↻ Reload figures
-          </button>
-        }
+        dashboard={data.dashboard}
+        monthKey={monthKey}
+        onMonth={onMonth}
+        bookLabel="Glacier Gem"
+        onReload={onReload}
       />
+      {data.dashboard && (
+        <FiguresTop dashboard={data.dashboard} bookLabel="Glacier Gem" />
+      )}
       {cashMsg && (
         <div
           className={
