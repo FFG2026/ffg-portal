@@ -75,13 +75,10 @@ async function liveFigures(
           "id, agreement_number, agreement_type, customer_id, total_lend, commission, monthly_instalment, term_months, start_date, status"
         )
         .eq("book", book)
-        // fetchAllRows pages with .range(), which needs a stable sort or a
-        // book over 1,000 agreements silently skips and repeats rows.
-        .order("id")
     ),
     getSetting(supabase, cashKey),
     fetchAllRows(() =>
-      supabase.from("customers").select("id, company_name").order("id")
+      supabase.from("customers").select("id, company_name")
     ),
   ]);
   const ids = (agreements || []).map((a) => a.id);
@@ -90,8 +87,7 @@ async function liveFigures(
       supabase
         .from("payments")
         .select("agreement_id, amount, status, due_date, paid_date")
-        .in("agreement_id", chunk)
-        .order("id"),
+        .in("agreement_id", chunk),
     ids
   );
 

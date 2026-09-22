@@ -492,8 +492,8 @@
   background:linear-gradient(90deg, var(--blue) 0%, var(--blue-deep) 100%);}
 
 /* --- Donut --- */
-.fig-donut-wrap{display:flex; align-items:center; gap:16px;}
-.fig-donut{width:150px; flex-shrink:0;}
+.fig-donut-wrap{display:flex; align-items:center; gap:14px;}
+.fig-donut{width:146px; flex-shrink:0;}
 .fig-donut circle[stroke]{transition:stroke-width .12s ease; cursor:pointer;}
 .fig-donut-value{font-family:'Fraunces', serif; font-size:21px; font-weight:600; fill:var(--navy);}
 .fig-donut-label{font-size:9.5px; fill:var(--slate); font-family:'IBM Plex Mono', monospace;
@@ -504,9 +504,9 @@
 .fig-donut-key li.on{background:var(--paper);}
 .fig-donut-key i{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
 .fig-donut-key .k{color:var(--ink-soft); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.fig-donut-key .v{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--navy);
+.fig-donut-key .v{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--navy);
   font-weight:600; white-space:nowrap;}
-.fig-donut-key .p{font-size:11px; color:var(--slate); text-align:right; white-space:nowrap; min-width:34px;}
+.fig-donut-key .p{font-size:10.5px; color:var(--slate); text-align:right; white-space:nowrap; min-width:30px;}
 
 /* --- Receipts --- */
 .fig-receipts{width:100%; border-collapse:collapse; font-size:12.5px;}
@@ -522,6 +522,10 @@
 /* --- Detail heading below the dashboard --- */
 .book-titlebar h2{font-family:'Fraunces', serif; font-size:24px; color:var(--navy); margin:0 0 6px;}
 
+/* Three across needs real width; below it the mix card's key gets crushed. */
+@media (max-width:1400px){
+  .fig-row-three{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+}
 @media (max-width:1180px){
   .fig-row-main, .fig-row-three, .fig-row-two{grid-template-columns:minmax(0,1fr);}
   .fig-kpis{grid-template-columns:repeat(2,1fr);}

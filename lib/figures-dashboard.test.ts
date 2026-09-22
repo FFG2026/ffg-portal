@@ -243,7 +243,16 @@ const mixDash = buildFiguresDashboard({
   totalBook: 1000, totalLent: 1000, cashAtBank: 100, blendedYield: 20,
   byType: [{ type: "HP", label: "Hire Purchase (HP)", total_lent: 900 }],
 });
-assert(mixDash.mix.slices[0].label === "Hire Purchase", "short donut label");
+assert(mixDash.mix.slices[0].label === "HP", "donut key uses the short form");
+const fallback = buildFiguresDashboard({
+  deals: [], monthly: LONG, monthKey: "2026-02", today: "2026-02-10",
+  totalBook: 1000, totalLent: 1000, cashAtBank: 100, blendedYield: 20,
+  byType: [{ type: "XX", label: "Something Else (XX)", total_lent: 900 }],
+});
+assert(
+  fallback.mix.slices[0].label === "Something Else",
+  "an unknown type falls back to the label without its bracketed code"
+);
 
 console.log("figures-dashboard: monthly deriver assertions passed");
 console.log("figures-dashboard: window assertions passed");

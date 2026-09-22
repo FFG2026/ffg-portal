@@ -8,6 +8,14 @@ export const SERIES_NET_CASH = "#1F9254";
 /** The donut's three slices all touch, so "Other" avoids the gold/green pair. */
 export const MIX_COLOURS = ["#0E8CF5", "#B0841E", "#6B4FA8"];
 
+/** The key sits beside the donut in a third-width card, so it needs the
+ *  short form. The tables below keep the full "Hire Purchase (HP)". */
+const MIX_SHORT_LABEL: Record<string, string> = {
+  HP: "HP",
+  FL: "Lease",
+  L: "Loan",
+};
+
 export type DashboardPaymentRow = {
   amount?: number | string | null;
   status?: string | null;
@@ -323,8 +331,8 @@ export function buildFiguresDashboard(opts: {
   );
   const slices: MixSlice[] = byType.map((t, i) => ({
     key: t.type,
-    // The key sits beside the donut, so drop the "(HP)" tail the tables use.
-    label: t.label.replace(/\s*\([^)]*\)\s*$/, ""),
+    label:
+      MIX_SHORT_LABEL[t.type] || t.label.replace(/\s*\([^)]*\)\s*$/, ""),
     value: t.total_lent,
     pct: mixTotal > 0 ? Math.round((t.total_lent / mixTotal) * 1000) / 10 : 0,
     colour: MIX_COLOURS[i % MIX_COLOURS.length],
