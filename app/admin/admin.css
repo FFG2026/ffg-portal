@@ -739,3 +739,25 @@
 .repayment-layout .figures-table-wrap{margin:0}
 @media (max-width:900px){.shareholder-visual-grid,.repayment-layout{grid-template-columns:1fr}}
 
+/* Compact portfolio detail and 12-month view */
+.fig-detail-head{align-items:center;padding:16px 18px;border:1px solid var(--rule);border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(8,26,44,.03)}
+.fig-detail-head h2{font-family:'Fraunces',serif;font-size:22px}
+.fig-detail-head p{font-family:'Inter',sans-serif}
+.book-dash,.book-dash button,.book-dash input,.book-dash select{font-family:'Inter',sans-serif}
+.figures-section-head>div>span,.figures-summary-strip span,.deal-type-title>span,.figures-table th{font-family:'Inter',sans-serif}
+.deal-type-card dd,.ownership-legend strong,.projection-row strong{font-family:'Fraunces',serif}
+.deal-type-card dd{font-size:15px}
+.figures-table th{font-weight:700;letter-spacing:.04em}
+.book-month{padding-bottom:14px!important}
+.book-month-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.book-month-card{display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding:9px 10px;border:1px solid var(--rule);border-radius:9px;background:#fff;color:var(--ink-soft);cursor:pointer;text-align:left}
+.book-month-card:hover{border-color:#B9CEE2;background:#F8FBFE}
+.book-month-card.on{border-color:var(--blue);background:var(--blue-pale);box-shadow:inset 0 0 0 1px var(--blue)}
+.book-month-card>span{font-size:10px;font-weight:700;color:var(--slate)}
+.book-month-card>strong{margin:4px 0 6px;font-family:'Fraunces',serif;font-size:15px;color:var(--navy);white-space:nowrap}
+.book-month-card>i{display:block;width:100%;height:4px;margin-bottom:6px;border-radius:999px;background:#E7EDF4;overflow:hidden}
+.book-month-card>i b{display:block;height:100%;border-radius:999px;background:var(--blue)}
+.book-month-card>small{font-size:9px;line-height:1.35;color:var(--slate)}
+@media (max-width:1100px){.book-month-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:700px){.book-month-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
