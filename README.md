@@ -13,18 +13,20 @@ settlement portal prototype.
   navy, gold accent)
 - `public/office.jpg` — the office photo used on the homepage
 
-## Deploying (no coding needed)
+## Deploying
 
-1. Upload all of these files to the `ffg-website` GitHub repo, keeping the
-   folder structure intact (drag the whole extracted folder into GitHub's
-   "Add file → Upload files" screen).
-2. Go to vercel.com, click **Add New → Project**, and import the
-   `ffg-website` repo.
-3. Vercel will detect it's a Next.js project automatically — just click
-   **Deploy**.
-4. Once deployed, go to the project's **Settings → Domains** in Vercel and
-   add your domain. Vercel will give you DNS records to add wherever your
-   domain is registered.
+Vercel is **not** hooked to every git push. GitHub Actions runs tests and a
+Next.js build on each pull request and on `main` — that is the preview check
+and it does not count toward the Vercel deployment cap.
+
+When the change is ready to go live:
+
+1. In GitHub: **Actions → Deploy production → Run workflow**, or
+2. In Vercel: **Deployments → Create Deployment** from `main`.
+
+The GitHub deploy job needs three repository secrets (`VERCEL_TOKEN`,
+`VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) from the Vercel project settings.
+Until those are set, use the Vercel dashboard button.
 
 ## What's still needed (not in this codebase yet)
 
