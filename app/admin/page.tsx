@@ -21,11 +21,19 @@ type Dashboard = {
     no_mandate: number;
   };
   chart: { month: string; paid: number; unpaid: number }[];
+  lending: { month: string; deals: number; total_lent: number }[];
   attention: {
     agreement_number: string;
     company_name: string;
     reason: string;
     amount: number | null;
+  }[];
+  cashflow: { days: number; amount: number; count: number }[];
+  recent_activity: {
+    date: string;
+    description: string;
+    agreement_number: string;
+    source: string;
   }[];
 };
 
@@ -106,87 +114,60 @@ function DashboardInner() {
     }
   };
 
-  return (
-    <>
-      <div className="admin-kicker">{base === "/admin/gg" ? "Glacier Gem" : "Future FG"}</div>
-      <h1>Company dashboard</h1>
-      <p className="admin-lead">
-        {base === "/admin/gg"
-          ? "Glacier Gem book. Collections are standing orders — open a deal sheet to record a payment when money lands."
-          : "Live book, collections and anything that needs a look. Collected this month is what GoCardless has paid out this calendar month — the same total as a payments export — not book ticks or money still going through."}
-        {data?.generated_at && (
-          <>
-            {" "}
-            Figures at{" "}
-            {new Date(data.generated_at).toLocaleTimeString("en-GB", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-            .
-          </>
-        )}
-      </p>
+  const collected = data?.totals.collected_this_month || 0;
+  const stillDue = data?.totals.due_this_month || 0;
+  const collectionTotal = collected + stillDue;
+  const collectionRate = collectionTotal > 0 ? Math.round((collected / collectionTotal) * 100) : 0;
+  const updatedTime = data?.generated_at
+    ? new Date(data.generated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+    : "—";
 
-      <div className="admin-actions">
-        {base !== "/admin/gg" && (
-        <button className="primary" onClick={refreshCollections} disabled={syncing || reloading}>
-          {syncing ? "Refreshing from GoCardless…" : "Refresh collections from GoCardless"}
-        </button>
-        )}
-        <button
-          onClick={() => load({ showBusy: true })}
-          type="button"
-          disabled={reloading || syncing}
-        >
-          {reloading ? "Reloading…" : "Reload figures"}
-        </button>
-        <button onClick={() => router.push(`${base}/new-deal`)}>Load a new deal</button>
-      </div>
+  return (
+    <div className="executive-dashboard">
+      <section className="dashboard-hero">
+        <div className="dashboard-hero-copy">
+          <h1>Company dashboard</h1>
+          <p>Your lending book at a glance. Live figures, collections and what needs attention.</p>
+        </div>
+        <div className="dashboard-date">
+          <span>{new Date().toLocaleDateString("en-GB", { weekday: "long" })}</span>
+          <strong>{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long" })}</strong>
+          <small>Last synced today at {updatedTime} <i /> All systems up to date</small>
+        </div>
+        <div className="dashboard-hero-actions">
+          {base !== "/admin/gg" && (
+            <button className="refresh" onClick={refreshCollections} disabled={syncing || reloading}>
+              <span aria-hidden="true">↻</span>{syncing ? "Refreshing…" : "Refresh collections"}
+            </button>
+          )}
+          <button className="new-deal" onClick={() => router.push(`${base}/new-deal`)}>
+            <span aria-hidden="true">＋</span>Load a new deal
+          </button>
+        </div>
+      </section>
+
       {syncMsg && (
         <div className={syncMsg.startsWith("Updated") ? "admin-ok" : "admin-error"}>
           {syncMsg}
         </div>
       )}
       {error && <div className="admin-error">{error}</div>}
-      {reloading && !data && !error && (
-        <p className="admin-lead">Loading the book…</p>
-      )}
+      {reloading && !data && !error && <div className="dashboard-loading">Loading the book…</div>}
 
       {data && (
         <>
-          <div className="admin-stats">
-            <div className="admin-stat">
-              <div className="lbl">Live agreements</div>
-              <div className="num">{data.totals.live}</div>
-              <div className="sub">{data.totals.finished} finished</div>
-            </div>
-            <div className="admin-stat">
-              <div className="lbl">Owed in</div>
-              <div className="num">{gbp(data.totals.outstanding)}</div>
-              <div className="sub">Unpaid instalments from today</div>
-            </div>
-            <div className="admin-stat good">
-              <div className="lbl">Collected this month</div>
-              <div className="num">{gbp(data.totals.collected_this_month)}</div>
-              <div className="sub">
-                {base === "/admin/gg"
-                  ? `Standing order / bank this month · ${gbp(data.totals.due_this_month)} still due on this month’s instalments`
-                  : data.totals.collected_from_gocardless
-                    ? `${data.totals.collected_count ?? 0} paid-out collections in ${new Date().toLocaleDateString("en-GB", { month: "long" })}`
-                    : `Book figure (GoCardless did not respond) · ${gbp(data.totals.due_this_month)} still due this month`}
+          <div className="dashboard-main-grid">
+            <section className="dashboard-panel book-health">
+              <div className="panel-heading">
+                <div><h2>Book health</h2><p>Total value, collections performance and 12 month trend.</p></div>
+                <button onClick={() => load({ showBusy: true })} disabled={reloading || syncing}>{reloading ? "Reloading…" : "↻ Reload figures"}</button>
               </div>
-            </div>
-            <div className="admin-stat warn">
-              <div className="lbl">Overdue</div>
-              <div className="num">{gbp(data.totals.overdue)}</div>
-              <div className="sub">No payment in the last month</div>
-            </div>
-          </div>
-
-          <div className="admin-grid-2">
-            <div className="admin-card">
-              <h2>Collections vs still due</h2>
+              <div className="book-health-chart">
+                <div className="book-total">
+                  <span>Total book value</span>
+                  <strong>{gbp(data.totals.outstanding + data.totals.overdue)}</strong>
+                  <small>{data.totals.live} live agreements</small>
+                </div>
               <div className="admin-chart">
                 {(() => {
                   const max = Math.max(
@@ -223,28 +204,43 @@ function DashboardInner() {
                   Still due that month
                 </span>
               </div>
-            </div>
+              </div>
+              <div className="book-health-summary">
+                <div className="collection-rate" style={{ "--rate": `${collectionRate * 3.6}deg` } as React.CSSProperties}>
+                  <div><strong>{collectionRate}%</strong></div>
+                  <p><b>Collection rate</b><span>{gbp(collected)} collected<br />of {gbp(collectionTotal)} due</span></p>
+                </div>
+                <div className="health-metric"><span className="metric-icon blue">▤</span><p>Live agreements<strong>{data.totals.live}</strong><small>{data.totals.finished} finished</small></p></div>
+                <div className="health-metric"><span className="metric-icon green">▥</span><p>Collected this month<strong className="green-text">{gbp(collected)}</strong><small>{data.totals.collected_count ?? "—"} paid-out collections</small></p></div>
+                <div className="health-metric"><span className="metric-icon gold">●</span><p>Still due this month<strong className="gold-text">{gbp(stillDue)}</strong><small>Current month instalments</small></p></div>
+              </div>
+            </section>
 
-            <div className="admin-card">
-              <h2>Needs a look</h2>
-              {data.attention.length === 0 ? (
-                <p className="admin-lead">Nothing flagged.</p>
+            <section className="dashboard-panel action-centre">
+              <div className="panel-heading"><div><h2>Action centre</h2><p>Agreements that need your attention.</p></div><button onClick={() => router.push(`${base}/agreements`)}>View all agreements →</button></div>
+              <div className="overdue-alert"><span>!</span><div><small>Total overdue</small><strong>{gbp(data.totals.overdue)}</strong></div><p>No payment in the last month</p></div>
+              <h3>Priority agreements</h3>
+              {data.attention.filter((row) => row.reason === "Overdue collections").length === 0 ? (
+                <p className="admin-lead">Nothing overdue.</p>
               ) : (
+                <div className="admin-action-scroll">
                 <table className="admin-attn">
                   <thead>
                     <tr>
                       <th>Agreement</th>
                       <th>Customer</th>
-                      <th>Why</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.attention.slice(0, 12).map((row) => (
+                    {data.attention.filter((row) => row.reason === "Overdue collections").map((row) => (
                       <tr
                         key={row.agreement_number + row.reason}
                         onClick={() =>
                           router.push(
-                            `${base}/agreements?q=${encodeURIComponent(
+                            `${base}/lookup?agreement=${encodeURIComponent(
                               row.agreement_number
                             )}`
                           )
@@ -254,23 +250,60 @@ function DashboardInner() {
                           <strong>{row.agreement_number}</strong>
                         </td>
                         <td>{row.company_name}</td>
-                        <td>
-                          <span className="admin-pill">{row.reason}</span>
-                          {row.amount != null && (
-                            <div className="mono" style={{ marginTop: 4 }}>
-                              {gbp(row.amount)}
-                            </div>
-                          )}
-                        </td>
+                        <td className="mono"><strong>{row.amount != null ? gbp(row.amount) : "—"}</strong></td>
+                        <td><span className="admin-pill">Overdue</span></td>
+                        <td><button className="view-agreement">View →</button></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
+            </section>
+          </div>
+
+          <div className="dashboard-bottom-grid">
+            <section className="dashboard-panel cashflow-panel">
+              <div className="panel-heading"><div><h2>New lending</h2><p>Deals written and capital lent in the last 12 months.</p></div></div>
+              <div className="cashflow-cards">
+                {data.lending.slice(-3).map((item, index) => (
+                  <div className={`cashflow-card tone-${index}`} key={item.month}>
+                    <span>£</span><p>{monthLabel(item.month)}<strong>{gbp(item.total_lent)}</strong><small>{item.deals} {item.deals === 1 ? "deal" : "deals"} written</small></p>
+                  </div>
+                ))}
+              </div>
+              <table className="admin-attn">
+                <thead><tr><th>Month</th><th>Deals written</th><th>Capital lent</th></tr></thead>
+                <tbody>{data.lending.map((item) => (
+                  <tr key={item.month}><td>{new Date(`${item.month}-01`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</td><td>{item.deals}</td><td className="mono"><strong>{gbp(item.total_lent)}</strong></td></tr>
+                ))}</tbody>
+              </table>
+            </section>
+            <div className="dashboard-side-stack">
+              <section className="dashboard-panel cashflow-panel compact-cashflow">
+                <div className="panel-heading"><div><h2>Cashflow outlook</h2><p>Expected receipts from existing agreements.</p></div></div>
+                <div className="cashflow-cards">
+                  {data.cashflow.map((item, index) => (
+                    <div className={`cashflow-card tone-${index}`} key={item.days}>
+                      <span>▣</span><p>Next {item.days} days<strong>{gbp(item.amount)}</strong><small>{item.count} instalments</small></p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="dashboard-panel recent-panel">
+                <div className="panel-heading"><div><h2>Recent activity</h2><p>Latest payments across your book.</p></div></div>
+                {data.recent_activity.length ? (
+                  <table>
+                    <tbody>{data.recent_activity.map((item, index) => (
+                      <tr key={`${item.date}-${item.agreement_number}-${index}`}><td><i /></td><td>{new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</td><td>{item.description}</td><td>{item.agreement_number}</td><td>{item.source}</td></tr>
+                    ))}</tbody>
+                  </table>
+                ) : <p className="empty-activity">No recent payments to show.</p>}
+              </section>
             </div>
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }

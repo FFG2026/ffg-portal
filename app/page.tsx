@@ -152,9 +152,6 @@ export default function HomePage() {
             <Link href="/admin" className="nav-admin">
               Admin portal
             </Link>
-            <Link href="/admin/gg" className="nav-admin">
-              Glacier Gem
-            </Link>
             <Link href="/portal" className="btn btn-outline">
               Customer login
             </Link>
@@ -487,7 +484,6 @@ export default function HomePage() {
               <a href="#why">Why Future FG</a>
               <a href="#portal">Customer portal</a>
               <Link href="/admin">Admin portal</Link>
-              <Link href="/admin/gg">Glacier Gem</Link>
               <a href="#contact">Get in touch</a>
             </div>
           </div>

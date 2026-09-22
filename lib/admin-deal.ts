@@ -23,6 +23,7 @@ export type DealFields = {
   monthly_instalment?: unknown;
   term_months?: unknown;
   start_date?: string;
+  written_date?: string;
   gocardless_mandate_id?: string | null;
   google_folder_id?: string | null;
   google_folder_name?: string | null;
@@ -169,6 +170,9 @@ export async function updateAgreementFromFields(
       monthly_instalment: monthly,
       term_months: termMonths,
       start_date: startDate,
+      written_date: fields.written_date
+        ? String(fields.written_date).slice(0, 10)
+        : agreement.written_date,
       gocardless_mandate_id:
         fields.gocardless_mandate_id !== undefined
           ? fields.gocardless_mandate_id

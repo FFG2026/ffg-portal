@@ -13,6 +13,7 @@ type LookupResult = {
     asset_description: string | null;
     monthly_instalment: number;
     start_date: string;
+    written_date?: string;
     term_months: number;
     total_lend: number;
     purchase_price: number | null;
@@ -489,6 +490,7 @@ function AmendDealForm({
     monthly_instalment: String(result.agreement.monthly_instalment ?? ""),
     term_months: String(result.agreement.term_months ?? ""),
     start_date: result.agreement.start_date || "",
+    written_date: result.agreement.written_date || result.agreement.start_date || "",
     gocardless_mandate_id: result.agreement.gocardless_mandate_id || "",
   });
 
@@ -560,6 +562,7 @@ function AmendDealForm({
               ["documentation_fee", "Documentation fee"],
               ["monthly_instalment", "Monthly"],
               ["term_months", "Term (months)"],
+              ["written_date", "Deal written date"],
               ["start_date", "Start date"],
               ["gocardless_mandate_id", "GoCardless mandate"],
             ] as const
@@ -575,7 +578,7 @@ function AmendDealForm({
               <label>{label}</label>
               <input
                 type={
-                  key === "start_date"
+                  key === "start_date" || key === "written_date"
                     ? "date"
                     : key === "email"
                       ? "email"
