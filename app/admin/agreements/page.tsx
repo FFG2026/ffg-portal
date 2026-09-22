@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import AdminShell, { adminHeaders, adminBasePath, currentAdminBook } from "../AdminShell";
 import { useBookReload } from "../../../lib/admin-book-reload";
+import PageHero from "../PageHero";
 
 type Row = {
   agreement_number: string;
@@ -24,7 +25,7 @@ type Row = {
 };
 
 const gbp = (n: number) =>
-  `£${Number(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `£${Number(n).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 
 function AgreementsInner() {
   const router = useRouter();
@@ -59,23 +60,66 @@ function AgreementsInner() {
 
   useBookReload(load);
 
+  const overdueCount = rows.filter((a) => a.overdue > 0).length;
+  const overdueTotal = rows.reduce((sum, a) => sum + a.overdue, 0);
+
   return (
     <>
-      <div className="admin-kicker">Book</div>
-      <h1>Agreements</h1>
-      <p className="admin-lead">
-        Live deals are still collecting. Outstanding here is only arrears —
-        an account that is up to date shows as such, not the rest of the term.
-      </p>
-      <div className="admin-toolbar">
-        <div className="admin-tabs">
+      <PageHero
+        title="Agreements"
+        subtitle="Live deals are still collecting. Outstanding here is only arrears."
+        search={q}
+        onSearch={setQ}
+        searchPlaceholder="Search HP number, company or asset"
+        action={
+          <button
+            className="page-hero-action"
+            type="button"
+            onClick={() => router.push(`${base}/new-deal`)}
+          >
+            + Load a new deal
+          </button>
+        }
+      />
+
+      <div className="page-stat-row">
+        <div className="page-stat">
+          <div className="page-stat-icon blue">▤</div>
+          <div>
+            <b>{counts.live}</b>
+            <span>Live agreements</span>
+          </div>
+        </div>
+        <div className="page-stat">
+          <div className="page-stat-icon navy">▣</div>
+          <div>
+            <b>{counts.past}</b>
+            <span>Finished</span>
+          </div>
+        </div>
+        <div className="page-stat">
+          <div className="page-stat-icon gold">!</div>
+          <div>
+            <b>{overdueCount}</b>
+            <span>In arrears on this list</span>
+          </div>
+        </div>
+        <div className="page-stat">
+          <div className="page-stat-icon green">£</div>
+          <div>
+            <b>{gbp(overdueTotal)}</b>
+            <span>Overdue on this list</span>
+          </div>
+        </div>
+      </div>
+
+      <section className="page-panel">
+        <div className="page-filters">
           {(["live", "past", "all"] as const).map((tab) => (
             <button
               key={tab}
-              className={`admin-tab ${status === tab ? "on" : ""}`}
-              onClick={() => {
-                setStatus(tab);
-              }}
+              className={`page-chip ${status === tab ? "on" : ""}`}
+              onClick={() => setStatus(tab)}
             >
               {tab === "live"
                 ? `Live (${counts.live})`
@@ -85,70 +129,64 @@ function AgreementsInner() {
             </button>
           ))}
         </div>
-        <input
-          value={q}
-          placeholder="Search HP number, company or asset"
-          onChange={(e) => {
-            setQ(e.target.value);
-          }}
-        />
-      </div>
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Agreement</th>
-            <th>Customer</th>
-            <th>Asset</th>
-            <th>Paid</th>
-            <th>Outstanding</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((a) => (
-            <tr
-              key={a.agreement_number}
-              onClick={() =>
-                router.push(
-                  `${base}/lookup?agreement=${encodeURIComponent(a.agreement_number)}`
-                )
-              }
-            >
-              <td>
-                <strong>{a.agreement_number}</strong>
-                <div style={{ fontSize: 11, color: "var(--slate)" }}>
-                  {a.agreement_type} · {a.start_date}
-                </div>
-              </td>
-              <td>{a.company_name}</td>
-              <td>{a.asset_description || "—"}</td>
-              <td className="mono">
-                {a.paid_count}/{a.term_months}
-              </td>
-              <td className="mono">
-                {a.overdue > 0 ? (
-                  <>
-                    {gbp(a.overdue)}
-                    <div style={{ color: "#8A6A24", fontSize: 11 }}>overdue</div>
-                  </>
-                ) : (
-                  <span style={{ color: "var(--green)", fontWeight: 600 }}>
-                    Up to date
-                  </span>
-                )}
-              </td>
-              <td>
-                {currentAdminBook() !== "gg" && !a.has_mandate && (
-                  <span className="admin-pill">No mandate</span>
-                )}
-                {!a.has_schedule && (
-                  <span className="admin-pill">No schedule</span>
-                )}
-              </td>
+        <table className="page-table">
+          <thead>
+            <tr>
+              <th>Agreement</th>
+              <th>Customer</th>
+              <th>Asset</th>
+              <th>Paid</th>
+              <th>Outstanding</th>
+              <th></th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((a) => (
+              <tr
+                key={a.agreement_number}
+                onClick={() =>
+                  router.push(
+                    `${base}/lookup?agreement=${encodeURIComponent(a.agreement_number)}`
+                  )
+                }
+              >
+                <td>
+                  <strong>{a.agreement_number}</strong>
+                  <span className="sub">
+                    {a.agreement_type} · {a.start_date}
+                  </span>
+                </td>
+                <td>{a.company_name}</td>
+                <td>{a.asset_description || "—"}</td>
+                <td className="mono">
+                  {a.paid_count}/{a.term_months}
+                </td>
+                <td>
+                  {a.overdue > 0 ? (
+                    <span className="status-pill arrears">{gbp(a.overdue)}</span>
+                  ) : (
+                    <span className="status-pill active">Up to date</span>
+                  )}
+                </td>
+                <td>
+                  {currentAdminBook() !== "gg" && !a.has_mandate && (
+                    <span className="admin-pill">No mandate</span>
+                  )}
+                  {!a.has_schedule && (
+                    <span className="admin-pill">No schedule</span>
+                  )}
+                </td>
+                <td>
+                  <button type="button" className="view-agreement">
+                    View →
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
     </>
   );
 }

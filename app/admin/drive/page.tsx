@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
+import PageHero from "../PageHero";
 
 type Status = {
   oauth_configured: boolean;
@@ -147,18 +148,19 @@ function DriveInner() {
 
   return (
     <>
-      <div className="admin-kicker">Google Drive</div>
-      <h1>Deal documents</h1>
-      <p className="admin-lead">
-        {currentAdminBook() === "gg"
-          ? "This book uses the Glacier Gem Ltd folder in the same Google Drive as Future FG. Scan it to match GG01–GG14 packs, pull asset details, and add any new deal folders onto this book."
-          : "Connect the Future FG Google Drive. Signed HP documents and goods schedules in each deal folder are used for asset details. New folders are added to the book; open lookup to amend anything that came through wrongly."}
-      </p>
+      <PageHero
+        title="Deal documents"
+        subtitle={
+          currentAdminBook() === "gg"
+            ? "This book uses the Glacier Gem Ltd folder in the same Google Drive as Future FG. Scan it to match GG packs, pull asset details, and add any new deal folders onto this book."
+            : "Connect the Future FG Google Drive. Signed HP documents and goods schedules in each deal folder are used for asset details."
+        }
+      />
 
       {ok && <div className="admin-ok">{ok}</div>}
       {error && <div className="admin-error">{error}</div>}
 
-      <div className="admin-card" style={{ marginBottom: 22 }}>
+      <div className="page-panel" style={{ marginBottom: 22 }}>
         <h2>Connection</h2>
         {!status?.connected && (
           <>
@@ -251,7 +253,7 @@ function DriveInner() {
       </div>
 
       {scan && (
-        <div className="admin-card">
+        <div className="page-panel">
           <h2>Last scan</h2>
           <p className="admin-lead">
             {scan.linked} existing deals linked to a folder.

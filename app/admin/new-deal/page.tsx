@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
+import PageHero from "../PageHero";
 
 export default function NewDealPage() {
   return (
@@ -165,14 +166,15 @@ function NewDealInner() {
 
   return (
     <>
-      <div className="admin-kicker">Origination</div>
-      <h1>Load a new deal</h1>
-      <p className="admin-lead">
-        {currentAdminBook() === "gg"
-          ? "New Glacier Gem deals should come from the Glacier Gem Ltd Drive folder (GG15 - Company), then scan on the Drive page. Use this form to type one in. On the deal sheet, Record a payment ticks the next instalment — there is no GoCardless."
-          : "New deals should come from Google Drive — put the signed pack in Agreements as HP143 - Company, then scan on the Drive page. Use this form if you need to type one in, or to correct a deal on lookup with Amend this deal."}
-      </p>
-      <div className="admin-card" style={{ marginBottom: 28 }}>
+      <PageHero
+        title="Load a new deal"
+        subtitle={
+          currentAdminBook() === "gg"
+            ? "New Glacier Gem deals should come from the Glacier Gem Ltd Drive folder, then scan on the Drive page. Use this form to type one in."
+            : "New deals should come from Google Drive. Use this form if you need to type one in, or correct a deal on lookup with Amend this deal."
+        }
+      />
+      <div className="page-panel" style={{ marginBottom: 14 }}>
         <h2>Or drop in the deal book</h2>
         <p className="admin-lead">
           {currentAdminBook() === "gg"
@@ -201,7 +203,7 @@ function NewDealInner() {
       </div>
       {msg && <div className="admin-ok">{msg}</div>}
       {error && <div className="admin-error">{error}</div>}
-      <form className="admin-form" onSubmit={submit}>
+      <form className="admin-form page-panel" onSubmit={submit}>
         <div>
           <label>Agreement number</label>
           <input

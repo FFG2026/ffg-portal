@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminShell, { adminHeaders } from "../AdminShell";
+import PageHero from "../PageHero";
 
 type Staff = {
   id: string;
@@ -74,14 +75,16 @@ function StaffInner() {
 
   return (
     <>
-      <div className="admin-kicker">Staff</div>
-      <h1>Admin logins</h1>
-      <p className="admin-lead">
-        Add a login for someone on the team. They sign in at Admin with their
-        email and password — they do not need the staff code.
-      </p>
+      <PageHero
+        title="Admin logins"
+        subtitle="Add a login for someone on the team. They sign in at Admin with their email and password — they do not need the staff code."
+      />
 
-      <form className="admin-form" onSubmit={create} style={{ marginBottom: 28 }}>
+      <div className="page-layout">
+        <section className="page-panel">
+          <h2>Create a login</h2>
+          <p className="panel-sub">They can sign in from the admin page straight away.</p>
+          <form className="admin-form" onSubmit={create} style={{ marginTop: 12, marginBottom: 0, border: 0, padding: 0, background: "transparent" }}>
         <div>
           <label>Name</label>
           <input
@@ -115,49 +118,54 @@ function StaffInner() {
         <button type="submit" disabled={saving}>
           {saving ? "Saving…" : "Create admin login"}
         </button>
-      </form>
-      {ok && <div className="admin-ok">{ok}</div>}
-      {error && <div className="admin-error">{error}</div>}
-
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Added</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {staff.length === 0 && (
-            <tr>
-              <td colSpan={4}>No email logins yet — create one above.</td>
-            </tr>
-          )}
-          {staff.map((row) => (
-            <tr key={row.id}>
-              <td>{row.name}</td>
-              <td className="mono">{row.email}</td>
-              <td>
-                {new Date(row.created_at).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </td>
-              <td>
-                <button
-                  type="button"
-                  className="admin-tab"
-                  onClick={() => remove(row)}
-                >
-                  Remove
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </form>
+          {ok && <div className="admin-ok">{ok}</div>}
+          {error && <div className="admin-error">{error}</div>}
+        </section>
+        <section className="page-panel">
+          <h2>Current staff</h2>
+          <p className="panel-sub">People who can open the admin book.</p>
+          <table className="page-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Added</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {staff.length === 0 && (
+                <tr>
+                  <td colSpan={4}>No email logins yet — create one on the left.</td>
+                </tr>
+              )}
+              {staff.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.name}</td>
+                  <td className="mono">{row.email}</td>
+                  <td>
+                    {new Date(row.created_at).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="view-agreement"
+                      onClick={() => remove(row)}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </div>
     </>
   );
 }
