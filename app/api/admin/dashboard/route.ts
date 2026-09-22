@@ -8,6 +8,7 @@ import {
   chaseOverdueSum,
   isPaidRow,
   unpaidSum,
+  currentMonthInstalmentTotals,
 } from "../../../../lib/deal-status";
 import { fetchGoCardlessPaymentsChargedBetween } from "../../../../lib/gocardless/client";
 import { paidOutPoundsFromGoCardlessPayments, collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
@@ -132,9 +133,27 @@ export async function GET(request: Request) {
   let outstanding = 0;
   let overdue = 0;
   let dueThisMonth = 0;
+  let scheduledCollectedThisMonth = 0;
   let collectedThisMonth = 0;
   let manualThisMonth = 0;
   const monthMap = new Map<string, { paid: number; unpaid: number }>();
+
+  const monthlyByAgreement = new Map(
+    (agreements || []).map((a) => [a.id as string, a.monthly_instalment])
+  );
+  const monthSchedule = currentMonthInstalmentTotals(
+    (payments || []).map((p) => ({
+      live: liveById.get(p.agreement_id) !== false,
+      monthly_instalment: monthlyByAgreement.get(p.agreement_id),
+      due_date: p.due_date,
+      amount: p.amount,
+      status: p.status,
+    })),
+    monthStart,
+    nextMonth
+  );
+  scheduledCollectedThisMonth = monthSchedule.collected;
+  dueThisMonth = monthSchedule.still_due;
 
   for (const p of payments || []) {
     const amount = num(p.amount);
@@ -152,9 +171,6 @@ export async function GET(request: Request) {
       }
     } else if (liveById.get(p.agreement_id) !== false) {
       bucket.unpaid += amount;
-      if (p.due_date && p.due_date >= monthStart && p.due_date < nextMonth) {
-        dueThisMonth += amount;
-      }
     }
   }
   collectedThisMonth = round2(
@@ -311,6 +327,7 @@ export async function GET(request: Request) {
       outstanding: round2(outstanding),
       overdue: round2(overdue),
       due_this_month: round2(dueThisMonth),
+      scheduled_collected_this_month: round2(scheduledCollectedThisMonth),
       collected_this_month: round2(collectedThisMonth),
       collected_count: gcMonthLoaded ? gcMonthCount : null,
       collected_from_gocardless: gcMonthLoaded,
