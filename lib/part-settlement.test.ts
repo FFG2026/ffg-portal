@@ -70,4 +70,18 @@ const l2 = withRemainingBalance(
 assert(l2[0].balance_after === 91302.75, "L2 remaining after first collection");
 assert(l2[35].balance_after === 0, "L2 paid in full ends at zero");
 
+const hp21Unpaid = [
+  { id: "failed-may", instalment_number: 32, amount: 640, due_date: "2025-05-05" },
+  { id: "mar", instalment_number: 42, amount: 640, due_date: "2026-03-05" },
+  { id: "apr", instalment_number: 43, amount: 640, due_date: "2026-04-05" },
+  { id: "may", instalment_number: 44, amount: 640, due_date: "2026-05-05" },
+  { id: "jun", instalment_number: 45, amount: 640, due_date: "2026-06-05" },
+  { id: "jul", instalment_number: 46, amount: 640, due_date: "2026-07-05" },
+  { id: "aug", instalment_number: 47, amount: 640, due_date: "2026-08-05" },
+  { id: "sep", instalment_number: 48, amount: 640, due_date: "2026-09-05" },
+];
+const hp21 = planPartSettlement(hp21Unpaid, 5120, "2026-02-06", "2026-02-06");
+assert(hp21.removeIds.length === 8, "full settlement clears the failed DD and remaining months");
+assert(hp21.reduce === null, "HP21 does not leave a reduced instalment");
+
 console.log("part-settlement tests ok");

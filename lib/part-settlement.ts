@@ -55,11 +55,28 @@ export function planPartSettlement(
   unpaid: UnpaidInstalment[],
   amount: number,
   paidDate?: string,
-  today: string = todayIsoDate()
+  _today: string = todayIsoDate()
 ): PartSettlementPlan {
   const pay = round2(amount);
   if (!(pay > 0)) {
     throw new Error("Enter an amount greater than zero.");
+  }
+  if (unpaid.length === 0) {
+    throw new Error("There are no instalments left to apply this to.");
+  }
+
+  const allOwing = round2(
+    unpaid.reduce((sum, row) => sum + Number(row.amount), 0)
+  );
+
+  // A lump that covers the whole remaining book (including an earlier
+  // failed Direct Debit) settles the HP, even when dated mid-term.
+  if (pay + 0.009 >= allOwing) {
+    return {
+      removeIds: unpaid.map((row) => row.id),
+      reduce: null,
+      leftover: 0,
+    };
   }
 
   const dated = unpaid.some((row) => row.due_date);
@@ -68,30 +85,24 @@ export function planPartSettlement(
       ? unpaid.filter((row) => String(row.due_date) >= paidDate)
       : unpaid;
   const pool = fromPaidDate.length > 0 ? fromPaidDate : unpaid;
-
   const owing = round2(pool.reduce((sum, row) => sum + Number(row.amount), 0));
-  if (pool.length === 0) {
-    throw new Error("There are no instalments left to apply this to.");
-  }
 
-  // A past-dated lump that covers everything still due from that day
-  // (e.g. insurance settlement) clears those rows. A smaller amount only
-  // shaves the back of the book — it must not look like the HP is finished.
-  if (paidDate && paidDate < today && pay + 0.009 >= owing) {
-    return {
-      removeIds: pool.map((row) => row.id),
-      reduce: null,
-      leftover: 0,
-    };
-  }
-
-  if (pay - owing > 0.009) {
-    throw new Error(
-      `That is more than the £${owing.toLocaleString("en-GB", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })} still owing.`
+  // Enough to clear everything still due from that day — also spend any
+  // leftover on earlier unpaid rows (a bounced collection sitting behind).
+  if (paidDate && pay + 0.009 >= owing) {
+    const extra = round2(pay - owing);
+    const earlier = unpaid.filter(
+      (row) => !pool.some((p) => p.id === row.id)
     );
+    const rest =
+      extra > 0.009
+        ? allocateFromEnd(earlier, extra)
+        : { removeIds: [] as string[], reduce: null, leftover: 0 };
+    return {
+      removeIds: [...pool.map((row) => row.id), ...rest.removeIds],
+      reduce: rest.reduce,
+      leftover: rest.leftover,
+    };
   }
 
   return allocateFromEnd(pool, pay);
