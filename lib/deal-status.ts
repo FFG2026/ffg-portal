@@ -16,6 +16,58 @@ export function paidCount(
   return (rows || []).filter((r) => isPaidRow(r.status)).length;
 }
 
+/**
+ * Balloons and settlement lumps sitting on this month's schedule are not
+ * the monthly Direct Debit. A row more than 2× the contracted rent is a lump.
+ */
+export function isMonthlyBookAmount(
+  amount: number | string | null | undefined,
+  monthlyInstalment?: number | string | null
+) {
+  const a = Number(amount || 0);
+  if (!(a > 0)) return false;
+  const monthly = Number(monthlyInstalment || 0);
+  if (!(monthly > 0)) return true;
+  return a <= monthly * 2 + 0.009;
+}
+
+export type MonthInstalmentRow = {
+  live?: boolean;
+  monthly_instalment?: number | string | null;
+  due_date?: string | null;
+  amount?: number | string | null;
+  status?: string | null;
+};
+
+/**
+ * This month's contracted monthly rents on live deals. Used for the
+ * collection-rate ring — never mix bank cash with leftover schedule rows.
+ */
+export function currentMonthInstalmentTotals(
+  rows: MonthInstalmentRow[] | null | undefined,
+  monthStart: string,
+  nextMonth: string
+) {
+  let paid = 0;
+  let unpaid = 0;
+  for (const row of rows || []) {
+    if (row.live === false) continue;
+    const due = String(row.due_date || "").slice(0, 10);
+    if (due.length < 10 || due < monthStart || due >= nextMonth) continue;
+    if (!isMonthlyBookAmount(row.amount, row.monthly_instalment)) continue;
+    const amount = Number(row.amount || 0);
+    if (isPaidRow(row.status)) paid += amount;
+    else unpaid += amount;
+  }
+  const collected = roundMoney(paid);
+  const stillDue = roundMoney(unpaid);
+  return {
+    collected,
+    still_due: stillDue,
+    due: roundMoney(collected + stillDue),
+  };
+}
+
 /** Sum of instalments not yet marked paid — this is the amount still owing. */
 export function unpaidSum(
   rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
