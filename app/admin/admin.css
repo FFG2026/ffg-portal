@@ -308,6 +308,9 @@
 .snapshot-kv dt{color:var(--slate);}
 .snapshot-kv dd{color:var(--navy); font-weight:600;}
 .snapshot-actions{display:flex; gap:8px;}
+.snapshot-agreements{display:flex; flex-wrap:wrap; gap:8px; margin:-4px 0 14px;}
+.snapshot-agreement-chip{padding:7px 10px; border:1px solid var(--rule); border-radius:8px; background:#fff; font-size:13px; font-weight:700; color:var(--navy); cursor:pointer;}
+.snapshot-agreement-chip:hover{border-color:var(--blue); color:var(--blue);}
 .snapshot-actions .primary{flex:1; height:42px; border:0; border-radius:10px; background:var(--blue); color:#fff; font-weight:700; cursor:pointer;}
 .snapshot-actions .ghost{height:42px; padding:0 16px; border:1px solid var(--rule); border-radius:10px; background:#fff; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; color:var(--navy); text-decoration:none;}
 .attention-list{display:flex; flex-direction:column;}

@@ -298,8 +298,12 @@ function CustomersInner() {
                   <dd>{selected.contact_name || "—"}</dd>
                   <dt>Email</dt>
                   <dd>{selected.email || "—"}</dd>
-                  <dt>Live agreements</dt>
-                  <dd>{selected.live_count}</dd>
+                  <dt>Agreements</dt>
+                  <dd>
+                    {selected.agreements.length
+                      ? `${selected.agreements.length} (${selected.live_count} live)`
+                      : "—"}
+                  </dd>
                   <dt>Total exposure</dt>
                   <dd>{gbp(selected.exposure)}</dd>
                   <dt>Next payment</dt>
@@ -321,6 +325,24 @@ function CustomersInner() {
                     </>
                   ) : null}
                 </dl>
+                {selected.agreements.length > 0 && (
+                  <div className="snapshot-agreements">
+                    {selected.agreements.map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        className="snapshot-agreement-chip"
+                        onClick={() =>
+                          router.push(
+                            `${base}/lookup?agreement=${encodeURIComponent(num)}`
+                          )
+                        }
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="snapshot-actions">
                   <button
                     className="primary"
@@ -331,7 +353,7 @@ function CustomersInner() {
                       )
                     }
                   >
-                    Open customer →
+                    Open {selected.agreements[0] || "customer"} →
                   </button>
                   {selected.email && (
                     <a className="ghost" href={`mailto:${selected.email}`}>
