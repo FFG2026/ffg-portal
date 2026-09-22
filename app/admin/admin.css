@@ -432,11 +432,11 @@
 .fig-kpi-delta em{font-style:normal; font-weight:500; color:var(--slate); margin-left:2px;}
 
 /* --- Card grid --- */
-.fig-row{display:grid; gap:16px; margin-bottom:16px; align-items:start;}
+.fig-row{display:grid; gap:16px; margin-bottom:16px; align-items:stretch;}
 .fig-row-main{grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);}
 .fig-row-three{grid-template-columns:minmax(0,1.2fr) minmax(0,1.08fr) minmax(0,1.04fr);}
 .fig-row-two{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);}
-.fig-card{background:#fff; border:1px solid var(--rule); border-radius:14px; padding:20px 22px; min-width:0;}
+.fig-card{background:#fff; border:1px solid var(--rule); border-radius:14px; padding:20px 22px; min-width:0; height:100%;}
 .fig-card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px;}
 .fig-card-head h2{font-family:'Fraunces', serif; font-size:21px; color:var(--navy); margin:0 0 3px;}
 .fig-card-head p{font-size:13px; color:var(--slate); margin:0; line-height:1.45;}
@@ -661,3 +661,105 @@
   .book-dash section{padding:18px;}
   .fig-detail-head{flex-direction:column; align-items:flex-start;}
 }
+
+/* Portfolio detail — lower-section redesign */
+.figures-lower{display:grid;gap:16px}
+.book-dash>.figures-lower{background:transparent;border:0;border-radius:0;overflow:visible}
+.figures-section{background:#fff;border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.figures-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:18px 20px 15px;border-bottom:1px solid var(--rule)}
+.figures-section-head>div>span{display:block;margin-bottom:5px;color:var(--blue-deep);font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.figures-section .figures-section-head h2{padding:0;background:transparent;color:var(--navy);font-family:'Fraunces',serif;font-size:22px;letter-spacing:0;text-transform:none}
+.figures-section-head p{max-width:470px;color:var(--slate);font-size:12px;line-height:1.45;text-align:right}
+.deal-type-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:16px;background:#F8FAFD}
+.deal-type-card{padding:16px;border:1px solid #DDE5EF;border-top:3px solid var(--blue);border-radius:10px;background:#fff}
+.deal-type-card.tone-1{border-top-color:var(--green)}.deal-type-card.tone-2{border-top-color:var(--gold)}
+.deal-type-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.deal-type-title>span{display:grid;place-items:center;min-width:34px;height:26px;padding:0 8px;border-radius:6px;background:#E8F4FE;color:var(--blue-deep);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700}
+.deal-type-title>b{color:var(--slate);font-size:10px;font-weight:600}
+.deal-type-card h3{margin:12px 0 14px;color:var(--navy);font-family:'Fraunces',serif;font-size:18px}
+.deal-type-card dl{display:grid;gap:8px;margin:0}
+.deal-type-card dl>div{display:flex;justify-content:space-between;gap:10px;padding-top:8px;border-top:1px solid #EDF1F5}
+.deal-type-card dt{color:var(--slate);font-size:10px}.deal-type-card dd{color:var(--navy);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600}
+.figures-summary-strip{display:grid;grid-template-columns:repeat(3,1fr);margin:16px;border:1px solid #E3E9F0;border-radius:10px;background:#F8FAFD;overflow:hidden}
+.figures-summary-strip>div{display:flex;flex-direction:column;gap:5px;padding:14px 16px;border-left:1px solid #E3E9F0}
+.figures-summary-strip>div:first-child{border-left:0}
+.figures-summary-strip span{color:var(--slate);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+.figures-summary-strip strong{color:var(--navy);font-family:'Fraunces',serif;font-size:22px}
+.value-strip>div:nth-child(2) strong,.value-strip>div:nth-child(3) strong,.projected-value{color:var(--green)!important}
+.figures-table-wrap{margin:0 16px 16px;overflow-x:auto;border:1px solid var(--rule);border-radius:9px}
+.figures-table{min-width:680px}
+.figures-table th{padding:10px 13px;background:#F3F6FA;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.05em;text-transform:uppercase}
+.figures-table td{padding:11px 13px}.figures-table tbody tr:hover{background:#F8FBFE}
+@media (max-width:700px){
+  .figures-section-head{align-items:flex-start;flex-direction:column;gap:6px}.figures-section-head p{text-align:left}.deal-type-cards{grid-template-columns:1fr}.figures-summary-strip{grid-template-columns:1fr}.figures-summary-strip>div{border-left:0;border-top:1px solid #E3E9F0}.figures-summary-strip>div:first-child{border-top:0}
+}
+
+/* Keep Portfolio detail cards on one clean grid */
+.book-dash-top{align-items:stretch}
+.book-dash-top>section{display:flex;flex-direction:column;height:100%}
+.book-dash-top .deal-type-cards{flex:1;align-items:stretch}
+.deal-type-card{display:flex;flex-direction:column;min-width:0;height:100%}
+.deal-type-card h3{min-height:44px}
+.deal-type-card dl{margin-top:auto}
+.figures-summary-strip>div{min-width:0}
+.figures-summary-strip strong{line-height:1.1;white-space:nowrap}
+@media (max-width:1180px){
+  .book-dash-top>section{height:auto}
+  .deal-type-card h3{min-height:0}
+}
+
+/* Compact shareholder visuals */
+.compact-strip{margin-bottom:12px}
+.shareholder-visual-grid{display:grid;grid-template-columns:minmax(260px,.72fr) minmax(360px,1.28fr);gap:14px;padding:0 16px 16px}
+.ownership-panel,.projection-panel{padding:15px;border:1px solid #E3E9F0;border-radius:10px;background:#FBFCFE}
+.ownership-panel h3,.projection-panel h3{margin:0;color:var(--navy);font-family:'Fraunces',serif;font-size:16px}
+.ownership-bar{display:flex;height:18px;margin:18px 0 15px;border-radius:999px;overflow:hidden;background:#EDF1F5}
+.ownership-bar>i{display:block;height:100%}
+.ownership-legend{display:grid;gap:8px}
+.ownership-legend>div{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px}
+.ownership-legend span{display:flex;align-items:center;gap:7px;color:var(--ink-soft)}
+.ownership-legend span i{width:8px;height:8px;border-radius:50%}
+.ownership-legend strong{font-family:'IBM Plex Mono',monospace;color:var(--navy)}
+.projection-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.projection-heading>span{display:flex;align-items:center;gap:5px;color:var(--slate);font-size:9px}
+.projection-heading>span i{width:8px;height:8px;border-radius:2px;background:var(--blue)}
+.projection-heading>span i:last-child{margin-left:5px;background:var(--green)}
+.projection-row{margin-top:10px}
+.projection-row>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px;font-size:10px;color:var(--ink-soft)}
+.projection-row strong{font-family:'IBM Plex Mono',monospace;color:var(--navy);font-size:10px}
+.projection-track{position:relative;height:11px;border-radius:999px;background:#E9EEF4;overflow:hidden}
+.projection-track i{position:absolute;inset:0 auto 0 0;border-radius:999px}
+.projection-track .projected{background:var(--green);opacity:.38}
+.projection-track .current{height:5px;top:3px;background:var(--blue)}
+.repayment-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;padding:16px}
+.repayment-total{display:flex;flex-direction:column;justify-content:center;padding:18px;border-radius:10px;background:var(--navy);color:#fff}
+.repayment-total>span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#BFCDE0}
+.repayment-total>strong{margin:6px 0;font-family:'Fraunces',serif;font-size:27px}
+.repayment-total>small{font-size:10px;color:#D7E0EB}
+.repayment-layout .figures-table-wrap{margin:0}
+@media (max-width:900px){.shareholder-visual-grid,.repayment-layout{grid-template-columns:1fr}}
+
+/* Compact portfolio detail and 12-month view */
+.fig-detail-head{align-items:center;padding:16px 18px;border:1px solid var(--rule);border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(8,26,44,.03)}
+.fig-detail-head h2{font-family:'Fraunces',serif;font-size:23px;font-weight:600;letter-spacing:-.01em}
+.figures-section .figures-section-head h2{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.deal-type-card dd,.ownership-legend strong,.projection-row strong{font-family:'IBM Plex Mono',monospace}
+.deal-type-card dd{font-size:11px}
+.figures-summary-strip strong{font-family:'Fraunces',serif;font-size:22px;font-weight:600}
+.book-month-bar strong{font-family:'Fraunces',serif;font-size:19px;font-weight:600}
+.book-month-kpis b{font-family:'Fraunces',serif;font-size:24px;font-weight:600}
+.book-month-card>strong{font-family:'Fraunces',serif;font-size:15px;font-weight:600}
+.repayment-total>strong{font-family:'Fraunces',serif;font-size:27px;font-weight:600}
+.figures-table th{font-weight:700;letter-spacing:.04em}
+.book-month{padding-bottom:14px!important}
+.book-month-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.book-month-card{display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding:9px 10px;border:1px solid var(--rule);border-radius:9px;background:#fff;color:var(--ink-soft);cursor:pointer;text-align:left}
+.book-month-card:hover{border-color:#B9CEE2;background:#F8FBFE}
+.book-month-card.on{border-color:var(--blue);background:var(--blue-pale);box-shadow:inset 0 0 0 1px var(--blue)}
+.book-month-card>span{font-size:10px;font-weight:700;color:var(--slate)}
+.book-month-card>strong{margin:4px 0 6px;font-family:'Fraunces',serif;font-size:15px;color:var(--navy);white-space:nowrap}
+.book-month-card>i{display:block;width:100%;height:4px;margin-bottom:6px;border-radius:999px;background:#E7EDF4;overflow:hidden}
+.book-month-card>i b{display:block;height:100%;border-radius:999px;background:var(--blue)}
+.book-month-card>small{font-size:9px;line-height:1.35;color:var(--slate)}
+@media (max-width:1100px){.book-month-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:700px){.book-month-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

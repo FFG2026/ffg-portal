@@ -399,35 +399,21 @@ function MonthAtATime() {
           <b>{gbp(row.amount_lent)}</b>
         </div>
       </div>
-      <table className="book-table book-month-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Payments received</th>
-            <th>New deals</th>
-            <th>Amount lent</th>
-          </tr>
-        </thead>
-        <tbody>
-          {MONTHLY_FIGURES.map((m) => (
-            <tr
-              key={m.key}
-              className={m.key === row.key ? "book-month-on" : undefined}
-              onClick={() => setMonthKey(m.key)}
-            >
-              <td>{monthLabel(m)}</td>
-              <td>
-                <BarCell
-                  value={gbp(m.payments_received)}
-                  share={peakReceived > 0 ? (m.payments_received / peakReceived) * 100 : 0}
-                />
-              </td>
-              <td>{m.new_deals}</td>
-              <td>{gbp(m.amount_lent)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="book-month-grid">
+        {MONTHLY_FIGURES.map((m) => (
+          <button
+            type="button"
+            key={m.key}
+            className={m.key === row.key ? "book-month-card on" : "book-month-card"}
+            onClick={() => setMonthKey(m.key)}
+          >
+            <span>{monthLabel(m)}</span>
+            <strong>{gbp(m.payments_received)}</strong>
+            <i><b style={{ width: `${peakReceived > 0 ? (m.payments_received / peakReceived) * 100 : 0}%` }} /></i>
+            <small>{m.new_deals} deals · {gbp(m.amount_lent)} lent</small>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -464,8 +450,11 @@ function FfgFigures({
     (sum, s) => sum + s.projected_2030,
     0
   );
+  const projectedGrowth = valueTotal > 0
+    ? ((projectedTotal - valueTotal) / valueTotal) * 100
+    : 0;
+  const maxProjected = Math.max(...data.shareholders.map((row) => row.projected_2030), 1);
 
-  const lentTotal = data.by_type.reduce((sum, t) => sum + t.total_lent, 0);
   const asOf = new Date(data.as_of + "T00:00:00").toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
@@ -561,127 +550,99 @@ function FfgFigures({
           </dl>
         </section>
 
-        <section>
-          <h2>Breakdown by deal type</h2>
-          <table className="book-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Deals</th>
-                <th>Total lent</th>
-                <th>Total profit</th>
-                <th>Avg yield</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.by_type.map((row, i) => (
-                <tr key={row.type}>
-                  <td>
-                    <span className="book-name">
-                      {/* Same colour this type carries in the mix donut above. */}
-                      <i style={{ background: MIX_COLOURS[i % MIX_COLOURS.length] }} />
-                      {row.label}
-                    </span>
-                  </td>
-                  <td>{row.deals}</td>
-                  <td>
-                    <BarCell
-                      value={gbp(row.total_lent)}
-                      share={lentTotal > 0 ? (row.total_lent / lentTotal) * 100 : 0}
-                    />
-                  </td>
-                  <td>{gbp(row.total_profit)}</td>
-                  <td>{pct(row.avg_yield)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <section className="figures-section deal-type-section">
+          <div className="figures-section-head">
+            <div><span>Portfolio mix</span><h2>Breakdown by deal type</h2></div>
+            <p>Capital deployed, profit and average return across each product.</p>
+          </div>
+          <div className="deal-type-cards">
+            {data.by_type.map((row, index) => (
+              <article className={`deal-type-card tone-${index}`} key={row.type}>
+                <div className="deal-type-title"><span>{row.type}</span><b>{row.deals} deals</b></div>
+                <h3>{row.label}</h3>
+                <dl>
+                  <div><dt>Total lent</dt><dd>{gbp(row.total_lent)}</dd></div>
+                  <div><dt>Total profit</dt><dd>{gbp(row.total_profit)}</dd></div>
+                  <div><dt>Average yield</dt><dd>{pct(row.avg_yield)}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
         </section>
         </div>
 
         <MonthAtATime />
 
-        <section>
-          <h2>Shareholder loan repayments</h2>
-          <p className="book-note">
-            Total shares issued {data.shares_issued.toLocaleString("en-GB")} ·
-            Repayment per share {gbp(data.repayment_per_share)} · Total owed in{" "}
-            {gbp(data.summary.total_outstanding)}
-          </p>
-          <table className="book-table">
-            <thead>
-              <tr>
-                <th>Shareholder</th>
-                <th>Shares</th>
-                <th>Amount repaid</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.shareholders.map((row) => (
-                <tr key={row.name}>
-                  <td>
-                    <span className="book-name">
-                      <span className="book-initials">{initialsOf(row.name)}</span>
-                      {row.name}
-                    </span>
-                  </td>
-                  <td>
-                    <BarCell
-                      value={row.shares.toLocaleString("en-GB")}
-                      share={(row.shares / data.shares_issued) * 100}
-                    />
-                  </td>
-                  <td>{gbp(row.amount_repaid)}</td>
-                </tr>
-              ))}
-              <tr className="book-total">
-                <td>Total</td>
-                <td>{data.shares_issued.toLocaleString("en-GB")}</td>
-                <td>{gbp(repaidTotal)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
+        <div className="figures-lower">
+          <section className="figures-section shareholder-section equity-visual">
+            <div className="figures-section-head">
+              <div><span>Equity outlook</span><h2>Shareholding value</h2></div>
+              <p>Ownership today and the projected value of each holding at the end of 2030.</p>
+            </div>
+            <div className="figures-summary-strip value-strip compact-strip">
+              <div><span>Current total</span><strong>{gbp(valueTotal)}</strong></div>
+              <div><span>Projected 2030</span><strong>{gbp(projectedTotal)}</strong></div>
+              <div><span>Projected growth</span><strong>{pct(projectedGrowth)}</strong></div>
+            </div>
+            <div className="shareholder-visual-grid">
+              <div className="ownership-panel">
+                <h3>Ownership split</h3>
+                <div className="ownership-bar" aria-label="Shareholder ownership split">
+                  {data.shareholders.map((row, index) => (
+                    <i key={row.name} style={{ width: `${row.pct_owned}%`, background: MIX_COLOURS[index % MIX_COLOURS.length] }} />
+                  ))}
+                </div>
+                <div className="ownership-legend">
+                  {data.shareholders.map((row, index) => (
+                    <div key={row.name}>
+                      <span><i style={{ background: MIX_COLOURS[index % MIX_COLOURS.length] }} />{row.name}</span>
+                      <strong>{pct(row.pct_owned)}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="projection-panel">
+                <div className="projection-heading"><h3>Value by shareholder</h3><span>Current <i /> Projected <i /></span></div>
+                {data.shareholders.map((row) => (
+                  <div className="projection-row" key={row.name}>
+                    <div><span>{row.name}</span><strong>{gbp(row.projected_2030)}</strong></div>
+                    <div className="projection-track">
+                      <i className="projected" style={{ width: `${(row.projected_2030 / maxProjected) * 100}%` }} />
+                      <i className="current" style={{ width: `${(row.value / maxProjected) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
 
-        <section>
-          <h2>Shareholding value (based on total owed in)</h2>
-          <table className="book-table">
-            <thead>
-              <tr>
-                <th>Shareholder</th>
-                <th>Shares</th>
-                <th>% owned</th>
-                <th>Value of shareholding</th>
-                <th>Projected value (end 2030)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.shareholders.map((row) => (
-                <tr key={row.name}>
-                  <td>
-                    <span className="book-name">
-                      <span className="book-initials">{initialsOf(row.name)}</span>
-                      {row.name}
-                    </span>
-                  </td>
-                  <td>{row.shares.toLocaleString("en-GB")}</td>
-                  <td>
-                    <BarCell value={pct(row.pct_owned)} share={row.pct_owned} />
-                  </td>
-                  <td>{gbp(row.value)}</td>
-                  <td>{gbp(row.projected_2030)}</td>
-                </tr>
-              ))}
-              <tr className="book-total">
-                <td>Total</td>
-                <td>{data.shares_issued.toLocaleString("en-GB")}</td>
-                <td>100.0%</td>
-                <td>{gbp(valueTotal)}</td>
-                <td>{gbp(projectedTotal)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
+          <section className="figures-section shareholder-section repayments-section">
+            <div className="figures-section-head">
+              <div><span>Capital accounts</span><h2>Amounts paid to shareholders</h2></div>
+              <p>Repayments made against shareholder funding to date.</p>
+            </div>
+            <div className="repayment-layout">
+              <div className="repayment-total">
+                <span>Total repaid</span><strong>{gbp(repaidTotal)}</strong>
+                <small>{gbp(data.repayment_per_share)} per share</small>
+              </div>
+              <div className="figures-table-wrap">
+                <table className="book-table figures-table">
+                  <thead><tr><th>Shareholder</th><th>Shares</th><th>Amount paid</th></tr></thead>
+                  <tbody>
+                    {data.shareholders.map((row) => (
+                      <tr key={row.name}>
+                        <td><span className="book-name"><span className="book-initials">{initialsOf(row.name)}</span>{row.name}</span></td>
+                        <td>{row.shares.toLocaleString("en-GB")}</td>
+                        <td>{gbp(row.amount_repaid)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </>
   );
