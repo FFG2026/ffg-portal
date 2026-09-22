@@ -123,6 +123,7 @@ export async function ingestDealFromFolder(
     folder.createdTime,
     folder.modifiedTime
   );
+  const writtenDate = String(folder.createdTime || driveStart || "").slice(0, 10) || null;
   const isGg = /^GG/i.test(agreementNumber);
   let details = await detailsFromFolderFiles(
     accessToken,
@@ -136,7 +137,7 @@ export async function ingestDealFromFolder(
   const { data: existing } = await supabase
     .from("agreements")
     .select(
-      "id, customer_id, monthly_instalment, term_months, start_date, asset_description, purchase_price, customer_deposit, total_lend, documentation_fee"
+      "id, customer_id, monthly_instalment, term_months, start_date, written_date, asset_description, purchase_price, customer_deposit, total_lend, documentation_fee"
     )
     .ilike("agreement_number", agreementNumber)
     .maybeSingle();
@@ -176,6 +177,7 @@ export async function ingestDealFromFolder(
       google_folder_name: folder.name,
       start_date: alignedStart,
     };
+    if (!existing.written_date && writtenDate) patch.written_date = writtenDate;
     if (isPlaceholderAsset(existing.asset_description) && details.asset_description) {
       patch.asset_description = details.asset_description;
     }
@@ -256,6 +258,7 @@ export async function ingestDealFromFolder(
         monthly_instalment: monthly || 0,
         term_months: termMonths || 0,
         start_date: startDate || new Date().toISOString().slice(0, 10),
+        written_date: writtenDate || startDate || new Date().toISOString().slice(0, 10),
         status: "active",
         book,
         google_folder_id: folder.id,
@@ -286,6 +289,7 @@ export async function ingestDealFromFolder(
       monthly_instalment: monthly,
       term_months: termMonths,
       start_date: startDate,
+      written_date: writtenDate || startDate,
       status: "active",
       book,
       google_folder_id: folder.id,
