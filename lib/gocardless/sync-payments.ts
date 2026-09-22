@@ -5,6 +5,7 @@ import {
 import {
   matchGcPaymentsToInstalments,
   unmatchedCollectedPayments,
+  leftoverPaymentsToRecord,
   scheduleCollectionsOnly,
   amountsClose,
   collectedScheduleAmount,
@@ -197,14 +198,19 @@ async function applyMatches(
     else markedFailed += 1;
   }
 
-  const leftover =
-    opts?.leftover === false
-      ? []
-      : unmatchedCollectedPayments(
-          scheduleCollections,
-          matches,
-          instalments.map((row) => row.gocardless_payment_id)
-        ).filter((payment) => !amountsClose(monthly || 0, payment.amount));
+  const settled = String(header?.status || "").trim().toLowerCase() === "settled";
+  const leftover = leftoverPaymentsToRecord(
+    unmatchedCollectedPayments(
+      scheduleCollections,
+      matches,
+      instalments.map((row) => row.gocardless_payment_id)
+    ).filter((payment) => !amountsClose(monthly || 0, payment.amount)),
+    {
+      startDate: start,
+      settled,
+      enabled: opts?.leftover !== false,
+    }
+  );
   let nextNumber =
     Math.max(0, ...instalments.map((row) => Number(row.instalment_number || 0))) +
     1;
@@ -233,7 +239,7 @@ async function applyMatches(
     .select("id", { count: "exact", head: true })
     .eq("agreement_id", agreement.id);
   const have = count || 0;
-  if (term > have && monthly > 0 && start.length >= 10) {
+  if (!settled && term > have && monthly > 0 && start.length >= 10) {
     const extras = [];
     for (let n = nextNumber; extras.length + have < term; n += 1) {
       extras.push({

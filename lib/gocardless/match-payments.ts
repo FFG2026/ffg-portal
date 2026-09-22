@@ -364,6 +364,24 @@ export function unmatchedCollectedPayments(
     );
 }
 
+/**
+ * Unmatched GC cash that is not the monthly instalment. Do not bolt it onto
+ * a finished deal, and ignore collections from before the agreement started
+ * (L4's £50 on 12 May 2025 sat on the mandate months before Jan 2026).
+ */
+export function leftoverPaymentsToRecord(
+  payments: GoCardlessPayment[],
+  opts: { startDate?: string | null; settled?: boolean; enabled?: boolean }
+) {
+  if (opts.enabled === false || opts.settled) return [];
+  const start = String(opts.startDate || "").slice(0, 10);
+  return payments.filter((p) => {
+    const charge = String(p.charge_date || "").slice(0, 10);
+    if (start.length >= 10 && charge && charge < start) return false;
+    return true;
+  });
+}
+
 export function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
