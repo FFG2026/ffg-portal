@@ -61,10 +61,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const base = adminBasePath(pathname);
   const isGg = base === "/admin/gg";
   const [unlocked, setUnlocked] = useState(false);
-  const [mode, setMode] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [secret, setSecret] = useState("");
   const [error, setError] = useState("");
   const [who, setWho] = useState("");
   const [ownerDash, setOwnerDash] = useState(false);
@@ -100,7 +98,15 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       return;
     }
     fetch("/api/admin/me", { headers: adminHeaders() })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (res.status === 401) {
+          sessionStorage.removeItem(SECRET_KEY);
+          sessionStorage.removeItem(NAME_KEY);
+          setUnlocked(false);
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
       .then((json) => {
         setOwnerDash(!!json?.owner_dashboard);
         if (json?.name) setWho(json.name);
@@ -114,11 +120,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     const res = await fetch("/api/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        mode === "code"
-          ? { secret: secret.trim() }
-          : { email: email.trim(), password }
-      ),
+      body: JSON.stringify({ email: email.trim(), password }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -136,7 +138,6 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     sessionStorage.removeItem(NAME_KEY);
     setUnlocked(false);
     setPassword("");
-    setSecret("");
   };
 
   if (!unlocked) {
@@ -148,53 +149,24 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             {isGg ? "Glacier Gem admin" : "Future FG admin"}
           </div>
           <h1>Staff only</h1>
-          <p>Sign in with your admin email, or the staff code.</p>
-          <div className="admin-tabs" style={{ marginBottom: 16 }}>
-            <button
-              type="button"
-              className={`admin-tab ${mode === "email" ? "on" : ""}`}
-              onClick={() => setMode("email")}
-            >
-              Email
-            </button>
-            <button
-              type="button"
-              className={`admin-tab ${mode === "code" ? "on" : ""}`}
-              onClick={() => setMode("code")}
-            >
-              Staff code
-            </button>
-          </div>
+          <p>Sign in with your admin email and password.</p>
           <form className="admin-lock-form" onSubmit={unlock}>
-            {mode === "email" ? (
-              <>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@ffg.finance"
-                  autoComplete="username"
-                  required
-                />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  autoComplete="current-password"
-                  required
-                />
-              </>
-            ) : (
-              <input
-                type="password"
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-                placeholder="Staff code"
-                autoComplete="off"
-                required
-              />
-            )}
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@ffg.finance"
+              autoComplete="username"
+              required
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              autoComplete="current-password"
+              required
+            />
             <button type="submit">Open</button>
           </form>
           {error && <div className="admin-error">{error}</div>}

@@ -77,7 +77,7 @@ function StaffInner() {
     <>
       <PageHero
         title="Admin logins"
-        subtitle="Add a login for someone on the team. They sign in at Admin with their email and password — they do not need the staff code."
+        subtitle="Add a login for someone on the team. They sign in at Admin with their email and password."
       />
 
       <div className="page-layout">

@@ -21,9 +21,6 @@ export async function authorizeAdminRequest(
   body?: { secret?: string }
 ) {
   const token = getAdminSecret(request, body);
-  if (isAuthorizedAdmin(token)) {
-    return { ok: true as const, email: "staff" };
-  }
   const session = readAdminSession(token);
   if (!session) return { ok: false as const };
   const supabase = createAdminClient();
