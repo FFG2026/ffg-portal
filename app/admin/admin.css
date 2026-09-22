@@ -432,11 +432,11 @@
 .fig-kpi-delta em{font-style:normal; font-weight:500; color:var(--slate); margin-left:2px;}
 
 /* --- Card grid --- */
-.fig-row{display:grid; gap:16px; margin-bottom:16px; align-items:start;}
+.fig-row{display:grid; gap:16px; margin-bottom:16px; align-items:stretch;}
 .fig-row-main{grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);}
 .fig-row-three{grid-template-columns:minmax(0,1.2fr) minmax(0,1.08fr) minmax(0,1.04fr);}
 .fig-row-two{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);}
-.fig-card{background:#fff; border:1px solid var(--rule); border-radius:14px; padding:20px 22px; min-width:0;}
+.fig-card{background:#fff; border:1px solid var(--rule); border-radius:14px; padding:20px 22px; min-width:0; height:100%;}
 .fig-card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px;}
 .fig-card-head h2{font-family:'Fraunces', serif; font-size:21px; color:var(--navy); margin:0 0 3px;}
 .fig-card-head p{font-size:13px; color:var(--slate); margin:0; line-height:1.45;}
@@ -741,12 +741,15 @@
 
 /* Compact portfolio detail and 12-month view */
 .fig-detail-head{align-items:center;padding:16px 18px;border:1px solid var(--rule);border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(8,26,44,.03)}
-.fig-detail-head h2{font-family:'Fraunces',serif;font-size:22px}
-.fig-detail-head p{font-family:'Inter',sans-serif}
-.book-dash,.book-dash button,.book-dash input,.book-dash select{font-family:'Inter',sans-serif}
-.figures-section-head>div>span,.figures-summary-strip span,.deal-type-title>span,.figures-table th{font-family:'Inter',sans-serif}
-.deal-type-card dd,.ownership-legend strong,.projection-row strong{font-family:'Fraunces',serif}
-.deal-type-card dd{font-size:15px}
+.fig-detail-head h2{font-family:'Fraunces',serif;font-size:23px;font-weight:600;letter-spacing:-.01em}
+.figures-section .figures-section-head h2{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.deal-type-card dd,.ownership-legend strong,.projection-row strong{font-family:'IBM Plex Mono',monospace}
+.deal-type-card dd{font-size:11px}
+.figures-summary-strip strong{font-family:'Fraunces',serif;font-size:22px;font-weight:600}
+.book-month-bar strong{font-family:'Fraunces',serif;font-size:19px;font-weight:600}
+.book-month-kpis b{font-family:'Fraunces',serif;font-size:24px;font-weight:600}
+.book-month-card>strong{font-family:'Fraunces',serif;font-size:15px;font-weight:600}
+.repayment-total>strong{font-family:'Fraunces',serif;font-size:27px;font-weight:600}
 .figures-table th{font-weight:700;letter-spacing:.04em}
 .book-month{padding-bottom:14px!important}
 .book-month-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
@@ -760,4 +763,3 @@
 .book-month-card>small{font-size:9px;line-height:1.35;color:var(--slate)}
 @media (max-width:1100px){.book-month-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:700px){.book-month-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-

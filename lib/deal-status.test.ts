@@ -7,6 +7,8 @@ import {
   isSpecialOverdueArrangement,
   receivedPaymentInLastMonth,
   lastReceivedPaymentDate,
+  isMonthlyBookAmount,
+  currentMonthInstalmentTotals,
 } from "./deal-status";
 
 function assert(cond: unknown, msg: string) {
@@ -191,5 +193,55 @@ assert(
   ) === 1933.07,
   "JWL still shows on the overdue list"
 );
+
+assert(isMonthlyBookAmount(573.42, 573.42), "plain monthly counts");
+assert(isMonthlyBookAmount(1456, 1409), "mid-term rent change still counts");
+assert(!isMonthlyBookAmount(9177.95, 1827.95), "HP140 third-payment lump is not the monthly");
+assert(isMonthlyBookAmount(530.97, 1596.93), "a reduced instalment still counts as this month's rent");
+
+const sept = currentMonthInstalmentTotals(
+  [
+    {
+      live: true,
+      monthly_instalment: 500,
+      amount: 500,
+      status: "paid",
+      due_date: "2026-09-05",
+    },
+    {
+      live: true,
+      monthly_instalment: 500,
+      amount: 500,
+      status: "due",
+      due_date: "2026-09-28",
+    },
+    {
+      live: true,
+      monthly_instalment: 1827.95,
+      amount: 9177.95,
+      status: "due",
+      due_date: "2026-09-30",
+    },
+    {
+      live: false,
+      monthly_instalment: 21072.9,
+      amount: 21072.9,
+      status: "paid",
+      due_date: "2026-09-22",
+    },
+    {
+      live: true,
+      monthly_instalment: 500,
+      amount: 500,
+      status: "paid",
+      due_date: "2026-08-05",
+    },
+  ],
+  "2026-09-01",
+  "2026-10-01"
+);
+assert(sept.collected === 500, `schedule collected, got ${sept.collected}`);
+assert(sept.still_due === 500, `schedule still due, got ${sept.still_due}`);
+assert(sept.due === 1000, `this month due is paid+unpaid rents, got ${sept.due}`);
 
 console.log("deal-status tests ok");
