@@ -52,6 +52,7 @@ function NavIcon({ name }: { name: string }) {
     search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
     folder: <path d="M3 6h7l2 2h9v11H3z"/>,
     staff: <><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 20v-2a5 5 0 0 1 10 0v2M12 20v-2a5 5 0 0 1 10 0v2"/></>,
+    signout: <><path d="M15 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2"/><path d="M19 12H9m10 0-3-3m3 3-3 3"/></>,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -266,7 +267,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <div className="admin-user"><span>{who.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><b>{who}</b></div>
           )}
           <button type="button" className="admin-signout" onClick={signOut}>
-            <NavIcon name="search" /><span>Sign out</span>
+            <NavIcon name="signout" /><span>Sign out</span>
           </button>
           <button type="button" className="admin-collapse" onClick={toggleSidebar} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
             <span aria-hidden="true">{collapsed ? "›" : "‹"}</span><b>{collapsed ? "" : "Collapse sidebar"}</b>

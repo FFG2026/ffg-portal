@@ -212,10 +212,10 @@
 .panel-heading p{font-size:11.5px; color:var(--slate);}
 .panel-heading button{border:0; background:transparent; color:var(--blue-deep); font-size:11px; cursor:pointer; white-space:nowrap;}
 .book-health-chart{display:grid; grid-template-columns:205px minmax(0,1fr); gap:14px; align-items:center;}
-.book-total{display:flex; flex-direction:column;}
-.book-total>span{font-family:'IBM Plex Mono',monospace; color:var(--slate); text-transform:uppercase; letter-spacing:.09em; font-size:9px;}
-.book-total>strong{font-family:'Fraunces',serif; color:var(--navy); font-size:30px; margin:7px 0; white-space:nowrap;}
-.book-total>small{font-size:11px; color:var(--green); font-weight:600;}
+.book-health-chart .book-total{display:flex; flex-direction:column;}
+.book-health-chart .book-total>span{font-family:'IBM Plex Mono',monospace; color:var(--slate); text-transform:uppercase; letter-spacing:.09em; font-size:9px;}
+.book-health-chart .book-total>strong{font-family:'Fraunces',serif; color:var(--navy); font-size:30px; margin:7px 0; white-space:nowrap;}
+.book-health-chart .book-total>small{font-size:11px; color:var(--green); font-weight:600;}
 .book-health .admin-chart{height:150px; gap:5px;}
 .book-health .admin-bars{height:118px;}
 .book-health .admin-legend{margin-top:6px;}
@@ -366,7 +366,7 @@
   .dashboard-hero{grid-template-columns:1fr auto;}.dashboard-date{display:none;}.dashboard-main-grid,.dashboard-bottom-grid{grid-template-columns:1fr;}.book-health-summary{grid-template-columns:repeat(2,1fr);}.book-health-summary>div:nth-child(3){border-left:0;border-top:1px solid #E8ECF1}.book-health-summary>div:nth-child(4){border-top:1px solid #E8ECF1}
 }
 @media (max-width:900px){
-  .admin-shell,.sidebar-collapsed{display:block;}.admin-workspace{margin:0;}.admin-utility{display:none;}.admin-mobile-top{position:sticky;top:0;z-index:55;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#fff;border-bottom:1px solid var(--rule)}.admin-mobile-brand{display:flex;align-items:center;gap:10px;font-family:'Fraunces',serif;font-weight:700;color:var(--navy)}.admin-mobile-brand img{width:28px;height:auto}.admin-menu-button{display:flex;flex-direction:column;gap:4px;padding:9px;border:0;background:transparent}.admin-menu-button span{width:22px;height:2px;background:var(--navy);border-radius:2px}.admin-sidebar,.sidebar-collapsed .admin-sidebar{width:230px;transform:translateX(-100%);padding:14px 12px}.admin-sidebar.mobile-open{transform:translateX(0)}.admin-sidebar-logo,.sidebar-collapsed .admin-sidebar-logo{height:112px}.sidebar-collapsed .admin-logo-full{display:block}.sidebar-collapsed .admin-logo-icon{display:none}.sidebar-collapsed .admin-sidebar nav a span,.sidebar-collapsed .admin-sidebar-label,.sidebar-collapsed .admin-book-switch span,.sidebar-collapsed .admin-user b,.sidebar-collapsed .admin-signout span{display:inline}.sidebar-collapsed .admin-sidebar nav a,.sidebar-collapsed .admin-book-switch a,.sidebar-collapsed .admin-signout{justify-content:flex-start;padding:0 13px}.sidebar-collapsed .admin-user{justify-content:flex-start;padding-inline:10px}.admin-collapse{display:none}.admin-sidebar-scrim{display:block;position:fixed;inset:0;z-index:50;border:0;background:rgba(8,26,44,.42)}.admin-main{padding:12px}.dashboard-hero{grid-template-columns:1fr;padding:18px}.dashboard-hero-actions{flex-wrap:wrap}.dashboard-main-grid,.dashboard-bottom-grid{grid-template-columns:1fr}.book-health-chart{grid-template-columns:1fr}.book-total{align-items:center}.book-health-summary{grid-template-columns:1fr}.book-health-summary>div{border-left:0!important;border-top:1px solid #E8ECF1}.book-health-summary>div:first-child{border-top:0}.cashflow-cards{grid-template-columns:1fr}.action-centre{overflow-x:auto}.recent-panel{overflow-x:auto}
+  .admin-shell,.sidebar-collapsed{display:block;}.admin-workspace{margin:0;}.admin-utility{display:none;}.admin-mobile-top{position:sticky;top:0;z-index:55;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#fff;border-bottom:1px solid var(--rule)}.admin-mobile-brand{display:flex;align-items:center;gap:10px;font-family:'Fraunces',serif;font-weight:700;color:var(--navy)}.admin-mobile-brand img{width:28px;height:auto}.admin-menu-button{display:flex;flex-direction:column;gap:4px;padding:9px;border:0;background:transparent}.admin-menu-button span{width:22px;height:2px;background:var(--navy);border-radius:2px}.admin-sidebar,.sidebar-collapsed .admin-sidebar{width:230px;transform:translateX(-100%);padding:14px 12px}.admin-sidebar.mobile-open{transform:translateX(0)}.admin-sidebar-logo,.sidebar-collapsed .admin-sidebar-logo{height:112px}.sidebar-collapsed .admin-logo-full{display:block}.sidebar-collapsed .admin-logo-icon{display:none}.sidebar-collapsed .admin-sidebar nav a span,.sidebar-collapsed .admin-sidebar-label,.sidebar-collapsed .admin-book-switch span,.sidebar-collapsed .admin-user b,.sidebar-collapsed .admin-signout span{display:inline}.sidebar-collapsed .admin-sidebar nav a,.sidebar-collapsed .admin-book-switch a,.sidebar-collapsed .admin-signout{justify-content:flex-start;padding:0 13px}.sidebar-collapsed .admin-user{justify-content:flex-start;padding-inline:10px}.admin-collapse{display:none}.admin-sidebar-scrim{display:block;position:fixed;inset:0;z-index:50;border:0;background:rgba(8,26,44,.42)}.admin-main{padding:12px}.dashboard-hero{grid-template-columns:1fr;padding:18px}.dashboard-hero-actions{flex-wrap:wrap}.dashboard-main-grid,.dashboard-bottom-grid{grid-template-columns:1fr}.book-health-chart{grid-template-columns:1fr}.book-health-chart .book-total{align-items:center}.book-health-summary{grid-template-columns:1fr}.book-health-summary>div{border-left:0!important;border-top:1px solid #E8ECF1}.book-health-summary>div:first-child{border-top:0}.cashflow-cards{grid-template-columns:1fr}.action-centre{overflow-x:auto}.recent-panel{overflow-x:auto}
 }
 
 /* ================================================================
@@ -525,3 +525,119 @@
 .fig-card-link{display:inline-flex; align-items:center; gap:6px; margin-top:14px; font-size:13px;
   font-weight:600; color:var(--blue-deep);}
 .fig-card-link:hover{text-decoration:underline;}
+
+/* ================================================================
+   Live figures — portfolio detail, restyled to match the dashboard
+   These override the older .book-* slab styling defined above.
+   ================================================================ */
+
+.fig-detail-head{display:flex; align-items:flex-end; justify-content:space-between; gap:18px;
+  margin:30px 0 16px; padding:0 0 14px; border-bottom:1px solid var(--rule);
+  background:none; border-radius:0; color:inherit;}
+.fig-detail-head h2{font-family:'Fraunces', serif; font-size:23px; color:var(--navy); margin:0 0 5px;
+  padding:0; background:none; text-transform:none; letter-spacing:-0.01em; font-weight:600;}
+.fig-detail-head p{margin:0; font-size:13px; color:var(--slate); max-width:76ch; line-height:1.5;}
+.fig-detail-head .book-kicker{font-family:'IBM Plex Mono', monospace; font-size:10.5px;
+  letter-spacing:0.13em; text-transform:uppercase; color:var(--blue-deep); margin:0 0 7px;}
+
+.book-dash{display:flex; flex-direction:column; gap:16px;}
+.book-dash-top{display:grid; grid-template-columns:minmax(0,1.02fr) minmax(0,1fr); gap:16px; align-items:start;}
+.book-dash section{background:#fff; border:1px solid var(--rule); border-radius:14px;
+  overflow:hidden; padding:20px 22px;}
+.book-dash h2{margin:0 0 14px; padding:0; background:none; color:var(--navy);
+  font-family:'Fraunces', serif; font-size:19px; font-weight:600; letter-spacing:-0.01em;
+  text-transform:none;}
+
+/* Key/value summary */
+.book-kv{display:grid; grid-template-columns:1fr auto; gap:0; padding:0;}
+.book-kv dt,.book-kv dd{padding:10px 0; border-bottom:1px solid var(--rule); font-size:13.5px;}
+.book-kv div:last-child dt,.book-kv div:last-child dd{border-bottom:none;}
+.book-kv dt{color:var(--ink-soft);}
+.book-kv dd{text-align:right; font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums;
+  color:var(--navy); font-weight:600; font-size:13px;}
+/* The figures that actually get read first. */
+.book-kv .lead dt{color:var(--navy); font-weight:600;}
+.book-kv .lead dd{font-size:15px; color:var(--navy);}
+
+/* Tables */
+.book-table{width:100%; border-collapse:collapse; font-size:13px;}
+.book-table th{text-align:left; background:none; color:var(--slate);
+  font-family:'IBM Plex Mono', monospace; font-size:10px; font-weight:500; letter-spacing:0.07em;
+  text-transform:uppercase; padding:0 10px 9px; border-bottom:1px solid var(--rule);}
+.book-table th:first-child,.book-table td:first-child{padding-left:0;}
+.book-table th:last-child,.book-table td:last-child{padding-right:0;}
+.book-table td{padding:10px; border-bottom:1px solid var(--rule); color:var(--ink-soft);}
+.book-table td:nth-child(n+2){font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums;
+  text-align:right; color:var(--navy);}
+.book-table th:nth-child(n+2){text-align:right;}
+.book-table tbody tr:last-child td{border-bottom:none;}
+.book-table .book-total td{font-weight:700; background:none; border-top:1.5px solid var(--rule);
+  border-bottom:none; color:var(--navy); padding-top:12px;}
+
+/* A name cell carrying its colour chip, matching the mix donut. */
+.book-name{display:flex; align-items:center; gap:9px; color:var(--navy); font-weight:600;}
+.book-name i{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+.book-initials{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px;
+  border-radius:50%; background:var(--blue-pale); color:var(--blue-deep);
+  font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:600; flex-shrink:0;}
+
+/* Inline share bar — a second reading of the number in the same row. */
+.book-bar{display:block; height:5px; border-radius:99px; background:var(--rule); margin-top:6px;
+  overflow:hidden;}
+.book-bar i{display:block; height:100%; border-radius:99px; background:var(--blue);}
+.book-cell{display:inline-flex; flex-direction:column; align-items:flex-end; gap:0;
+  width:100%; max-width:132px;}
+.book-cell .book-bar{width:100%;}
+
+/* Month stepper */
+.book-month-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:0 0 14px;}
+.book-month-bar strong{font-family:'Fraunces', serif; font-size:19px; color:var(--navy);
+  min-width:118px; text-align:center; font-weight:600;}
+.book-month-bar button{width:32px; height:32px; display:inline-flex; align-items:center;
+  justify-content:center; border-radius:9px; border:1px solid var(--rule); background:#fff;
+  font-weight:600; font-size:14px; color:var(--ink-soft); cursor:pointer;}
+.book-month-bar button:hover:not(:disabled){border-color:var(--blue); color:var(--blue-deep);}
+.book-month-bar button:disabled{opacity:0.35; cursor:default;}
+.book-month-mtd{font-size:11px; font-weight:600; color:#8A6A24; background:var(--gold-pale);
+  border:1px solid var(--gold-border); border-radius:999px; padding:4px 11px; margin-left:auto;}
+
+.book-month-kpis{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;
+  border-bottom:none; margin-bottom:18px;}
+.book-month-kpis div{padding:14px 16px; border:1px solid var(--rule); border-right:1px solid var(--rule);
+  border-radius:12px; background:var(--paper);}
+.book-month-kpis div:first-child{background:#F5FAFF; border-color:#DCEBFA;}
+.book-month-kpis span{display:block; font-size:12px; letter-spacing:0; text-transform:none;
+  font-family:'Inter', sans-serif; color:var(--slate); margin-bottom:5px;}
+.book-month-kpis b{display:block; font-family:'Fraunces', serif; font-size:24px; font-weight:600;
+  color:var(--navy); letter-spacing:-0.01em;}
+
+.book-month-table tbody tr{cursor:pointer;}
+.book-month-table tbody tr:hover td{background:var(--paper);}
+.book-month-table .book-month-on td{background:var(--blue-pale); font-weight:700; color:var(--navy);}
+.book-month-table .book-month-on .book-bar i{background:var(--blue-deep);}
+
+.book-note{padding:0 0 14px; font-size:12.5px; color:var(--slate);}
+
+/* Cash-at-bank field */
+.book-cash{display:flex; align-items:center; justify-content:flex-end; gap:8px;}
+.book-cash input{width:132px; padding:7px 10px; border:1px solid var(--rule); border-radius:9px;
+  text-align:right; font-family:'IBM Plex Mono', monospace; font-size:13px;}
+.book-cash input:focus{outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-pale);}
+.book-cash button{padding:7px 13px; border-radius:9px; border:none; background:var(--navy); color:#fff;
+  font-size:12px; font-weight:600; cursor:pointer;}
+.book-cash button:hover:not(:disabled){background:var(--blue-deep);}
+
+@media (max-width:1180px){
+  .book-dash-top{grid-template-columns:minmax(0,1fr);}
+}
+@media (max-width:820px){
+  /* Let a wide table scroll inside its card rather than be clipped by it. */
+  .book-table{display:block; overflow-x:auto; white-space:nowrap;}
+  .book-table thead,.book-table tbody{display:table; width:100%;}
+  .book-cell{max-width:110px;}
+}
+@media (max-width:640px){
+  .book-month-kpis{grid-template-columns:minmax(0,1fr);}
+  .book-dash section{padding:18px;}
+  .fig-detail-head{flex-direction:column; align-items:flex-start;}
+}

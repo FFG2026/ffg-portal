@@ -6,7 +6,7 @@ import { useBookReload } from "../../../lib/admin-book-reload";
 import PageHero from "../PageHero";
 import type { LivePortfolio } from "../../../lib/portfolio-live";
 import type { GlacierPortfolio } from "../../../lib/glacier-portfolio";
-import type { FiguresDashboard } from "../../../lib/figures-dashboard";
+import { MIX_COLOURS, type FiguresDashboard } from "../../../lib/figures-dashboard";
 import FiguresTop from "./FiguresTop";
 import {
   LATEST_MONTH_KEY,
@@ -28,6 +28,22 @@ const gbp = (n: number | null | undefined) => {
 
 const pct = (n: number) =>
   `${n.toLocaleString("en-GB", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+
+/** A figure with a share bar underneath — the same number, read twice. */
+function BarCell({ value, share }: { value: string; share: number }) {
+  return (
+    <span className="book-cell">
+      {value}
+      <span className="book-bar" aria-hidden="true">
+        <i style={{ width: `${Math.max(0, Math.min(100, share))}%` }} />
+      </span>
+    </span>
+  );
+}
+
+function initialsOf(name: string) {
+  return name.trim().slice(0, 2).toUpperCase();
+}
 
 export default function OwnerFiguresPage() {
   return (
@@ -343,6 +359,10 @@ function MonthAtATime() {
   const row = monthlyFiguresAt(monthKey);
   const prev = neighbouringMonth(monthKey, -1);
   const next = neighbouringMonth(monthKey, 1);
+  // Bars are relative to the best month on the table, not to zero.
+  const peakReceived = Math.max(
+    ...MONTHLY_FIGURES.map((m) => m.payments_received)
+  );
 
   return (
     <section className="book-month">
@@ -396,7 +416,12 @@ function MonthAtATime() {
               onClick={() => setMonthKey(m.key)}
             >
               <td>{monthLabel(m)}</td>
-              <td>{gbp(m.payments_received)}</td>
+              <td>
+                <BarCell
+                  value={gbp(m.payments_received)}
+                  share={peakReceived > 0 ? (m.payments_received / peakReceived) * 100 : 0}
+                />
+              </td>
               <td>{m.new_deals}</td>
               <td>{gbp(m.amount_lent)}</td>
             </tr>
@@ -440,6 +465,7 @@ function FfgFigures({
     0
   );
 
+  const lentTotal = data.by_type.reduce((sum, t) => sum + t.total_lent, 0);
   const asOf = new Date(data.as_of + "T00:00:00").toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
@@ -459,7 +485,7 @@ function FfgFigures({
       {data.dashboard && (
         <FiguresTop dashboard={data.dashboard} bookLabel="Future FG" />
       )}
-      <div className="book-titlebar">
+      <div className="fig-detail-head">
         <div>
           <p className="book-kicker">FFG Deal Book</p>
           <h2>Portfolio detail</h2>
@@ -506,11 +532,11 @@ function FfgFigures({
               <dt>Total paid to date</dt>
               <dd>{gbp(data.summary.total_paid)}</dd>
             </div>
-            <div>
+            <div className="lead">
               <dt>Total remaining outstanding</dt>
               <dd>{gbp(data.summary.total_outstanding)}</dd>
             </div>
-            <div>
+            <div className="lead">
               <dt>Total profit</dt>
               <dd>{gbp(data.summary.total_profit)}</dd>
             </div>
@@ -528,7 +554,7 @@ function FfgFigures({
                 setCashMsg={setCashMsg}
               />
             </div>
-            <div>
+            <div className="lead">
               <dt>Net position (incl. facility)</dt>
               <dd>{gbp(data.summary.net_position)}</dd>
             </div>
@@ -548,11 +574,22 @@ function FfgFigures({
               </tr>
             </thead>
             <tbody>
-              {data.by_type.map((row) => (
+              {data.by_type.map((row, i) => (
                 <tr key={row.type}>
-                  <td>{row.label}</td>
+                  <td>
+                    <span className="book-name">
+                      {/* Same colour this type carries in the mix donut above. */}
+                      <i style={{ background: MIX_COLOURS[i % MIX_COLOURS.length] }} />
+                      {row.label}
+                    </span>
+                  </td>
                   <td>{row.deals}</td>
-                  <td>{gbp(row.total_lent)}</td>
+                  <td>
+                    <BarCell
+                      value={gbp(row.total_lent)}
+                      share={lentTotal > 0 ? (row.total_lent / lentTotal) * 100 : 0}
+                    />
+                  </td>
                   <td>{gbp(row.total_profit)}</td>
                   <td>{pct(row.avg_yield)}</td>
                 </tr>
@@ -582,8 +619,18 @@ function FfgFigures({
             <tbody>
               {data.shareholders.map((row) => (
                 <tr key={row.name}>
-                  <td>{row.name}</td>
-                  <td>{row.shares.toLocaleString("en-GB")}</td>
+                  <td>
+                    <span className="book-name">
+                      <span className="book-initials">{initialsOf(row.name)}</span>
+                      {row.name}
+                    </span>
+                  </td>
+                  <td>
+                    <BarCell
+                      value={row.shares.toLocaleString("en-GB")}
+                      share={(row.shares / data.shares_issued) * 100}
+                    />
+                  </td>
                   <td>{gbp(row.amount_repaid)}</td>
                   <td>{row.total_owed_in != null ? gbp(row.total_owed_in) : ""}</td>
                 </tr>
@@ -613,9 +660,16 @@ function FfgFigures({
             <tbody>
               {data.shareholders.map((row) => (
                 <tr key={row.name}>
-                  <td>{row.name}</td>
+                  <td>
+                    <span className="book-name">
+                      <span className="book-initials">{initialsOf(row.name)}</span>
+                      {row.name}
+                    </span>
+                  </td>
                   <td>{row.shares.toLocaleString("en-GB")}</td>
-                  <td>{pct(row.pct_owned)}</td>
+                  <td>
+                    <BarCell value={pct(row.pct_owned)} share={row.pct_owned} />
+                  </td>
                   <td>{gbp(row.value)}</td>
                   <td>{gbp(row.projected_2030)}</td>
                 </tr>
@@ -710,11 +764,11 @@ function GlacierFigures({
               <dt>Total paid to date</dt>
               <dd>{gbp(data.summary.total_paid)}</dd>
             </div>
-            <div>
+            <div className="lead">
               <dt>Total remaining outstanding</dt>
               <dd>{gbp(data.summary.total_outstanding)}</dd>
             </div>
-            <div>
+            <div className="lead">
               <dt>Total profit</dt>
               <dd>{gbp(data.summary.total_profit)}</dd>
             </div>
@@ -736,7 +790,7 @@ function GlacierFigures({
                 setCashMsg={setCashMsg}
               />
             </div>
-            <div>
+            <div className="lead">
               <dt>Net position</dt>
               <dd>{gbp(data.summary.net_position)}</dd>
             </div>
@@ -761,9 +815,16 @@ function GlacierFigures({
             <tbody>
               {data.shareholders.map((row) => (
                 <tr key={row.name}>
-                  <td>{row.name}</td>
+                  <td>
+                    <span className="book-name">
+                      <span className="book-initials">{initialsOf(row.name)}</span>
+                      {row.name}
+                    </span>
+                  </td>
                   <td>{gbp(row.investment)}</td>
-                  <td>{pct(row.pct_owned)}</td>
+                  <td>
+                    <BarCell value={pct(row.pct_owned)} share={row.pct_owned} />
+                  </td>
                   <td>{gbp(row.value)}</td>
                   <td>{gbp(row.projected_2030)}</td>
                 </tr>
