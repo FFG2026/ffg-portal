@@ -10,6 +10,7 @@ import {
   collectedThisMonthFromLinkedRows,
   amountsClose,
   collectedScheduleAmount,
+  leftoverPaymentsToRecord,
 } from "./match-payments";
 
 function assert(cond: unknown, msg: string) {
@@ -170,6 +171,34 @@ assert(
 assert(
   amountsClose(955.04, 114605) && collectedScheduleAmount(955.04, 114605, 1146.05) === 1146.05,
   "matched FL rent is stored at the VAT-inclusive monthly"
+);
+
+const l4Fifty = {
+  id: "PM01E0YVR7K669",
+  charge_date: "2025-05-12",
+  status: "paid_out" as const,
+  amount: 5000,
+};
+assert(
+  leftoverPaymentsToRecord([l4Fifty], { startDate: "2025-12-06" }).length === 0,
+  "L4 £50 before commencement is not a schedule row"
+);
+assert(
+  leftoverPaymentsToRecord([l4Fifty], { startDate: "2025-12-06", settled: true }).length ===
+    0,
+  "finished deals do not grow leftover GC rows"
+);
+assert(
+  leftoverPaymentsToRecord(
+    [{ id: "PM_EXTRA", charge_date: "2026-05-06", status: "paid_out", amount: 800000 }],
+    { startDate: "2025-12-06" }
+  ).length === 1,
+  "a leftover after start can still be recorded on a live deal"
+);
+assert(
+  leftoverPaymentsToRecord([l4Fifty], { enabled: false, startDate: "2024-01-01" }).length ===
+    0,
+  "batch sync can turn leftovers off"
 );
 
 console.log("match-payments tests ok");
