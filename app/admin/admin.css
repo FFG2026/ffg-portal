@@ -270,7 +270,8 @@
 .page-chip.alert{color:#B4232C;}
 .page-chip.alert.on{background:#B4232C; border-color:#B4232C; color:#fff;}
 .page-table{width:100%; border-collapse:collapse; font-size:13px;}
-.page-table th{text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--slate); padding:9px 8px; border-bottom:1px solid var(--rule);}
+.page-table-scroll{max-height:560px; overflow-y:auto; border:1px solid var(--rule); border-radius:10px;}
+.page-table th{text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--slate); padding:9px 8px; border-bottom:1px solid var(--rule); position:sticky; top:0; background:#fff; z-index:1;}
 .page-table td{padding:11px 8px; border-bottom:1px solid var(--rule); vertical-align:middle;}
 .page-table tbody tr{cursor:pointer;}
 .page-table tbody tr:hover td,.page-table tbody tr.selected td{background:#F5F9FE;}

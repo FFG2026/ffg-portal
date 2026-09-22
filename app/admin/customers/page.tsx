@@ -20,12 +20,12 @@ type Customer = {
   next_payment: string | null;
   missing_details: boolean;
   missing_asset: boolean;
+  gaps: string[];
   status: "active" | "arrears" | "missing";
 };
 
 type Filter = "all" | "active" | "arrears" | "missing";
 
-const PAGE_SIZE = 8;
 const gbp = (n: number) =>
   `£${Number(n).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 const prettyDate = (d: string | null) =>
@@ -51,7 +51,6 @@ function CustomersInner() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Customer[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
-  const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const load = async (query: string) => {
@@ -68,38 +67,37 @@ function CustomersInner() {
     load("");
   }, []);
 
-  useEffect(() => {
-    setPage(1);
-  }, [q, filter]);
-
   const filtered = useMemo(() => {
     if (filter === "all") return rows;
     if (filter === "active") return rows.filter((c) => c.live_count > 0);
     if (filter === "arrears") return rows.filter((c) => c.status === "arrears");
-    return rows.filter((c) => c.status === "missing");
+    return rows.filter((c) => c.missing_details);
   }, [rows, filter]);
 
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected =
-    pageRows.find((c) => c.id === selectedId) || pageRows[0] || filtered[0] || null;
+    filtered.find((c) => c.id === selectedId) || filtered[0] || null;
 
   const liveBorrowers = rows.filter((c) => c.live_count > 0).length;
   const exposure = rows.reduce((sum, c) => sum + c.exposure, 0);
   const portalOn = rows.filter((c) => c.has_portal_login).length;
   const arrears = rows.filter((c) => c.status === "arrears").length;
-  const missing = rows.filter((c) => c.status === "missing").length;
+  const missing = rows.filter((c) => c.missing_details).length;
 
   const attention = rows
     .flatMap((c) => {
       const items: { id: string; company: string; issue: string }[] = [];
-      if (!c.has_portal_login) items.push({ id: c.id, company: c.company_name, issue: "No portal access" });
-      if (!c.email) items.push({ id: c.id, company: c.company_name, issue: "Missing email address" });
-      if (c.missing_asset) items.push({ id: c.id, company: c.company_name, issue: "Missing asset details" });
-      if (c.status === "arrears") items.push({ id: c.id, company: c.company_name, issue: "Payment in arrears" });
+      if (c.status === "arrears") {
+        items.push({ id: c.id, company: c.company_name, issue: "Payment in arrears" });
+      }
+      if (c.missing_details) {
+        items.push({
+          id: c.id,
+          company: c.company_name,
+          issue: (c.gaps || ["No email"]).join(" · "),
+        });
+      }
       return items;
-    })
-    .slice(0, 6);
+    });
 
   const exportCsv = () => {
     const header = ["Company", "Contact", "Email", "Live deals", "Exposure", "Next payment", "Status"];
@@ -211,6 +209,7 @@ function CustomersInner() {
               Missing details ({missing})
             </button>
           </div>
+          <div className="page-table-scroll">
           <table className="page-table">
             <thead>
               <tr>
@@ -224,7 +223,7 @@ function CustomersInner() {
               </tr>
             </thead>
             <tbody>
-              {pageRows.map((c) => (
+              {filtered.map((c) => (
                 <tr
                   key={c.id}
                   className={selected?.id === c.id ? "selected" : ""}
@@ -249,6 +248,9 @@ function CustomersInner() {
                           ? "Missing details"
                           : "Active"}
                     </span>
+                    {c.gaps?.length ? (
+                      <span className="sub">{c.gaps.join(" · ")}</span>
+                    ) : null}
                   </td>
                   <td>
                     <button
@@ -268,26 +270,10 @@ function CustomersInner() {
               ))}
             </tbody>
           </table>
-          <div className="page-pager">
-            <span>
-              Showing {filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0}–
-              {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} customers
-            </span>
-            <div className="page-pager-btns">
-              {Array.from({ length: pages }, (_, i) => i + 1)
-                .slice(0, 10)
-                .map((n) => (
-                  <button
-                    key={n}
-                    className={n === page ? "on" : ""}
-                    onClick={() => setPage(n)}
-                    type="button"
-                  >
-                    {n}
-                  </button>
-                ))}
-            </div>
           </div>
+          <p className="panel-sub" style={{ marginTop: 10, marginBottom: 0 }}>
+            {filtered.length} customers
+          </p>
         </section>
 
         <div className="dashboard-side-stack">
@@ -324,10 +310,16 @@ function CustomersInner() {
                       {selected.status === "arrears"
                         ? "Arrears"
                         : selected.status === "missing"
-                          ? "Needs attention"
+                          ? "Missing details"
                           : "Up to date"}
                     </span>
                   </dd>
+                  {selected.gaps?.length ? (
+                    <>
+                      <dt>Missing</dt>
+                      <dd>{selected.gaps.join(" · ")}</dd>
+                    </>
+                  ) : null}
                 </dl>
                 <div className="snapshot-actions">
                   <button
@@ -357,7 +349,7 @@ function CustomersInner() {
                 <p className="panel-sub">Customers that need your attention.</p>
               </div>
             </div>
-            <div className="attention-list">
+            <div className="attention-list admin-action-scroll">
               {attention.length === 0 && <p className="empty-activity">Nothing flagged.</p>}
               {attention.map((item, index) => (
                 <div className="attention-row" key={`${item.id}-${item.issue}-${index}`}>

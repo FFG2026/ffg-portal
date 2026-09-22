@@ -92,9 +92,11 @@ export async function GET(request: Request) {
           if (!nextPayment || due < nextPayment) nextPayment = due;
         }
       }
-      const missingDetails = !c.email || !c.phone || missingAsset;
-      const status =
-        overdue > 0 ? "arrears" : missingDetails ? "missing" : "active";
+      const gaps: string[] = [];
+      if (!String(c.contact_name || "").trim()) gaps.push("No contact name");
+      if (!String(c.email || "").trim()) gaps.push("No email");
+      const missingDetails = gaps.includes("No email");
+      const status = overdue > 0 ? "arrears" : missingDetails ? "missing" : "active";
       return {
         id: c.id,
         company_name: c.company_name,
@@ -110,6 +112,7 @@ export async function GET(request: Request) {
         next_payment: nextPayment,
         missing_details: missingDetails,
         missing_asset: missingAsset,
+        gaps,
         status,
       };
     })
