@@ -5,7 +5,7 @@ export function normalizePersonName(name: string | null | undefined) {
     .trim();
 }
 
-/** Owner figures page — Owen Brunning only, not the shared staff code. */
+/** Owner figures page — Owen Brunning only. */
 export function isOwenBrunning(user: {
   email?: string | null;
   name?: string | null;
