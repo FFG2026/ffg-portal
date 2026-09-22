@@ -694,3 +694,17 @@
   .figures-section-head{align-items:flex-start;flex-direction:column;gap:6px}.figures-section-head p{text-align:left}.deal-type-cards{grid-template-columns:1fr}.figures-summary-strip{grid-template-columns:1fr}.figures-summary-strip>div{border-left:0;border-top:1px solid #E3E9F0}.figures-summary-strip>div:first-child{border-top:0}
 }
 
+/* Keep Portfolio detail cards on one clean grid */
+.book-dash-top{align-items:stretch}
+.book-dash-top>section{display:flex;flex-direction:column;height:100%}
+.book-dash-top .deal-type-cards{flex:1;align-items:stretch}
+.deal-type-card{display:flex;flex-direction:column;min-width:0;height:100%}
+.deal-type-card h3{min-height:44px}
+.deal-type-card dl{margin-top:auto}
+.figures-summary-strip>div{min-width:0}
+.figures-summary-strip strong{line-height:1.1;white-space:nowrap}
+@media (max-width:1180px){
+  .book-dash-top>section{height:auto}
+  .deal-type-card h3{min-height:0}
+}
+
