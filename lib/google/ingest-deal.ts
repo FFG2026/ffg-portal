@@ -107,6 +107,50 @@ async function detailsFromFolderFiles(
   return details;
 }
 
+async function fillEmptyCustomerFields(
+  supabase: SupabaseClient,
+  customerId: string,
+  details: {
+    contact_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  }
+) {
+  const { data: customer } = await supabase
+    .from("customers")
+      .select("id, company_name, contact_name, email, phone")
+    .eq("id", customerId)
+    .maybeSingle();
+  if (!customer) return false;
+  const patch: Record<string, string> = {};
+  if (!String(customer.contact_name || "").trim() && details.contact_name) {
+    patch.contact_name = String(details.contact_name).trim();
+  }
+  if (!String(customer.phone || "").trim() && details.phone) {
+    const phone = String(details.phone).replace(/\s+/g, "");
+    const { data: owner } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("phone", phone)
+      .maybeSingle();
+    if (!owner || owner.id === customerId) patch.phone = phone;
+  }
+  if (!String(customer.email || "").trim() && details.email) {
+    const email = String(details.email).trim().toLowerCase();
+    if (!/@dcfgroup\.co\.uk$/i.test(email) || /direct commercial finance/i.test(String(customer.company_name || ""))) {
+      const { data: owner } = await supabase
+        .from("customers")
+        .select("id")
+        .ilike("email", email)
+        .maybeSingle();
+      if (!owner || owner.id === customerId) patch.email = email;
+    }
+  }
+  if (!Object.keys(patch).length) return false;
+  await supabase.from("customers").update(patch).eq("id", customerId);
+  return true;
+}
+
 export async function ingestDealFromFolder(
   supabase: SupabaseClient,
   folder: { id: string; name: string; createdTime?: string; modifiedTime?: string }
@@ -151,6 +195,10 @@ export async function ingestDealFromFolder(
       email: details.email || undefined,
       phone: details.phone || undefined,
     });
+  }
+
+  if (customerId) {
+    await fillEmptyCustomerFields(supabase, customerId, details);
   }
 
   const monthly = details.monthly_instalment;
@@ -356,4 +404,70 @@ export async function fillPendingAssetsFromDrive(
     filled,
     errors,
   };
+}
+
+export async function fillMissingCustomerDetailsFromDrive(
+  supabase: SupabaseClient,
+  limit = 40
+) {
+  const customers = await fetchAllRows(() =>
+    supabase
+      .from("customers")
+      .select("id, company_name, contact_name, email, phone")
+  );
+  const missing = customers.filter(
+    (row) =>
+      !/^GG\d+$/i.test(String(row.company_name || "")) &&
+      (!String(row.contact_name || "").trim() ||
+        !String(row.email || "").trim() ||
+        !String(row.phone || "").trim())
+  );
+  const agreements = await fetchAllRows(() =>
+    supabase
+      .from("agreements")
+      .select("customer_id, google_folder_id, google_folder_name, agreement_number")
+  );
+  const filled: string[] = [];
+  const errors: { name: string; error: string }[] = [];
+  let used = 0;
+
+  for (const customer of missing) {
+    if (used >= limit) break;
+    const folders = agreements.filter(
+      (row) =>
+        row.customer_id === customer.id &&
+        row.google_folder_id
+    );
+    for (const folder of folders) {
+      if (used >= limit) break;
+      used += 1;
+      try {
+        await ingestDealFromFolder(supabase, {
+          id: folder.google_folder_id as string,
+          name: folder.google_folder_name || folder.agreement_number,
+        });
+      } catch (err: any) {
+        errors.push({
+          name: folder.agreement_number,
+          error: err.message || "Could not read deal folder",
+        });
+      }
+    }
+    const { data: after } = await supabase
+      .from("customers")
+      .select("contact_name, email, phone")
+      .eq("id", customer.id)
+      .maybeSingle();
+    if (
+      after &&
+      (String(after.contact_name || "").trim() !==
+        String(customer.contact_name || "").trim() ||
+        String(after.email || "").trim() !== String(customer.email || "").trim() ||
+        String(after.phone || "").trim() !== String(customer.phone || "").trim())
+    ) {
+      filled.push(customer.company_name);
+    }
+  }
+
+  return { missing: missing.length, filled, errors };
 }

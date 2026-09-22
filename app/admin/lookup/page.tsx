@@ -7,6 +7,16 @@ import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
 import PageHero from "../PageHero";
 import { notifyBookChanged } from "../../../lib/admin-book-reload";
 
+type RelatedAgreement = {
+  agreement_number: string;
+  agreement_type: string;
+  asset_description: string | null;
+  live: boolean;
+  paid_count: number;
+  term_months: number;
+  settlement_figure: number;
+};
+
 type LookupResult = {
   agreement: {
     agreement_number: string;
@@ -30,6 +40,7 @@ type LookupResult = {
     phone: string | null;
     has_portal_login: boolean;
   } | null;
+  related_agreements?: RelatedAgreement[];
   status: {
     paid_count: number;
     term_months: number;
@@ -72,6 +83,10 @@ type CompanyResult = {
   }[];
 };
 
+function primaryAgreement(agreements: CompanyAgreement[]) {
+  return agreements.find((a) => a.live) || agreements[0] || null;
+}
+
 export default function AgreementLookupPage() {
   return (
     <Suspense>
@@ -107,13 +122,12 @@ function LookupInner() {
 
   const runLookup = async (
     mode: "agreement" | "company",
-    value: string
+    value: string,
+    opts?: { companyName?: string }
   ) => {
     if (!value.trim()) return;
     setLoading(true);
     setError("");
-    setResult(null);
-    setCompanyResult(null);
     try {
       const res = await fetch(
         `/api/admin/agreement-lookup?${mode}=${encodeURIComponent(value.trim())}`,
@@ -121,11 +135,70 @@ function LookupInner() {
       );
       const data = await res.json();
       if (!res.ok) {
+        setResult(null);
+        setCompanyResult(null);
         setError(data.error || "Something went wrong");
-      } else if (data.mode === "company") {
+        return;
+      }
+      if (data.mode === "company") {
+        const only =
+          data.customers.length === 1 ? data.customers[0] : null;
+        const pick = only ? primaryAgreement(only.agreements) : null;
+        if (only && pick) {
+          setCompanyResult(null);
+          setSearchMode("company");
+          setQuery(only.company_name);
+          const agrRes = await fetch(
+            `/api/admin/agreement-lookup?agreement=${encodeURIComponent(
+              pick.agreement_number
+            )}`,
+            { headers: adminHeaders() }
+          );
+          const agr = await agrRes.json();
+          if (!agrRes.ok) {
+            setResult(null);
+            setCompanyResult(data);
+            setError(agr.error || "Something went wrong");
+            return;
+          }
+          setResult(agr);
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            url.searchParams.set("company", only.company_name);
+            url.searchParams.set("agreement", pick.agreement_number);
+            window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+          }
+          return;
+        }
+        setResult(null);
         setCompanyResult(data);
-      } else {
-        setResult(data);
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("agreement");
+          url.searchParams.set("company", value.trim());
+          window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+        }
+        return;
+      }
+      setCompanyResult(null);
+      setResult(data);
+      const companyName =
+        opts?.companyName ||
+        (searchMode === "company" ? query : "");
+      if (companyName) {
+        setSearchMode("company");
+        setQuery(companyName);
+      }
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (companyName) {
+          url.searchParams.set("company", companyName);
+          url.searchParams.set("agreement", value.trim());
+        } else {
+          url.searchParams.delete("company");
+          url.searchParams.set("agreement", value.trim());
+        }
+        window.history.replaceState({}, "", `${url.pathname}${url.search}`);
       }
     } catch {
       setError("Couldn't reach the server — try again.");
@@ -135,8 +208,17 @@ function LookupInner() {
   };
 
   useEffect(() => {
+    const company = searchParams.get("company");
     const preset = searchParams.get("agreement");
-    if (preset) {
+    if (company && preset) {
+      setQuery(company);
+      setSearchMode("company");
+      runLookup("agreement", preset, { companyName: company });
+    } else if (company) {
+      setQuery(company);
+      setSearchMode("company");
+      runLookup("company", company);
+    } else if (preset) {
       setQuery(preset);
       setSearchMode("agreement");
       runLookup("agreement", preset);
@@ -255,7 +337,9 @@ function LookupInner() {
                         <span
                           className="lookup-toggle"
                           onClick={() =>
-                            runLookup("agreement", a.agreement_number)
+                            runLookup("agreement", a.agreement_number, {
+                              companyName: c.company_name,
+                            })
                           }
                         >
                           Open
@@ -292,6 +376,41 @@ function LookupInner() {
                   {result.customer.has_portal_login
                     ? " · portal linked"
                     : " · no portal login yet"}
+                </div>
+              )}
+              {(result.related_agreements || []).length > 1 && (
+                <div className="lookup-related">
+                  <div className="lookup-related-label">
+                    {(result.related_agreements || []).length} agreements
+                  </div>
+                  <div className="lookup-related-list">
+                    {(result.related_agreements || []).map((a) => {
+                      const on =
+                        a.agreement_number ===
+                        result.agreement.agreement_number;
+                      return (
+                        <button
+                          key={a.agreement_number}
+                          type="button"
+                          className={`lookup-related-chip ${on ? "on" : ""}`}
+                          disabled={loading || on}
+                          onClick={() =>
+                            runLookup("agreement", a.agreement_number, {
+                              companyName:
+                                result.customer?.company_name || undefined,
+                            })
+                          }
+                        >
+                          <strong>{a.agreement_number}</strong>
+                          <span
+                            className={`lookup-status ${a.live ? "live" : "finished"}`}
+                          >
+                            {a.live ? "Live" : "Done"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

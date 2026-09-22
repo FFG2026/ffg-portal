@@ -32,15 +32,29 @@ function after(label: RegExp, text: string) {
 }
 
 function titleCaseName(value: string) {
-  return value
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .map((w) => {
-      if (/^(ltd|plc|uk|llp)$/i.test(w)) return w.toUpperCase();
-      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-    })
-    .join(" ");
+  const words = (part: string) =>
+    part
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => {
+        if (/^(ltd|plc|uk|llp)$/i.test(w)) return w.toUpperCase();
+        if (w.includes("-")) {
+          return w
+            .split("-")
+            .map((bit) => bit.charAt(0).toUpperCase() + bit.slice(1).toLowerCase())
+            .join("-");
+        }
+        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      })
+      .join(" ");
+  const trimmed = String(value || "").replace(/\s+/g, " ").trim();
+  if (trimmed.includes(",")) {
+    const [last, first] = trimmed.split(",").map((part) => part.trim());
+    if (first && last) return `${words(first)} ${words(last)}`;
+  }
+  return words(trimmed);
 }
 
 function stripConditionAndPrice(line: string) {
@@ -168,12 +182,15 @@ export function parseAgreementPdfText(text: string): ParsedAgreementPdf {
     company = titleCaseName(company);
   }
 
-  const email = after(/Email:\s*([^\s\n]+)/i, blob);
+  const email = after(/Email(?: address for notices)?:\s*([^\s\n]+)/i, blob);
   const contact = after(
-    /Main Contact Name:\s*([\s\S]*?)(?:Address:|Telephone)/i,
+    /M[ao]in Contact Name:\s*([\s\S]*?)(?:Address:|Telephone)/i,
     blob
   );
-  const phone = after(/Telephone Number:\s*([0-9\s]+)/i, blob);
+  const phone = after(
+    /Telephone(?: Number| No\.?)?:\s*([0-9\s]+)/i,
+    blob
+  );
 
   const manufactureBlock = blob.match(
     /OF MANUFACTURE\s*([\s\S]*?)(?:Separate Goods Schedule|FINANCIAL DETAILS|AMOUNT OF EACH|HIRE PAYMENTS)/i

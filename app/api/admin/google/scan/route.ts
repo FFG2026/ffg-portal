@@ -4,6 +4,7 @@ import { authorizeAdminRequest } from "../../../../../lib/admin";
 import { scanDealFolders } from "../../../../../lib/google/drive";
 import {
   fillPendingAssetsFromDrive,
+  fillMissingCustomerDetailsFromDrive,
   ingestDealFromFolder,
 } from "../../../../../lib/google/ingest-deal";
 import { parseDealFolderTitle } from "../../../../../lib/google/folder-match";
@@ -53,6 +54,10 @@ export async function POST(request: Request) {
       ? await fillPendingAssetsFromDrive(supabase, 12)
       : { pending: 0, filled: [] as string[], errors: [] as { name: string; error: string }[] };
     ingest_errors.push(...assets.errors);
+    const contacts = ingest
+      ? await fillMissingCustomerDetailsFromDrive(supabase, 30)
+      : { filled: [] as string[], errors: [] as { name: string; error: string }[] };
+    ingest_errors.push(...contacts.errors);
     return NextResponse.json({
       ...result,
       unmatched_folders: result.unmatched_folders.filter((folder) => {
@@ -61,6 +66,7 @@ export async function POST(request: Request) {
       }),
       created_from_drive: created,
       filled_assets: assets.filled,
+      filled_customers: contacts.filled,
       pending_assets: assets.pending,
       ingest_errors,
     });

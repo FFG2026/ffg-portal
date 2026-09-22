@@ -26,6 +26,7 @@ type ScanResult = {
   missing_in_drive: string[];
   created_from_drive?: string[];
   filled_assets?: string[];
+  filled_customers?: string[];
   pending_assets?: number;
   ingest_errors?: { name: string; error: string }[];
 };
@@ -262,6 +263,9 @@ function DriveInner() {
               : ""}{" "}
             {(scan.filled_assets || []).length
               ? ` Filled assets on ${(scan.filled_assets || []).join(", ")}.`
+              : ""}{" "}
+            {(scan.filled_customers || []).length
+              ? ` Filled customer details for ${(scan.filled_customers || []).join(", ")}.`
               : ""}{" "}
             {scan.missing_in_drive.length} book deals still have no folder.
           </p>

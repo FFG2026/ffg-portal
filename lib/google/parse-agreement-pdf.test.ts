@@ -45,6 +45,26 @@ assert(parsed.company_name === "Rochester Utilities LTD", parsed.company_name ||
 assert(parsed.email === "gavin@rochesterutilities.co.uk", "email");
 assert(parsed.contact_name === "Gavin Coward", parsed.contact_name || "contact");
 assert(parsed.phone === "01634710293", "phone");
+
+const sevenDays = parseAgreementPdfText(`
+Full Name: 7 DAYS RECRUITMENT & SERVICES LTD
+Email: agnaldo@7daysservices.com
+Moin Contact Name: Agnaldo Da Silva Espindola
+Address: Unit 4 Cliffside Estate
+Telephone Number: 07912 345678
+`);
+assert(sevenDays.contact_name === "Agnaldo Da Silva Espindola", sevenDays.contact_name || "7 days contact");
+assert(sevenDays.email === "agnaldo@7daysservices.com", "7 days email");
+assert(sevenDays.phone === "07912345678", "7 days phone");
+
+const flLessee = parseAgreementPdfText(`
+Email address for notices:
+david@asbestosgone.co.uk
+Agreement No.:
+FL00005 Telephone No: 07455285505 The The Goods
+`);
+assert(flLessee.email === "david@asbestosgone.co.uk", "FL email");
+assert(flLessee.phone === "07455285505", "FL phone");
 assert(parsed.purchase_price === 66000, "price");
 assert(parsed.customer_deposit === 1630.88, "deposit");
 assert(parsed.total_lend === 64369.12, "lend");

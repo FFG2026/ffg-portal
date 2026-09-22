@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
-import { isAuthorizedAdmin } from "../../../../lib/admin";
 import {
   signAdminSession,
   verifyPassword,
@@ -11,21 +10,12 @@ export const fetchCache = "force-no-store";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const secret = String(body.secret || "").trim();
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
 
-  if (secret && isAuthorizedAdmin(secret)) {
-    return NextResponse.json({
-      token: secret,
-      email: "staff",
-      name: "Staff",
-    });
-  }
-
   if (!email || !password) {
     return NextResponse.json(
-      { error: "Enter your email and password, or the staff code." },
+      { error: "Enter your email and password." },
       { status: 400 }
     );
   }

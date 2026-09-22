@@ -318,6 +318,14 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
 .lookup-status.finished{background:var(--rule); color:var(--slate);}
 .lookup-company{font-size:15px; font-weight:600; color:var(--ink); margin-bottom:2px;}
 .lookup-email{font-size:12.5px; color:var(--slate); margin-bottom:14px;}
+.lookup-related{margin:-4px 0 14px;}
+.lookup-related-label{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--slate); margin-bottom:8px;}
+.lookup-related-list{display:flex; flex-wrap:wrap; gap:8px;}
+.lookup-related-chip{display:inline-flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid var(--rule); border-radius:8px; background:#fff; color:var(--ink); cursor:pointer; font-size:13px;}
+.lookup-related-chip:hover{border-color:var(--blue); color:var(--blue-deep);}
+.lookup-related-chip.on{border-color:var(--blue); background:var(--blue-pale); color:var(--blue-deep); cursor:default;}
+.lookup-related-chip:disabled{opacity:1;}
+.lookup-related-chip .lookup-status{margin:0;}
 .lookup-hero{display:grid; grid-template-columns:minmax(180px,0.9fr) minmax(0,1.1fr); gap:14px; margin-bottom:14px; align-items:stretch;}
 .lookup-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; padding:12px 14px; border:1px solid var(--rule); border-radius:10px; background:var(--paper);}
 .lookup-item-wide{grid-column:1 / -1;}

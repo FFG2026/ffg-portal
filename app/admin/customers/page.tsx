@@ -83,6 +83,12 @@ function CustomersInner() {
   const arrears = rows.filter((c) => c.status === "arrears").length;
   const missing = rows.filter((c) => c.missing_details).length;
 
+  const openCustomerCard = (companyName: string) => {
+    router.push(
+      `${base}/lookup?company=${encodeURIComponent(companyName)}`
+    );
+  };
+
   const attention = rows
     .flatMap((c) => {
       const items: { id: string; company: string; issue: string }[] = [];
@@ -230,7 +236,16 @@ function CustomersInner() {
                   onClick={() => setSelectedId(c.id)}
                 >
                   <td>
-                    <strong>{c.company_name}</strong>
+                    <button
+                      type="button"
+                      className="customer-name-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCustomerCard(c.company_name);
+                      }}
+                    >
+                      <strong>{c.company_name}</strong>
+                    </button>
                     <span className="sub">{c.agreements.slice(0, 3).join(", ")}</span>
                   </td>
                   <td>
@@ -258,9 +273,7 @@ function CustomersInner() {
                       className="view-agreement"
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push(
-                          `${base}/agreements?q=${encodeURIComponent(c.company_name)}`
-                        );
+                        openCustomerCard(c.company_name);
                       }}
                     >
                       View →
@@ -281,7 +294,19 @@ function CustomersInner() {
             <div className="page-panel-head">
               <div>
                 <h2>Customer snapshot</h2>
-                <p className="panel-sub">{selected?.company_name || "Select a customer"}</p>
+                <p className="panel-sub">
+                  {selected ? (
+                    <button
+                      type="button"
+                      className="customer-name-btn"
+                      onClick={() => openCustomerCard(selected.company_name)}
+                    >
+                      {selected.company_name}
+                    </button>
+                  ) : (
+                    "Select a customer"
+                  )}
+                </p>
               </div>
               <button
                 type="button"
@@ -298,8 +323,12 @@ function CustomersInner() {
                   <dd>{selected.contact_name || "—"}</dd>
                   <dt>Email</dt>
                   <dd>{selected.email || "—"}</dd>
-                  <dt>Live agreements</dt>
-                  <dd>{selected.live_count}</dd>
+                  <dt>Agreements</dt>
+                  <dd>
+                    {selected.agreements.length
+                      ? `${selected.agreements.length} (${selected.live_count} live)`
+                      : "—"}
+                  </dd>
                   <dt>Total exposure</dt>
                   <dd>{gbp(selected.exposure)}</dd>
                   <dt>Next payment</dt>
@@ -321,15 +350,29 @@ function CustomersInner() {
                     </>
                   ) : null}
                 </dl>
+                {selected.agreements.length > 0 && (
+                  <div className="snapshot-agreements">
+                    {selected.agreements.map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        className="snapshot-agreement-chip"
+                        onClick={() =>
+                          router.push(
+                            `${base}/lookup?agreement=${encodeURIComponent(num)}`
+                          )
+                        }
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="snapshot-actions">
                   <button
                     className="primary"
                     type="button"
-                    onClick={() =>
-                      router.push(
-                        `${base}/lookup?agreement=${encodeURIComponent(selected.agreements[0] || "")}`
-                      )
-                    }
+                    onClick={() => openCustomerCard(selected.company_name)}
                   >
                     Open customer →
                   </button>
@@ -360,11 +403,7 @@ function CustomersInner() {
                   <button
                     type="button"
                     className="view-agreement"
-                    onClick={() =>
-                      router.push(
-                        `${base}/agreements?q=${encodeURIComponent(item.company)}`
-                      )
-                    }
+                    onClick={() => openCustomerCard(item.company)}
                   >
                     View →
                   </button>
