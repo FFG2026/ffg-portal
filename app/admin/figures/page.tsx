@@ -399,35 +399,21 @@ function MonthAtATime() {
           <b>{gbp(row.amount_lent)}</b>
         </div>
       </div>
-      <table className="book-table book-month-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Payments received</th>
-            <th>New deals</th>
-            <th>Amount lent</th>
-          </tr>
-        </thead>
-        <tbody>
-          {MONTHLY_FIGURES.map((m) => (
-            <tr
-              key={m.key}
-              className={m.key === row.key ? "book-month-on" : undefined}
-              onClick={() => setMonthKey(m.key)}
-            >
-              <td>{monthLabel(m)}</td>
-              <td>
-                <BarCell
-                  value={gbp(m.payments_received)}
-                  share={peakReceived > 0 ? (m.payments_received / peakReceived) * 100 : 0}
-                />
-              </td>
-              <td>{m.new_deals}</td>
-              <td>{gbp(m.amount_lent)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="book-month-grid">
+        {MONTHLY_FIGURES.map((m) => (
+          <button
+            type="button"
+            key={m.key}
+            className={m.key === row.key ? "book-month-card on" : "book-month-card"}
+            onClick={() => setMonthKey(m.key)}
+          >
+            <span>{monthLabel(m)}</span>
+            <strong>{gbp(m.payments_received)}</strong>
+            <i><b style={{ width: `${peakReceived > 0 ? (m.payments_received / peakReceived) * 100 : 0}%` }} /></i>
+            <small>{m.new_deals} deals · {gbp(m.amount_lent)} lent</small>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
