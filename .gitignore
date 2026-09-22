@@ -1,0 +1,22 @@
+# Dependencies
+/node_modules
+
+# Next.js build output
+/.next/
+/out/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Environment variables — never commit these. The Supabase service-role
+# key and GoCardless tokens live here and bypass all row-level security.
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel
+
+# Logs and OS noise
+*.log
+.DS_Store
