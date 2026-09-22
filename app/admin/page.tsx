@@ -15,7 +15,6 @@ type Dashboard = {
     outstanding: number;
     overdue: number;
     due_this_month: number;
-    scheduled_collected_this_month?: number;
     collected_this_month: number;
     collected_count?: number | null;
     collected_from_gocardless?: boolean;
@@ -117,9 +116,8 @@ function DashboardInner() {
 
   const collected = data?.totals.collected_this_month || 0;
   const stillDue = data?.totals.due_this_month || 0;
-  const scheduledCollected = data?.totals.scheduled_collected_this_month ?? collected;
-  const collectionTotal = scheduledCollected + stillDue;
-  const collectionRate = collectionTotal > 0 ? Math.round((scheduledCollected / collectionTotal) * 100) : 0;
+  const collectionTotal = collected + stillDue;
+  const collectionRate = collectionTotal > 0 ? Math.round((collected / collectionTotal) * 100) : 0;
   const updatedTime = data?.generated_at
     ? new Date(data.generated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
     : "—";
@@ -210,7 +208,7 @@ function DashboardInner() {
               <div className="book-health-summary">
                 <div className="collection-rate" style={{ "--rate": `${collectionRate * 3.6}deg` } as React.CSSProperties}>
                   <div><strong>{collectionRate}%</strong></div>
-                  <p><b>Collection rate</b><span>{gbp(scheduledCollected)} collected<br />of {gbp(collectionTotal)} due</span></p>
+                  <p><b>Collection rate</b><span>{gbp(collected)} collected<br />of {gbp(collectionTotal)} due</span></p>
                 </div>
                 <div className="health-metric"><span className="metric-icon blue">▤</span><p>Live agreements<strong>{data.totals.live}</strong><small>{data.totals.finished} finished</small></p></div>
                 <div className="health-metric"><span className="metric-icon green">▥</span><p>Collected this month<strong className="green-text">{gbp(collected)}</strong><small>{data.totals.collected_count ?? "—"} paid-out collections</small></p></div>
