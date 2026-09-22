@@ -277,26 +277,28 @@ function DashboardInner() {
                 ))}</tbody>
               </table>
             </section>
-            <section className="dashboard-panel cashflow-panel">
-              <div className="panel-heading"><div><h2>Cashflow outlook</h2><p>Expected receipts from existing agreements.</p></div></div>
-              <div className="cashflow-cards">
-                {data.cashflow.map((item, index) => (
-                  <div className={`cashflow-card tone-${index}`} key={item.days}>
-                    <span>▣</span><p>Next {item.days} days<strong>{gbp(item.amount)}</strong><small>{item.count} instalments</small></p>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section className="dashboard-panel recent-panel">
-              <div className="panel-heading"><div><h2>Recent activity</h2><p>Latest payments across your book.</p></div></div>
-              {data.recent_activity.length ? (
-                <table>
-                  <tbody>{data.recent_activity.map((item, index) => (
-                    <tr key={`${item.date}-${item.agreement_number}-${index}`}><td><i /></td><td>{new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</td><td>{item.description}</td><td>{item.agreement_number}</td><td>{item.source}</td></tr>
-                  ))}</tbody>
-                </table>
-              ) : <p className="empty-activity">No recent payments to show.</p>}
-            </section>
+            <div className="dashboard-side-stack">
+              <section className="dashboard-panel cashflow-panel compact-cashflow">
+                <div className="panel-heading"><div><h2>Cashflow outlook</h2><p>Expected receipts from existing agreements.</p></div></div>
+                <div className="cashflow-cards">
+                  {data.cashflow.map((item, index) => (
+                    <div className={`cashflow-card tone-${index}`} key={item.days}>
+                      <span>▣</span><p>Next {item.days} days<strong>{gbp(item.amount)}</strong><small>{item.count} instalments</small></p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="dashboard-panel recent-panel">
+                <div className="panel-heading"><div><h2>Recent activity</h2><p>Latest payments across your book.</p></div></div>
+                {data.recent_activity.length ? (
+                  <table>
+                    <tbody>{data.recent_activity.map((item, index) => (
+                      <tr key={`${item.date}-${item.agreement_number}-${index}`}><td><i /></td><td>{new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</td><td>{item.description}</td><td>{item.agreement_number}</td><td>{item.source}</td></tr>
+                    ))}</tbody>
+                  </table>
+                ) : <p className="empty-activity">No recent payments to show.</p>}
+              </section>
+            </div>
           </div>
         </>
       )}
