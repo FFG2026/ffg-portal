@@ -43,6 +43,8 @@ function scoreDealPdf(file: DriveFile) {
   if (name.includes("signed docs")) score += 2;
   if (name.includes("invoice") || name.startsWith("inv")) score -= 8;
   if (name.includes("guarantee") || name.includes("proposal")) score -= 5;
+  if (/fl0*\d+/i.test(name)) score += 2;
+  if (/fl0*\d+-\d+/i.test(name)) score += 3;
   return score;
 }
 
@@ -102,6 +104,23 @@ async function detailsFromFolderFiles(
       if (details.asset_description && details.monthly_instalment) break;
     } catch {
       // Try the next signed agreement / goods schedule in the folder.
+    }
+  }
+  if (!details.asset_description) {
+    const invoices = files.filter(
+      (f) =>
+        (f.mimeType === "application/pdf" || /\.pdf$/i.test(f.name)) &&
+        /invoice/i.test(f.name)
+    );
+    for (const pdf of invoices.slice(0, 4)) {
+      try {
+        const buffer = await downloadDriveFile(accessToken, pdf.id);
+        const fromPdf = await parseAgreementPdfBuffer(buffer);
+        details = mergeParsed(details, fromPdf);
+        if (details.asset_description) break;
+      } catch {
+        // Ignore unreadable invoices.
+      }
     }
   }
   return details;
