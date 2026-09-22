@@ -220,42 +220,42 @@ function DashboardInner() {
               <div className="panel-heading"><div><h2>Action centre</h2><p>Agreements that need your attention.</p></div><button onClick={() => router.push(`${base}/agreements`)}>View all agreements →</button></div>
               <div className="overdue-alert"><span>!</span><div><small>Total overdue</small><strong>{gbp(data.totals.overdue)}</strong></div><p>No payment in the last month</p></div>
               <h3>Priority agreements</h3>
-              {data.attention.length === 0 ? (
-                <p className="admin-lead">Nothing flagged.</p>
+              {!data.attention.some((row) => row.amount != null) ? (
+                <p className="admin-lead">No overdue agreements.</p>
               ) : (
-                <table className="admin-attn">
-                  <thead>
-                    <tr>
-                      <th>Agreement</th>
-                      <th>Customer</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.attention.filter((row) => row.amount != null).slice(0, 3).map((row) => (
-                      <tr
-                        key={row.agreement_number + row.reason}
-                        onClick={() =>
-                          router.push(
-                            `${base}/agreements?q=${encodeURIComponent(
-                              row.agreement_number
-                            )}`
-                          )
-                        }
-                      >
-                        <td>
-                          <strong>{row.agreement_number}</strong>
-                        </td>
-                        <td>{row.company_name}</td>
-                        <td className="mono"><strong>{row.amount != null ? gbp(row.amount) : "—"}</strong></td>
-                        <td><span className="admin-pill">Overdue</span></td>
-                        <td><button className="view-agreement">View →</button></td>
+                <div className="overdue-scroll">
+                  <table className="admin-attn">
+                    <thead>
+                      <tr>
+                        <th>Agreement</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {data.attention.filter((row) => row.amount != null).map((row) => (
+                        <tr
+                          key={row.agreement_number + row.reason}
+                          onClick={() =>
+                            router.push(
+                              `${base}/agreements?q=${encodeURIComponent(
+                                row.agreement_number
+                              )}`
+                            )
+                          }
+                        >
+                          <td><strong>{row.agreement_number}</strong></td>
+                          <td>{row.company_name}</td>
+                          <td className="mono"><strong>{row.amount != null ? gbp(row.amount) : "—"}</strong></td>
+                          <td><span className="admin-pill">Overdue</span></td>
+                          <td><button className="view-agreement">View →</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </section>
           </div>
