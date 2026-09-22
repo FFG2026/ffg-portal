@@ -43,6 +43,13 @@ export async function GET(request: Request) {
     const [y, m] = monthStart.split("-").map(Number);
     return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
   })();
+  const chartMonths: string[] = [];
+  const cursor = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 12, 1));
+  for (let i = 0; i < 12; i++) {
+    chartMonths.push(cursor.toISOString().slice(0, 7));
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  const chartStart = `${chartMonths[0]}-01`;
 
   let agreements;
   let payments;
@@ -50,13 +57,14 @@ export async function GET(request: Request) {
   let gcCollectedThisMonth = 0;
   let gcMonthLoaded = false;
   let gcMonthCount = 0;
+  let gcHistory: any[] = [];
   try {
     [agreements, customers] = await Promise.all([
       fetchAllRows(() =>
         supabase
           .from("agreements")
           .select(
-            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, gocardless_mandate_id, total_lend, status, book"
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, written_date, gocardless_mandate_id, total_lend, status, book"
           )
           .eq("book", book)
       ),
@@ -65,12 +73,16 @@ export async function GET(request: Request) {
 
     if (book === "ffg" && process.env.GOCARDLESS_ACCESS_TOKEN) {
       try {
-        const gcMonth = await Promise.race([
-          fetchGoCardlessPaymentsChargedBetween(monthStart, nextMonth),
+        gcHistory = await Promise.race([
+          fetchGoCardlessPaymentsChargedBetween(chartStart, nextMonth),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("GoCardless timed out")), 25000)
           ),
         ]);
+        const gcMonth = gcHistory.filter((payment) => {
+          const charged = String(payment.charge_date || "").slice(0, 10);
+          return charged >= monthStart && charged < nextMonth;
+        });
         gcCollectedThisMonth = paidOutPoundsFromGoCardlessPayments(gcMonth);
         gcMonthCount = gcMonth.length;
         gcMonthLoaded = true;
@@ -106,6 +118,10 @@ export async function GET(request: Request) {
     list.push(p);
     paymentsByAgreement.set(p.agreement_id, list);
   }
+
+  const agreementNumberById = new Map(
+    (agreements || []).map((agreement) => [agreement.id, agreement.agreement_number as string])
+  );
 
   const liveById = new Map<string, boolean>();
   for (const a of agreements || []) {
@@ -164,16 +180,29 @@ export async function GET(request: Request) {
     outstanding += unpaidSum(rows) - od;
   }
 
-  const chartMonths: string[] = [];
-  const cursor = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 12, 1));
-  for (let i = 0; i < 12; i++) {
-    chartMonths.push(cursor.toISOString().slice(0, 7));
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  if (gcMonthLoaded) {
+    for (const month of chartMonths) {
+      const bucket = monthMap.get(month) || { paid: 0, unpaid: 0 };
+      bucket.paid = paidOutPoundsFromGoCardlessPayments(
+        gcHistory.filter((payment) => String(payment.charge_date || "").slice(0, 7) === month)
+      );
+      monthMap.set(month, bucket);
+    }
   }
 
   const chart = chartMonths.map((month) => {
     const b = monthMap.get(month) || { paid: 0, unpaid: 0 };
     return { month, paid: round2(b.paid), unpaid: round2(b.unpaid) };
+  });
+  const lending = chartMonths.map((month) => {
+    const deals = (agreements || []).filter(
+      (agreement) => String(agreement.written_date || agreement.start_date || "").slice(0, 7) === month
+    );
+    return {
+      month,
+      deals: deals.length,
+      total_lent: round2(deals.reduce((sum, agreement) => sum + num(agreement.total_lend), 0)),
+    };
   });
 
   type Attention = {
@@ -241,6 +270,36 @@ export async function GET(request: Request) {
 
   attention.sort((a, b) => (b.amount || 0) - (a.amount || 0));
 
+  const todayUtc = new Date(`${today}T00:00:00.000Z`);
+  const cashflow = [30, 60, 90].map((days) => {
+    const end = new Date(todayUtc);
+    end.setUTCDate(end.getUTCDate() + days);
+    const endDate = end.toISOString().slice(0, 10);
+    const upcoming = (payments || []).filter(
+      (payment) =>
+        !isPaidRow(payment.status) &&
+        liveById.get(payment.agreement_id) !== false &&
+        payment.due_date >= today &&
+        payment.due_date <= endDate
+    );
+    return {
+      days,
+      amount: round2(upcoming.reduce((sum, payment) => sum + num(payment.amount), 0)),
+      count: upcoming.length,
+    };
+  });
+
+  const recentActivity = (payments || [])
+    .filter((payment) => isPaidRow(payment.status) && payment.paid_date)
+    .sort((a, b) => String(b.paid_date).localeCompare(String(a.paid_date)))
+    .slice(0, 4)
+    .map((payment) => ({
+      date: payment.paid_date,
+      description: `Payment received (${formatGbp(num(payment.amount))})`,
+      agreement_number: agreementNumberById.get(payment.agreement_id) || "—",
+      source: String(payment.source || "Book"),
+    }));
+
   return NextResponse.json(
     {
     generated_at: new Date().toISOString(),
@@ -258,7 +317,10 @@ export async function GET(request: Request) {
       no_mandate: noMandate,
     },
     chart,
+    lending,
     attention: attention.slice(0, 40),
+    cashflow,
+    recent_activity: recentActivity,
     },
     { headers: NO_CACHE }
   );
@@ -270,4 +332,8 @@ export async function POST(request: Request) {
 
 function round2(n: number) {
   return Math.round(n * 100) / 100;
+}
+
+function formatGbp(n: number) {
+  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
