@@ -4,8 +4,6 @@ import {
 } from "./client";
 import {
   matchGcPaymentsToInstalments,
-  unmatchedCollectedPayments,
-  leftoverPaymentsToRecord,
   scheduleCollectionsOnly,
   amountsClose,
   collectedScheduleAmount,
@@ -19,7 +17,6 @@ import {
   financeLeaseScheduleNeedsRepair,
   rebuildFinanceLeaseSchedule,
 } from "../schedule";
-import { planPartSettlement } from "../part-settlement";
 import { createAdminClient } from "../supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -28,6 +25,9 @@ export type AgreementToSync = {
   id: string;
   agreement_number?: string;
   gocardless_mandate_id: string | null;
+  monthly_instalment?: number | string | null;
+  /** More than one live agreement on this mandate — unlabelled GC stays unmatched. */
+  mandateShared?: boolean;
 };
 
 export type SyncResult = {
@@ -66,21 +66,45 @@ export function paymentsForAgreement(
   agreement: AgreementToSync
 ): GoCardlessPayment[] {
   const number = (agreement.agreement_number || "").toUpperCase();
+  const monthly = Number(agreement.monthly_instalment || 0);
   const mapped = (gcRaw || []).map(asGcPayment);
   return mapped.filter((p) => {
     if (p.agreement_number) return p.agreement_number === number;
-    return (
-      !!agreement.gocardless_mandate_id &&
-      p.mandateId === agreement.gocardless_mandate_id
-    );
+    if (
+      !agreement.gocardless_mandate_id ||
+      p.mandateId !== agreement.gocardless_mandate_id
+    ) {
+      return false;
+    }
+    // Shared mandates (one customer, many HPs) only tick from HP41/3-style refs.
+    if (agreement.mandateShared) return false;
+    // Deposits / other lumps on this mandate are not monthly Direct Debits.
+    if (monthly > 0 && !amountsClose(monthly, p.amount)) return false;
+    return true;
   });
+}
+
+export function withPaymentMatchContext(
+  agreements: AgreementToSync[]
+): AgreementToSync[] {
+  const mandateCounts = new Map<string, number>();
+  for (const agreement of agreements) {
+    const mandate = agreement.gocardless_mandate_id;
+    if (!mandate) continue;
+    mandateCounts.set(mandate, (mandateCounts.get(mandate) || 0) + 1);
+  }
+  return agreements.map((agreement) => ({
+    ...agreement,
+    mandateShared:
+      agreement.mandateShared ??
+      (mandateCounts.get(agreement.gocardless_mandate_id || "") || 0) > 1,
+  }));
 }
 
 async function applyMatches(
   supabase: AdminClient,
   agreement: AgreementToSync,
-  gcPayments: GoCardlessPayment[],
-  opts?: { leftover?: boolean }
+  gcPayments: GoCardlessPayment[]
 ): Promise<SyncResult> {
   const headerRes = await supabase
     .from("agreements")
@@ -199,46 +223,15 @@ async function applyMatches(
   }
 
   const settled = String(header?.status || "").trim().toLowerCase() === "settled";
-  const leftover = leftoverPaymentsToRecord(
-    unmatchedCollectedPayments(
-      scheduleCollections,
-      matches,
-      instalments.map((row) => row.gocardless_payment_id)
-    ).filter((payment) => !amountsClose(monthly || 0, payment.amount)),
-    {
-      startDate: start,
-      settled,
-      enabled: opts?.leftover !== false,
-    }
-  );
-  let nextNumber =
-    Math.max(0, ...instalments.map((row) => Number(row.instalment_number || 0))) +
-    1;
-  for (const payment of leftover) {
-    const amount = Math.round(Number(payment.amount)) / 100;
-    const due = String(payment.charge_date).slice(0, 10);
-    const { error } = await supabase.from("payments").insert({
-      agreement_id: agreement.id,
-      instalment_number: nextNumber,
-      due_date: due,
-      amount,
-      status: "paid",
-      paid_date: due,
-      gocardless_payment_id: payment.id,
-      source: "gocardless",
-      notes: null,
-    });
-    if (!error) {
-      nextNumber += 1;
-      markedPaid += 1;
-    }
-  }
 
   const { count } = await supabase
     .from("payments")
     .select("id", { count: "exact", head: true })
     .eq("agreement_id", agreement.id);
   const have = count || 0;
+  let nextNumber =
+    Math.max(0, ...instalments.map((row) => Number(row.instalment_number || 0))) +
+    1;
   if (!settled && term > have && monthly > 0 && start.length >= 10) {
     const extras = [];
     for (let n = nextNumber; extras.length + have < term; n += 1) {
@@ -253,39 +246,6 @@ async function applyMatches(
     }
     if (extras.length) {
       await supabase.from("payments").insert(extras);
-    }
-  }
-
-  const leftoverPounds = leftover.reduce(
-    (sum, payment) => sum + Math.round(Number(payment.amount)) / 100,
-    0
-  );
-  if (leftoverPounds > 0.009) {
-    const { data: dueRows } = await supabase
-      .from("payments")
-      .select("id, instalment_number, amount, due_date, status")
-      .eq("agreement_id", agreement.id);
-    const unpaid = (dueRows || [])
-      .filter((row) => String(row.status) !== "paid")
-      .map((row) => ({
-        id: row.id,
-        instalment_number: Number(row.instalment_number),
-        amount: Number(row.amount),
-        due_date: String(row.due_date),
-      }));
-    try {
-      const plan = planPartSettlement(unpaid, leftoverPounds);
-      if (plan.removeIds.length) {
-        await supabase.from("payments").delete().in("id", plan.removeIds);
-      }
-      if (plan.reduce) {
-        await supabase
-          .from("payments")
-          .update({ amount: plan.reduce.amount })
-          .eq("id", plan.reduce.id);
-      }
-    } catch {
-      // Extra collections beyond the contracted remaining stay as paid rows.
     }
   }
 
@@ -353,7 +313,10 @@ export async function syncAgreementPayments(
       (mandateId
         ? await fetchPaymentsForMandate(mandateId)
         : await fetchAllGoCardlessPayments());
-    const gcPayments = paymentsForAgreement(raw, agreement);
+    const gcPayments = paymentsForAgreement(
+      raw,
+      await enrichAgreementForMatch(supabase, agreement)
+    );
     return await applyMatches(supabase, agreement, gcPayments);
   } catch (err: any) {
     return {
@@ -367,6 +330,45 @@ export async function syncAgreementPayments(
   }
 }
 
+async function enrichAgreementForMatch(
+  supabase: AdminClient,
+  agreement: AgreementToSync
+): Promise<AgreementToSync> {
+  if (
+    agreement.monthly_instalment != null &&
+    agreement.mandateShared != null &&
+    agreement.agreement_number
+  ) {
+    return agreement;
+  }
+  const header = await supabase
+    .from("agreements")
+    .select("agreement_number, gocardless_mandate_id, monthly_instalment")
+    .eq("id", agreement.id)
+    .maybeSingle();
+  const mandate =
+    agreement.gocardless_mandate_id ||
+    header.data?.gocardless_mandate_id ||
+    null;
+  let mandateShared = agreement.mandateShared;
+  if (mandateShared == null && mandate) {
+    const { count } = await supabase
+      .from("agreements")
+      .select("id", { count: "exact", head: true })
+      .eq("gocardless_mandate_id", mandate);
+    mandateShared = (count || 0) > 1;
+  }
+  return {
+    ...agreement,
+    agreement_number:
+      agreement.agreement_number || header.data?.agreement_number,
+    gocardless_mandate_id: mandate,
+    monthly_instalment:
+      agreement.monthly_instalment ?? header.data?.monthly_instalment,
+    mandateShared: mandateShared ?? false,
+  };
+}
+
 export async function applyGoCardlessCollections(
   supabase: AdminClient,
   agreements: AgreementToSync[],
@@ -374,8 +376,9 @@ export async function applyGoCardlessCollections(
   concurrency = 4
 ) {
   const results: SyncResult[] = [];
-  for (let i = 0; i < agreements.length; i += concurrency) {
-    const batch = agreements.slice(i, i + concurrency);
+  const withContext = withPaymentMatchContext(agreements);
+  for (let i = 0; i < withContext.length; i += concurrency) {
+    const batch = withContext.slice(i, i + concurrency);
     const batchResults = await Promise.all(
       batch.map(async (agreement) => {
         const gcPayments = paymentsForAgreement(gcRaw, agreement);
@@ -388,9 +391,7 @@ export async function applyGoCardlessCollections(
             markedFailed: 0,
           } as SyncResult;
         }
-        return applyMatches(supabase, agreement, gcPayments, {
-          leftover: false,
-        });
+        return applyMatches(supabase, agreement, gcPayments);
       })
     );
     results.push(...batchResults);
@@ -429,8 +430,9 @@ export async function syncAgreementsPayments(
   }
 
   const results: SyncResult[] = [];
-  for (let i = 0; i < agreements.length; i += concurrency) {
-    const batch = agreements.slice(i, i + concurrency);
+  const withContext = withPaymentMatchContext(agreements);
+  for (let i = 0; i < withContext.length; i += concurrency) {
+    const batch = withContext.slice(i, i + concurrency);
     const batchResults = await Promise.all(
       batch.map((agreement) =>
         syncAgreementPayments(supabase, agreement, allGc)

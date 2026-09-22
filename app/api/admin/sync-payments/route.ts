@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const { data: agreements, error } = await supabase
     .from("agreements")
-    .select("id, agreement_number, gocardless_mandate_id")
+    .select("id, agreement_number, gocardless_mandate_id, monthly_instalment")
     .eq("book", "ffg");
 
   if (error) {
