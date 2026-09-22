@@ -48,6 +48,7 @@ type LookupResult = {
     settlement_figure: number;
     last_payment_date: string | null;
   };
+  missed_months?: string[];
   schedule: {
     instalment_number: number;
     due_date: string;
@@ -71,6 +72,7 @@ type CompanyAgreement = {
   settlement_figure: number;
   has_schedule: boolean;
   gocardless_mandate_id: string | null;
+  missed_months?: string[];
 };
 
 type CompanyResult = {
@@ -319,6 +321,15 @@ function LookupInner() {
                           {!a.gocardless_mandate_id && (
                             <span className="lookup-warn">No mandate</span>
                           )}
+                          {(a.missed_months || []).map((month) => (
+                            <span className="lookup-warn" key={month}>
+                              Missed{" "}
+                              {new Date(`${month}-01`).toLocaleDateString("en-GB", {
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </span>
+                          ))}
                         </div>
                       </td>
                       <td>
@@ -376,6 +387,27 @@ function LookupInner() {
                   {result.customer.has_portal_login
                     ? " · portal linked"
                     : " · no portal login yet"}
+                </div>
+              )}
+              {(result.missed_months || []).length > 0 && (
+                <div className="lookup-dd-misses">
+                  <div className="lookup-dd-misses-label">
+                    Missed Direct Debit
+                    {(result.missed_months || []).length > 1 ? "s" : ""}
+                    {(result.missed_months || []).length > 1
+                      ? " · missing regularly"
+                      : ""}
+                  </div>
+                  <div className="lookup-dd-misses-list">
+                    {(result.missed_months || []).map((month) => (
+                      <span key={month} className="lookup-dd-miss-chip">
+                        {new Date(`${month}-01`).toLocaleDateString("en-GB", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
               {(result.related_agreements || []).length > 1 && (
@@ -550,7 +582,14 @@ function LookupInner() {
                       <tr
                         key={row.instalment_number}
                         className={
-                          row.status === "paid" ? "lookup-row-paid" : ""
+                          row.status === "paid"
+                            ? "lookup-row-paid"
+                            : row.status === "failed" ||
+                              (result.missed_months || []).includes(
+                                String(row.due_date || "").slice(0, 7)
+                              )
+                            ? "lookup-row-miss"
+                            : ""
                         }
                       >
                         <td>{row.instalment_number}</td>
@@ -561,8 +600,14 @@ function LookupInner() {
                             <span className="lookup-paid">
                               {row.source === "manual"
                                 ? "Part settlement"
+                                : (result.missed_months || []).includes(
+                                    String(row.due_date || "").slice(0, 7)
+                                  )
+                                ? "Paid after miss"
                                 : "Paid"}
                             </span>
+                          ) : row.status === "failed" ? (
+                            <span className="lookup-failed">Failed</span>
                           ) : (
                             <span className="lookup-due">Due</span>
                           )}

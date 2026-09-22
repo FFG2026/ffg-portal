@@ -12,6 +12,7 @@ import {
   type Instalment,
 } from "./match-payments";
 import { parseAgreementRefFromPayment } from "./parse-ref";
+import { missRowsFromGcPayments, type DdMissRow } from "./dd-misses";
 import {
   addMonths,
   financeLeaseScheduleNeedsRepair,
@@ -99,6 +100,46 @@ export function withPaymentMatchContext(
       agreement.mandateShared ??
       (mandateCounts.get(agreement.gocardless_mandate_id || "") || 0) > 1,
   }));
+}
+
+async function persistDirectDebitMisses(
+  supabase: AdminClient,
+  agreementId: string,
+  gcPayments: GoCardlessPayment[]
+) {
+  await persistDirectDebitMissRows(
+    supabase,
+    missRowsFromGcPayments(agreementId, gcPayments)
+  );
+}
+
+export async function persistDirectDebitMissRows(
+  supabase: AdminClient,
+  rows: DdMissRow[]
+) {
+  if (!rows.length) return;
+  await supabase.from("direct_debit_misses").upsert(rows, {
+    onConflict: "gc_payment_id",
+    ignoreDuplicates: true,
+  });
+}
+
+export function missRowsForAgreements(
+  gcRaw: any[],
+  agreements: AgreementToSync[],
+  fromInclusive?: string
+): DdMissRow[] {
+  const rows: DdMissRow[] = [];
+  for (const agreement of withPaymentMatchContext(agreements)) {
+    rows.push(
+      ...missRowsFromGcPayments(
+        agreement.id,
+        paymentsForAgreement(gcRaw, agreement),
+        fromInclusive
+      )
+    );
+  }
+  return rows;
 }
 
 async function applyMatches(
@@ -196,6 +237,7 @@ async function applyMatches(
     scheduleCollections,
     isFl ? { looseDateDays: 40 } : undefined
   );
+  await persistDirectDebitMisses(supabase, agreement.id, gcPayments);
   let markedPaid = 0;
   let markedFailed = 0;
 

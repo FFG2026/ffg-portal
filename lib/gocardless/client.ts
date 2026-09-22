@@ -88,17 +88,56 @@ export async function fetchAllGoCardlessPayments() {
   return fetchGoCardlessPages("/payments", "payments");
 }
 
+function shiftDate(isoDate: string, days: number) {
+  const date = new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+async function fetchGoCardlessPaymentsByStatusChargedBetween(
+  fromInclusive: string,
+  toExclusive: string,
+  status: string
+) {
+  const createdFrom = shiftDate(fromInclusive, -14);
+  const path = gcListPaymentsPath({
+    "created_at[gte]": `${createdFrom}T00:00:00.000Z`,
+    "created_at[lt]": `${toExclusive}T00:00:00.000Z`,
+    status,
+    limit: "500",
+  });
+  const items = await fetchGoCardlessPages(path, "payments");
+  return paymentsChargedInRange(items, fromInclusive, toExclusive, status);
+}
+
 /** Payments with a charge date in [fromInclusive, toExclusive). */
 export async function fetchGoCardlessPaymentsChargedBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  const path = gcListPaymentsPath({
-    "created_at[gte]": `${fromInclusive}T00:00:00.000Z`,
-    "created_at[lt]": `${toExclusive}T00:00:00.000Z`,
-    status: "paid_out",
-    limit: "500",
-  });
-  const items = await fetchGoCardlessPages(path, "payments");
-  return paymentsChargedInRange(items, fromInclusive, toExclusive, "paid_out");
+  return fetchGoCardlessPaymentsByStatusChargedBetween(
+    fromInclusive,
+    toExclusive,
+    "paid_out"
+  );
+}
+
+/** Failed / charged-back Direct Debits in [fromInclusive, toExclusive). */
+export async function fetchGoCardlessFailedPaymentsChargedBetween(
+  fromInclusive: string,
+  toExclusive: string
+) {
+  const [failed, chargedBack] = await Promise.all([
+    fetchGoCardlessPaymentsByStatusChargedBetween(
+      fromInclusive,
+      toExclusive,
+      "failed"
+    ),
+    fetchGoCardlessPaymentsByStatusChargedBetween(
+      fromInclusive,
+      toExclusive,
+      "charged_back"
+    ),
+  ]);
+  return [...failed, ...chargedBack];
 }

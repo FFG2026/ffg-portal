@@ -8,6 +8,7 @@ import { isLiveDeal, paidCount, unpaidSum } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment, visibleScheduleNote } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
+import { DD_MISS_FROM, uniqueMonths } from "../../../../lib/gocardless/dd-misses";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -87,6 +88,25 @@ export async function GET(request: Request) {
           .in("agreement_id", chunk),
       agreementIds
     );
+    const missRows =
+      book === "ffg"
+        ? await fetchAllIn(
+            (chunk) =>
+              supabase
+                .from("direct_debit_misses")
+                .select("agreement_id, month, charge_date")
+                .gte("charge_date", DD_MISS_FROM)
+                .in("agreement_id", chunk),
+            agreementIds
+          )
+        : [];
+    const missesByAgreement = new Map<string, string[]>();
+    for (const id of agreementIds) {
+      missesByAgreement.set(
+        id,
+        uniqueMonths(missRows.filter((row) => row.agreement_id === id))
+      );
+    }
 
     const results = customers.map((c) => ({
       company_name: c.company_name,
@@ -110,6 +130,7 @@ export async function GET(request: Request) {
             settlement_figure: unpaidSum(rows),
             has_schedule: rows.length > 0,
             gocardless_mandate_id: a.gocardless_mandate_id,
+            missed_months: missesByAgreement.get(a.id) || [],
           };
         }),
     }));
@@ -190,6 +211,17 @@ export async function GET(request: Request) {
 
   const scheduleWithBalance = withRemainingBalance(schedule);
 
+  let missed_months: string[] = [];
+  if (book === "ffg") {
+    const { data: missRows } = await supabase
+      .from("direct_debit_misses")
+      .select("month, charge_date")
+      .eq("agreement_id", agreement.id)
+      .gte("charge_date", DD_MISS_FROM)
+      .order("charge_date");
+    missed_months = uniqueMonths(missRows || []);
+  }
+
   return NextResponse.json(
     {
       agreement: {
@@ -243,6 +275,7 @@ export async function GET(request: Request) {
           ? lastPaid.paid_date || lastPaid.due_date
           : null,
       },
+      missed_months,
       schedule: scheduleWithBalance.map((p) => ({
         instalment_number: p.instalment_number,
         due_date: p.due_date,
