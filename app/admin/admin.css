@@ -708,3 +708,34 @@
   .deal-type-card h3{min-height:0}
 }
 
+/* Compact shareholder visuals */
+.compact-strip{margin-bottom:12px}
+.shareholder-visual-grid{display:grid;grid-template-columns:minmax(260px,.72fr) minmax(360px,1.28fr);gap:14px;padding:0 16px 16px}
+.ownership-panel,.projection-panel{padding:15px;border:1px solid #E3E9F0;border-radius:10px;background:#FBFCFE}
+.ownership-panel h3,.projection-panel h3{margin:0;color:var(--navy);font-family:'Fraunces',serif;font-size:16px}
+.ownership-bar{display:flex;height:18px;margin:18px 0 15px;border-radius:999px;overflow:hidden;background:#EDF1F5}
+.ownership-bar>i{display:block;height:100%}
+.ownership-legend{display:grid;gap:8px}
+.ownership-legend>div{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px}
+.ownership-legend span{display:flex;align-items:center;gap:7px;color:var(--ink-soft)}
+.ownership-legend span i{width:8px;height:8px;border-radius:50%}
+.ownership-legend strong{font-family:'IBM Plex Mono',monospace;color:var(--navy)}
+.projection-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.projection-heading>span{display:flex;align-items:center;gap:5px;color:var(--slate);font-size:9px}
+.projection-heading>span i{width:8px;height:8px;border-radius:2px;background:var(--blue)}
+.projection-heading>span i:last-child{margin-left:5px;background:var(--green)}
+.projection-row{margin-top:10px}
+.projection-row>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px;font-size:10px;color:var(--ink-soft)}
+.projection-row strong{font-family:'IBM Plex Mono',monospace;color:var(--navy);font-size:10px}
+.projection-track{position:relative;height:11px;border-radius:999px;background:#E9EEF4;overflow:hidden}
+.projection-track i{position:absolute;inset:0 auto 0 0;border-radius:999px}
+.projection-track .projected{background:var(--green);opacity:.38}
+.projection-track .current{height:5px;top:3px;background:var(--blue)}
+.repayment-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;padding:16px}
+.repayment-total{display:flex;flex-direction:column;justify-content:center;padding:18px;border-radius:10px;background:var(--navy);color:#fff}
+.repayment-total>span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#BFCDE0}
+.repayment-total>strong{margin:6px 0;font-family:'Fraunces',serif;font-size:27px}
+.repayment-total>small{font-size:10px;color:#D7E0EB}
+.repayment-layout .figures-table-wrap{margin:0}
+@media (max-width:900px){.shareholder-visual-grid,.repayment-layout{grid-template-columns:1fr}}
+
