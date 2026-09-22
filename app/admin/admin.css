@@ -661,3 +661,36 @@
   .book-dash section{padding:18px;}
   .fig-detail-head{flex-direction:column; align-items:flex-start;}
 }
+
+/* Portfolio detail — lower-section redesign */
+.figures-lower{display:grid;gap:16px}
+.book-dash>.figures-lower{background:transparent;border:0;border-radius:0;overflow:visible}
+.figures-section{background:#fff;border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.figures-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:18px 20px 15px;border-bottom:1px solid var(--rule)}
+.figures-section-head>div>span{display:block;margin-bottom:5px;color:var(--blue-deep);font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.figures-section .figures-section-head h2{padding:0;background:transparent;color:var(--navy);font-family:'Fraunces',serif;font-size:22px;letter-spacing:0;text-transform:none}
+.figures-section-head p{max-width:470px;color:var(--slate);font-size:12px;line-height:1.45;text-align:right}
+.deal-type-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:16px;background:#F8FAFD}
+.deal-type-card{padding:16px;border:1px solid #DDE5EF;border-top:3px solid var(--blue);border-radius:10px;background:#fff}
+.deal-type-card.tone-1{border-top-color:var(--green)}.deal-type-card.tone-2{border-top-color:var(--gold)}
+.deal-type-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.deal-type-title>span{display:grid;place-items:center;min-width:34px;height:26px;padding:0 8px;border-radius:6px;background:#E8F4FE;color:var(--blue-deep);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700}
+.deal-type-title>b{color:var(--slate);font-size:10px;font-weight:600}
+.deal-type-card h3{margin:12px 0 14px;color:var(--navy);font-family:'Fraunces',serif;font-size:18px}
+.deal-type-card dl{display:grid;gap:8px;margin:0}
+.deal-type-card dl>div{display:flex;justify-content:space-between;gap:10px;padding-top:8px;border-top:1px solid #EDF1F5}
+.deal-type-card dt{color:var(--slate);font-size:10px}.deal-type-card dd{color:var(--navy);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600}
+.figures-summary-strip{display:grid;grid-template-columns:repeat(3,1fr);margin:16px;border:1px solid #E3E9F0;border-radius:10px;background:#F8FAFD;overflow:hidden}
+.figures-summary-strip>div{display:flex;flex-direction:column;gap:5px;padding:14px 16px;border-left:1px solid #E3E9F0}
+.figures-summary-strip>div:first-child{border-left:0}
+.figures-summary-strip span{color:var(--slate);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+.figures-summary-strip strong{color:var(--navy);font-family:'Fraunces',serif;font-size:22px}
+.value-strip>div:nth-child(2) strong,.value-strip>div:nth-child(3) strong,.projected-value{color:var(--green)!important}
+.figures-table-wrap{margin:0 16px 16px;overflow-x:auto;border:1px solid var(--rule);border-radius:9px}
+.figures-table{min-width:680px}
+.figures-table th{padding:10px 13px;background:#F3F6FA;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.05em;text-transform:uppercase}
+.figures-table td{padding:11px 13px}.figures-table tbody tr:hover{background:#F8FBFE}
+@media (max-width:700px){
+  .figures-section-head{align-items:flex-start;flex-direction:column;gap:6px}.figures-section-head p{text-align:left}.deal-type-cards{grid-template-columns:1fr}.figures-summary-strip{grid-template-columns:1fr}.figures-summary-strip>div{border-left:0;border-top:1px solid #E3E9F0}.figures-summary-strip>div:first-child{border-top:0}
+}
+
