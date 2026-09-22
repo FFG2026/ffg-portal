@@ -141,32 +141,93 @@ export function parseCostOfGoodsAssets(text: string): string | null {
   return cleanAssetLines(cut[1]);
 }
 
+const UK_PLATE = /\b[A-Z]{2}\d{2}\s?[A-Z]{3}\b/gi;
+
+function uniqueJoin(parts: string[]) {
+  return Array.from(new Set(parts.filter(Boolean))).join(" & ");
+}
+
+/** Supplier invoices listing each van as "Vehicle Sale … REG". */
+export function parseVehicleSaleInvoiceAssets(text: string): string | null {
+  const assets: string[] = [];
+  const re =
+    /Vehicle Sale\s+(.+?)\.\s*([A-Z]{2}\d{2}\s?[A-Z]{3})\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(String(text || "")))) {
+    const model = m[1].replace(/\s+/g, " ").trim();
+    const reg = m[2].replace(/\s+/g, "").toUpperCase();
+    if (model.length >= 6) assets.push(`${model} (${reg})`);
+  }
+  return assets.length ? uniqueJoin(assets) : null;
+}
+
 export function parseLeaseAgreementAssets(text: string): string | null {
   const blob = String(text || "").replace(/\r/g, "");
-  if (!/Lease Agreement/i.test(blob) || !/The Goods \(Make\/Model\)/i.test(blob)) {
+  if (
+    !/Lease Agreement/i.test(blob) ||
+    !/The(?: The)? Goods(?: Goods)? \(Make\/Model\)/i.test(blob)
+  ) {
     return null;
   }
   const cut = blob.match(
-    /The Goods \(Make\/Model\)[\s\S]{0,240}?applicable\)\s*([\s\S]*?)Supplier Name/i
+    /The(?: The)? Goods(?: Goods)? \(Make\/Model\)[\s\S]{0,400}?applicable\)\s*([\s\S]*?)Supplier Name/i
   );
   if (!cut) return null;
-  const lines = cut[1]
+  const block = cut[1];
+  const assets: string[] = [];
+  const lines = block
     .split(/\n+/)
+    .flatMap((line) =>
+      line
+        .replace(/\s+/g, " ")
+        .trim()
+        .split(/(?=Used\s+[A-Z]{2}\d{2})|(?=TRANSIT\s+\d{3})/i)
+    )
     .map((line) => line.replace(/\s+/g, " ").trim())
     .filter(Boolean)
-    .filter((line) => !/^(new\/used|\(if applicable\))$/i.test(line));
-  const assets: string[] = [];
+    .filter(
+      (line) =>
+        !/^(new\/used|\(if(?: if)? applicable\)|applicable\)?)$/i.test(line)
+    );
   for (const line of lines) {
-    const cleaned = stripConditionAndPrice(line)
+    const plates = (line.match(UK_PLATE) || []).map((p) =>
+      p.replace(/\s+/g, "").toUpperCase()
+    );
+    let cleaned = stripConditionAndPrice(line)
+      .replace(UK_PLATE, "")
       .replace(/\s*-\s*[A-Z0-9]{11,17}\s*$/i, "")
       .replace(/\s*-\s*$/, "")
+      .replace(/\s+/g, " ")
       .trim();
-    if (cleaned.length < 6) continue;
     if (/^new\/used$/i.test(cleaned)) continue;
-    assets.push(cleaned);
+    if (/applicable/i.test(cleaned)) continue;
+    if (cleaned.length < 6 && !plates.length) continue;
+    if (plates.length && cleaned.length >= 6) {
+      for (const plate of plates) {
+        assets.push(`${cleaned} (${plate})`);
+      }
+    } else if (plates.length) {
+      const last = assets[assets.length - 1];
+      const model =
+        last && !/\([A-Z]{2}\d{2}[A-Z]{3}\)$/.test(last) ? last : cleaned;
+      if (model && model.length >= 6) {
+        if (last && model === last) assets.pop();
+        for (const plate of plates) assets.push(`${model} (${plate})`);
+      } else {
+        for (const plate of plates) assets.push(plate);
+      }
+    } else if (cleaned.length >= 6) {
+      assets.push(cleaned);
+    }
   }
-  if (!assets.length) return null;
-  return Array.from(new Set(assets)).join(" & ");
+  if (!assets.length) {
+    const plates = (block.match(UK_PLATE) || []).map((p) =>
+      p.replace(/\s+/g, "").toUpperCase()
+    );
+    if (plates.length) return uniqueJoin(plates);
+    return null;
+  }
+  return uniqueJoin(assets);
 }
 
 export function parseAgreementPdfText(text: string): ParsedAgreementPdf {
@@ -199,7 +260,8 @@ export function parseAgreementPdfText(text: string): ParsedAgreementPdf {
     cleanAssetLines(manufactureBlock || null) ||
     parseCostOfGoodsAssets(blob) ||
     parseEquipmentScheduleAssets(blob) ||
-    parseLeaseAgreementAssets(blob);
+    parseLeaseAgreementAssets(blob) ||
+    parseVehicleSaleInvoiceAssets(blob);
 
   const purchase = money(
     after(/a\)\s*Cash price[^\n]*\n+\s*([\d,]+(?:\.\d{2})?)/i, blob)

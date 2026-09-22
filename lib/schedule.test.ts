@@ -119,6 +119,39 @@ assert(fl14[11].status === "paid" && fl14[11].amount === 1146.05, "July collecti
 assert(fl14[12].status === "paid", "August collection ticks instalment 13");
 assert(fl14[13].status === "due" && fl14[13].amount === 1146.05, "remaining dues are gross not net");
 assert(fl14.every((row) => row.instalment_number === fl14.indexOf(row) + 1), "numbers stay in date order");
+
+const fl2 = rebuildFinanceLeaseSchedule(
+  {
+    termMonths: 48,
+    monthlyInstalment: 1409,
+    startDate: "2022-05-01",
+  },
+  [
+    {
+      chargeDate: "2022-06-01",
+      amount: 1409,
+      gocardless_payment_id: "PM1",
+    },
+    {
+      chargeDate: "2024-02-13",
+      amount: 1456,
+      gocardless_payment_id: "PM21",
+      source: "gocardless",
+    },
+    {
+      chargeDate: "2026-05-13",
+      amount: 1456,
+      gocardless_payment_id: "PM48",
+      source: "gocardless",
+    },
+  ]
+);
+assert(fl2.length === 48, "FL2 stays a 48-month book");
+assert(fl2[0].amount === 1409 && fl2[0].status === "paid", "first rent stays £1,409");
+assert(fl2[20].due_date === "2024-02-01" && fl2[20].status === "paid", "Feb 2024 leftover becomes instalment 21");
+assert(fl2[20].amount === 1456, "keeps the later Direct Debit amount");
+assert(fl2[47].due_date === "2026-05-01" && fl2[47].status === "paid", "May 2026 collection is the last month");
+assert(fl2.every((row) => Number(row.instalment_number) <= 48), "no leftover numbers past term");
 assert(
   financeLeaseScheduleNeedsRepair(
     [

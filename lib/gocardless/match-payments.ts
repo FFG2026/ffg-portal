@@ -69,6 +69,22 @@ export function amountsClose(
   return false;
 }
 
+/**
+ * Direct Debit that changed mid-term (FL2 £1,409 → £1,214 → £1,456) still
+ * belongs on the contracted monthly schedule. Deposits and leftover lumps
+ * sit well outside this band.
+ */
+export function looksLikeMonthlyVariation(
+  amount: number | string,
+  monthly: number | string
+) {
+  const inst = amountPence(amount);
+  const rent = amountPence(monthly);
+  if (inst <= 0 || rent <= 0) return false;
+  if (amountsClose(amount, rent) || amountsClose(monthly, inst)) return true;
+  return Math.abs(inst - rent) / rent <= 0.25;
+}
+
 export function looksLikeVatExclusive(
   amount: number | string,
   grossMonthly: number | string

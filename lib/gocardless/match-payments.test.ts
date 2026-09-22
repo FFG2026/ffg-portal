@@ -11,6 +11,7 @@ import {
   amountsClose,
   collectedScheduleAmount,
   leftoverPaymentsToRecord,
+  looksLikeMonthlyVariation,
 } from "./match-payments";
 
 function assert(cond: unknown, msg: string) {
@@ -207,5 +208,9 @@ assert(
     0,
   "batch sync can turn leftovers off"
 );
+assert(looksLikeMonthlyVariation(1456, 1409), "FL2 later Direct Debit is still monthly");
+assert(looksLikeMonthlyVariation(1214, 1409), "FL2 reduced months are still monthly");
+assert(!looksLikeMonthlyVariation(50, 1409), "£50 leftover is not a monthly rent");
+assert(!looksLikeMonthlyVariation(5760, 1409), "deposit is not a monthly rent");
 
 console.log("match-payments tests ok");

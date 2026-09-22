@@ -3,6 +3,7 @@ import {
   parseAgreementPdfText,
   parseEquipmentScheduleAssets,
   parseLeaseAgreementAssets,
+  parseVehicleSaleInvoiceAssets,
 } from "./parse-agreement-pdf";
 
 function assert(cond: unknown, msg: string) {
@@ -205,6 +206,29 @@ Supplier Name:
 EAST KENT RECYCLING LTD
 `).asset_description?.includes("Mercedes") === true,
   "fl15 lease goods"
+);
+
+const fl2Rewrite = parseLeaseAgreementAssets(`
+Lease Agreement Non Regulated
+The The Goods Goods (Make/Model) (Make/Model) New/Used New/Used Registration Registration No.(s) No.(s)
+(if (if applicable) applicable)
+TRANSIT 350 L3 DIESEL FWD 2.0 H2 Leader
+Used HJ22FVF - WF0EXXTTREMK3333 TRANSIT 350 L3 DIESEL FWD 2.0 H2 Leader
+Used HJ22FVT - WF0EXXTTREMK33341
+Supplier Name:
+`);
+assert(
+  fl2Rewrite?.includes("HJ22FVF") === true && fl2Rewrite?.includes("HJ22FVT") === true,
+  fl2Rewrite || "fl2 two transits"
+);
+
+const fl2Invoice = parseVehicleSaleInvoiceAssets(`
+Vehicle Sales:Vehicle Sale TRANSIT 350 L3 DIESEL FWD 2.0 ECOBLUE 130PS H2 LEADER VAN. HJ22FVF, WF0EXXTTREMK33336
+Vehicle Sales:Vehicle Sale TRANSIT 350 L3 DIESEL FWD 2.0 ECOBLUE 130PS H2 LEADER VAN. HJ22FVT, WF0EXXTTREMK33341
+`);
+assert(
+  fl2Invoice?.includes("HJ22FVF") === true && fl2Invoice?.includes("HJ22FVT") === true,
+  fl2Invoice || "fl2 invoice vans"
 );
 
 console.log("parse-agreement-pdf tests ok");

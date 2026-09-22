@@ -1,6 +1,6 @@
 import {
-  amountsClose,
   daysBetween,
+  looksLikeMonthlyVariation,
   looksLikeVatExclusive,
 } from "./gocardless/match-payments";
 
@@ -150,7 +150,6 @@ export function rebuildFinanceLeaseSchedule(
   windowDays = 40
 ) {
   const schedule = buildPaymentSchedule(opts);
-  const monthlyPence = Math.round(Number(opts.monthlyInstalment) * 100);
   const used = new Set<number>();
   const seen = new Set<string>();
   const attached = new Set<string>();
@@ -159,11 +158,7 @@ export function rebuildFinanceLeaseSchedule(
       const key = collectionKey(row);
       if (seen.has(key)) return false;
       seen.add(key);
-      const pence = Math.round(Number(row.amount) * 100);
-      return (
-        amountsClose(opts.monthlyInstalment, pence) ||
-        amountsClose(row.amount, monthlyPence)
-      );
+      return looksLikeMonthlyVariation(row.amount, opts.monthlyInstalment);
     })
     .sort((a, b) =>
       String(a.chargeDate).slice(0, 10).localeCompare(String(b.chargeDate).slice(0, 10))
@@ -193,7 +188,8 @@ export function rebuildFinanceLeaseSchedule(
     schedule[best].gocardless_payment_id = row.gocardless_payment_id || null;
     schedule[best].notes = visibleScheduleNote(row.notes);
     schedule[best].source = row.source || null;
-    schedule[best].amount = opts.monthlyInstalment;
+    const collected = Math.round(Number(row.amount) * 100) / 100;
+    if (collected > 0) schedule[best].amount = collected;
     return true;
   };
 
