@@ -300,6 +300,8 @@
 .page-table tbody tr{cursor:pointer;}
 .page-table tbody tr:hover td,.page-table tbody tr.selected td{background:#F5F9FE;}
 .page-table .sub{display:block; font-size:11.5px; color:var(--slate); margin-top:2px;}
+.customer-name-btn{display:inline; background:none; border:0; padding:0; font:inherit; color:var(--navy); cursor:pointer; text-align:left;}
+.customer-name-btn:hover{color:var(--blue); text-decoration:underline;}
 .page-pager{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; color:var(--slate); font-size:12.5px;}
 .page-pager-btns{display:flex; gap:6px;}
 .page-pager button{min-width:32px; height:32px; border:1px solid var(--rule); border-radius:8px; background:#fff; cursor:pointer;}

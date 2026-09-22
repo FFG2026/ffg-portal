@@ -32,16 +32,28 @@ export async function GET(request: Request) {
 
   // --- Company search: returns every agreement for matching customers ---
   if (company) {
-    const { data: customers, error: custErr } = await supabase
+    const name = company.trim();
+    const exact = await supabase
       .from("customers")
       .select("id, company_name, email, auth_user_id")
-      .ilike("company_name", `%${company.trim()}%`)
+      .eq("company_name", name)
       .order("company_name");
-
-    if (custErr) {
-      return NextResponse.json({ error: custErr.message }, { status: 500 });
+    if (exact.error) {
+      return NextResponse.json({ error: exact.error.message }, { status: 500 });
     }
-    if (!customers || customers.length === 0) {
+    let customers = exact.data || [];
+    if (customers.length === 0) {
+      const fuzzy = await supabase
+        .from("customers")
+        .select("id, company_name, email, auth_user_id")
+        .ilike("company_name", `%${name}%`)
+        .order("company_name");
+      if (fuzzy.error) {
+        return NextResponse.json({ error: fuzzy.error.message }, { status: 500 });
+      }
+      customers = fuzzy.data || [];
+    }
+    if (customers.length === 0) {
       return NextResponse.json(
         { error: `No customer found matching "${company}"` },
         { status: 404, headers: noStore }
@@ -82,6 +94,9 @@ export async function GET(request: Request) {
       has_portal_login: !!c.auth_user_id,
       agreements: (allAgreements || [])
         .filter((a) => a.customer_id === c.id)
+        .sort((a, b) =>
+          compareAgreementNumber(a.agreement_number, b.agreement_number)
+        )
         .map((a) => {
           const rows = allPayments.filter((p) => p.agreement_id === a.id);
           return {
