@@ -400,7 +400,7 @@ function MonthAtATime() {
         </div>
       </div>
       <div className="book-month-grid">
-        {MONTHLY_FIGURES.map((m) => (
+        {MONTHLY_FIGURES.slice().reverse().map((m) => (
           <button
             type="button"
             key={m.key}
