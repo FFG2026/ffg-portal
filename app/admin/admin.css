@@ -46,10 +46,28 @@
 .admin-legend{display:flex; gap:16px; font-size:12px; color:var(--slate); margin-top:12px;}
 .admin-swatch{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px;}
 .admin-attn{width:100%; border-collapse:collapse; font-size:13px;}
-.admin-attn th{text-align:left; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate); padding:8px 6px; border-bottom:1px solid var(--rule);}
-.admin-attn td{padding:10px 6px; border-bottom:1px solid var(--rule);}
+.admin-attn th{text-align:left; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--slate); padding:8px 6px; border-bottom:1px solid var(--rule); position:sticky; top:0; background:#fff; z-index:1;}
+.admin-attn td{padding:10px 6px; border-bottom:1px solid var(--rule); white-space:nowrap;}
+.admin-attn td:nth-child(2){white-space:normal;}
 .admin-attn tr:hover td{background:var(--blue-pale); cursor:pointer;}
 .admin-pill{display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; padding:3px 8px; border-radius:5px; background:var(--gold-pale); color:#8A6A24;}
+.admin-action-centre h2{margin-bottom:4px;}
+.admin-action-centre h3{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; color:var(--navy); margin:18px 0 8px;}
+.admin-action-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;}
+.admin-action-sub{font-size:13.5px; color:var(--ink-soft); margin:0;}
+.admin-action-link{border:none; background:none; color:var(--blue-deep); font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap; padding:0;}
+.admin-action-link:hover{text-decoration:underline;}
+.admin-overdue-banner{display:flex; align-items:center; gap:14px; background:#FDECEC; border-radius:12px; padding:14px 16px; margin-bottom:4px;}
+.admin-overdue-mark{width:36px; height:36px; border-radius:10px; background:#F9D2D2; color:#C4232C; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; flex-shrink:0;}
+.admin-overdue-banner .lbl{font-size:12px; font-weight:600; color:#8A2A2A; margin-bottom:2px;}
+.admin-overdue-banner .num{font-family:'Fraunces', serif; font-size:28px; font-weight:700; color:#C4232C; line-height:1;}
+.admin-overdue-note{margin-left:auto; font-size:13px; color:#9A6A6A;}
+.admin-action-scroll{max-height:228px; overflow-y:auto; border:1px solid var(--rule); border-radius:10px;}
+.admin-action-scroll .admin-attn th:last-child, .admin-action-scroll .admin-attn td:last-child{text-align:right;}
+.admin-view-btn{display:inline-flex; align-items:center; border:1px solid var(--blue); color:var(--blue-deep); border-radius:8px; padding:5px 10px; font-size:12.5px; font-weight:600; background:#fff;}
+@media (max-width: 720px){
+  .admin-overdue-note{display:none;}
+}
 .admin-toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px;}
 .admin-toolbar input{padding:10px 12px; border:1px solid var(--rule); border-radius:8px; min-width:220px; font-size:14px;}
 .admin-tabs{display:flex; gap:8px;}

@@ -3,7 +3,7 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllIn, fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { authorizeAdminRequest } from "../../../../lib/admin";
-import { isLiveDeal, paidCount, overdueSum } from "../../../../lib/deal-status";
+import { isLiveDeal, paidCount, chaseOverdueSum } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment } from "../../../../lib/schedule";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
 
@@ -83,9 +83,11 @@ export async function GET(request: Request) {
   const list = (agreements || []).map((a) => {
     const rows = rowsByAgreement.get(a.id) || [];
     const live = isLiveDeal(a, rows);
-    const overdue = live ? overdueSum(rows, today) : 0;
-    const outstanding = overdue;
     const customer = nameById.get(a.customer_id);
+    const overdue = live
+      ? chaseOverdueSum(customer?.company_name, a, rows, today)
+      : 0;
+    const outstanding = overdue;
     return {
       id: a.id,
       agreement_number: a.agreement_number,

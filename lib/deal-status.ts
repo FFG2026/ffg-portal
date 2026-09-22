@@ -131,3 +131,27 @@ export function liveOverdueSum(
   if (!isLiveDeal(agreement, rows)) return 0;
   return overdueSum(rows, today);
 }
+
+/**
+ * Vantage Vehicles is on a temporary special arrangement — keep those
+ * agreements off the chase list and overdue totals until that changes.
+ */
+export function isSpecialOverdueArrangement(
+  companyName: string | null | undefined
+) {
+  const name = String(companyName || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return /\bvantage vehicles?\b/.test(name);
+}
+
+export function chaseOverdueSum(
+  companyName: string | null | undefined,
+  agreement: { status?: string | null; term_months?: number | null },
+  rows: PaymentDateRow[] | null | undefined,
+  today: string
+) {
+  if (isSpecialOverdueArrangement(companyName)) return 0;
+  return liveOverdueSum(agreement, rows, today);
+}

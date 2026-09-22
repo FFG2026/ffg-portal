@@ -3,6 +3,8 @@ import {
   unpaidSum,
   paidCount,
   liveOverdueSum,
+  chaseOverdueSum,
+  isSpecialOverdueArrangement,
   receivedPaymentInLastMonth,
   lastReceivedPaymentDate,
 } from "./deal-status";
@@ -151,6 +153,43 @@ const sheetHole = [
 assert(
   liveOverdueSum({ status: "active", term_months: 15 }, sheetHole, "2026-09-21") === 0,
   "unticked first row is not overdue after later instalments were paid"
+);
+
+assert(
+  isSpecialOverdueArrangement("Vantage Vehicles") === true,
+  "Vantage Vehicles is on a special overdue arrangement"
+);
+assert(
+  isSpecialOverdueArrangement("JWL Developments Refinance 1") === false,
+  "other customers stay on the overdue list"
+);
+
+const vantageArrears = [
+  { status: "paid", amount: 1933.07, due_date: "2026-07-21", paid_date: "2026-07-21" },
+  { status: "due", amount: 1933.07, due_date: "2026-08-21" },
+];
+assert(
+  liveOverdueSum({ status: "active", term_months: 48 }, vantageArrears, "2026-09-21") ===
+    1933.07,
+  "raw arrears still calculate for Vantage"
+);
+assert(
+  chaseOverdueSum(
+    "Vantage Vehicles",
+    { status: "active", term_months: 48 },
+    vantageArrears,
+    "2026-09-21"
+  ) === 0,
+  "Vantage Vehicles is not chased as overdue"
+);
+assert(
+  chaseOverdueSum(
+    "JWL Developments Refinance 1",
+    { status: "active", term_months: 48 },
+    vantageArrears,
+    "2026-09-21"
+  ) === 1933.07,
+  "JWL still shows on the overdue list"
 );
 
 console.log("deal-status tests ok");

@@ -225,48 +225,87 @@ function DashboardInner() {
               </div>
             </div>
 
-            <div className="admin-card">
-              <h2>Needs a look</h2>
-              {data.attention.length === 0 ? (
-                <p className="admin-lead">Nothing flagged.</p>
-              ) : (
-                <table className="admin-attn">
-                  <thead>
-                    <tr>
-                      <th>Agreement</th>
-                      <th>Customer</th>
-                      <th>Why</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.attention.slice(0, 12).map((row) => (
-                      <tr
-                        key={row.agreement_number + row.reason}
-                        onClick={() =>
-                          router.push(
-                            `${base}/agreements?q=${encodeURIComponent(
-                              row.agreement_number
-                            )}`
-                          )
-                        }
-                      >
-                        <td>
-                          <strong>{row.agreement_number}</strong>
-                        </td>
-                        <td>{row.company_name}</td>
-                        <td>
-                          <span className="admin-pill">{row.reason}</span>
-                          {row.amount != null && (
-                            <div className="mono" style={{ marginTop: 4 }}>
-                              {gbp(row.amount)}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+            <div className="admin-card admin-action-centre">
+              <div className="admin-action-head">
+                <div>
+                  <h2>Action centre</h2>
+                  <p className="admin-action-sub">
+                    Agreements that need your attention.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="admin-action-link"
+                  onClick={() => router.push(`${base}/agreements`)}
+                >
+                  View all agreements →
+                </button>
+              </div>
+              <div className="admin-overdue-banner">
+                <div className="admin-overdue-mark">!</div>
+                <div>
+                  <div className="lbl">Total overdue</div>
+                  <div className="num">{gbp(data.totals.overdue)}</div>
+                </div>
+                <div className="admin-overdue-note">
+                  No payment in the last month
+                </div>
+              </div>
+              {(() => {
+                const overdueRows = data.attention.filter(
+                  (row) => row.reason === "Overdue collections"
+                );
+                return (
+                  <>
+                    <h3>Priority agreements</h3>
+                    {overdueRows.length === 0 ? (
+                      <p className="admin-lead">Nothing overdue.</p>
+                    ) : (
+                      <div className="admin-action-scroll">
+                        <table className="admin-attn">
+                          <thead>
+                            <tr>
+                              <th>Agreement</th>
+                              <th>Customer</th>
+                              <th>Amount</th>
+                              <th>Status</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {overdueRows.map((row) => (
+                              <tr
+                                key={row.agreement_number + row.reason}
+                                onClick={() =>
+                                  router.push(
+                                    `${base}/lookup?agreement=${encodeURIComponent(
+                                      row.agreement_number
+                                    )}`
+                                  )
+                                }
+                              >
+                                <td>
+                                  <strong>{row.agreement_number}</strong>
+                                </td>
+                                <td>{row.company_name}</td>
+                                <td className="mono">
+                                  {row.amount != null ? gbp(row.amount) : "—"}
+                                </td>
+                                <td>
+                                  <span className="admin-pill">Overdue</span>
+                                </td>
+                                <td>
+                                  <span className="admin-view-btn">View →</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </>
