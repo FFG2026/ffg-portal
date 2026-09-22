@@ -23,7 +23,17 @@ assert(base.summary.total_outstanding === 1981148.72, "owed in starts at the pri
 assert(base.summary.blended_yield === 21, "21% blended yield on the snapshot");
 assert(base.summary.net_position === 816148.72, "net position matches the printed sheet");
 assert(base.shareholders[0].pct_owned === 16.3, "Ron owns 16.3%");
-assert(base.shareholders[0].total_owed_in === 1981148.72, "owed in sits on Ron's row");
+// "Total owed in" is the whole book's outstanding, not a per-shareholder
+// figure — each holder's share of it is their value of shareholding.
+assert(
+  !("total_owed_in" in base.shareholders[0]),
+  "no per-shareholder owed-in column"
+);
+assert(
+  base.shareholders[0].value ===
+    Math.round(base.summary.total_outstanding * (1955 / 11970) * 100) / 100,
+  "Ron's shareholding value is his share of the outstanding book"
+);
 
 const withHp142 = buildLivePortfolio([
   {
