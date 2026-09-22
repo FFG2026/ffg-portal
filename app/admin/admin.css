@@ -246,7 +246,8 @@
 .action-centre .admin-attn{font-size:11px;}
 .action-centre .admin-attn th{font-size:8.5px; padding:7px 5px;}
 .action-centre .admin-attn td{padding:9px 5px;}
-.view-agreement{padding:6px 9px; border:1px solid var(--blue); border-radius:6px; background:#fff; color:var(--blue-deep); font-size:10px; font-weight:700; cursor:pointer; white-space:nowrap;}
+.view-agreement{padding:9px 18px; border:1px solid var(--blue-deep); border-radius:8px; background:var(--blue); color:#fff; font-size:13.5px; font-weight:800; letter-spacing:0.02em; cursor:pointer; white-space:nowrap; box-shadow:0 2px 0 rgba(10,111,203,0.4);}
+.view-agreement:hover{background:var(--blue-deep); color:#fff;}
 .cashflow-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:9px;}
 .cashflow-card{display:flex; align-items:center; gap:10px; padding:12px; border:1px solid var(--rule); border-radius:8px;}
 .cashflow-card>span{display:grid; place-items:center; width:35px; height:35px; flex:0 0 35px; border-radius:7px; background:#E8F4FE; color:var(--blue);}
