@@ -34,6 +34,7 @@ function NewDealInner() {
     monthly_instalment: "",
     term_months: "36",
     start_date: "",
+    written_date: "",
     gocardless_mandate_id: "",
   });
 
@@ -255,6 +256,17 @@ function NewDealInner() {
             value={form.phone}
             onChange={(e) => set("phone", e.target.value)}
           />
+        </div>
+        <div>
+          <label>Deal written date</label>
+          <input
+            type="date"
+            value={form.written_date}
+            onChange={(e) => set("written_date", e.target.value)}
+          />
+          <p className="admin-field-hint">
+            Used for the monthly new-lending figures. Defaults to the start date.
+          </p>
         </div>
         <div>
           <label>Start date</label>
