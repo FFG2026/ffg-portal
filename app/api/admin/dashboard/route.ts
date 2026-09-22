@@ -29,6 +29,10 @@ function num(v: unknown) {
   return Number(v || 0);
 }
 
+function hasOverdueArrangement(companyName: string) {
+  return /^vantage vehicles?\b/i.test(companyName.trim());
+}
+
 export async function GET(request: Request) {
   const auth = await authorizeAdminRequest(request);
   if (!auth.ok) {
@@ -175,7 +179,8 @@ export async function GET(request: Request) {
   for (const a of agreements || []) {
     if (liveById.get(a.id) === false) continue;
     const rows = paymentsByAgreement.get(a.id) || [];
-    const od = overdueSum(rows, today);
+    const company = nameById.get(a.customer_id) || "";
+    const od = hasOverdueArrangement(company) ? 0 : overdueSum(rows, today);
     overdue += od;
     outstanding += unpaidSum(rows) - od;
   }
@@ -244,7 +249,9 @@ export async function GET(request: Request) {
       });
     }
     const overdueAmt =
-      unpaidSum(rows) > 0 ? liveOverdueSum(a, rows, today) : 0;
+      !hasOverdueArrangement(company) && unpaidSum(rows) > 0
+        ? liveOverdueSum(a, rows, today)
+        : 0;
     if (isLive && overdueAmt > 0) {
       attention.push({
         agreement_number: a.agreement_number,
