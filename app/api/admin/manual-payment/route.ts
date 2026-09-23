@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { authorizeAdminRequest } from "../../../../lib/admin";
-import { planPartSettlement, nextInstalmentNumber, pickBankPaymentInstalment } from "../../../../lib/part-settlement";
+import { planManualReceipt, nextInstalmentNumber } from "../../../../lib/part-settlement";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,6 @@ export async function POST(request: Request) {
   const amount = Number(body.amount);
   const paidDate = String(body.paid_date || "").slice(0, 10);
   const note = String(body.note || "").trim();
-  const mode = String(body.mode || "settlement");
 
   if (!agreementNumber) {
     return NextResponse.json({ error: "Missing agreement number." }, { status: 400 });
@@ -24,11 +23,14 @@ export async function POST(request: Request) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate)) {
     return NextResponse.json({ error: "Pick the date the money arrived." }, { status: 400 });
   }
-  if (mode !== "next" && !note) {
+  if (!note) {
     return NextResponse.json(
-      { error: "Add a note — e.g. insurance payout for stolen van." },
+      { error: "Add why this was paid — e.g. paid into bank after missed Direct Debit." },
       { status: 400 }
     );
+  }
+  if (!(amount > 0)) {
+    return NextResponse.json({ error: "Enter an amount greater than zero." }, { status: 400 });
   }
 
   const supabase = createAdminClient();
@@ -63,56 +65,16 @@ export async function POST(request: Request) {
       status: p.status,
     }));
 
-  if (mode === "next") {
-    const requested = Number(body.instalment_number);
-    const next =
-      Number.isFinite(requested) && requested > 0
-        ? unpaid.find((p) => Number(p.instalment_number) === requested) || null
-        : pickBankPaymentInstalment(unpaid, paidDate);
-    if (!next) {
-      return NextResponse.json(
-        { error: "There is nothing left to mark paid on this agreement." },
-        { status: 400 }
-      );
-    }
-    const paidAmount = Number.isFinite(amount) && amount > 0 ? amount : next.amount;
-    const { error } = await supabase
-      .from("payments")
-      .update({
-        status: "paid",
-        paid_date: paidDate,
-        amount: Math.round(paidAmount * 100) / 100,
-        notes: note || "Bank payment",
-        source: "bank",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", next.id);
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    const { data: remaining } = await supabase
-      .from("payments")
-      .select("id, status")
-      .eq("agreement_id", agreement.id);
-    const stillDue = (remaining || []).some((p) => p.status !== "paid");
-    await supabase
-      .from("agreements")
-      .update({ status: stillDue ? "active" : "settled" })
-      .eq("id", agreement.id);
-    return NextResponse.json({
-      success: true,
-      agreement_number: agreement.agreement_number,
-      applied: Math.round(paidAmount * 100) / 100,
-      instalment_number: next.instalment_number,
-      settled: !stillDue,
-    });
-  }
-
   let plan;
   try {
-    plan = planPartSettlement(unpaid, amount, paidDate);
+    plan = planManualReceipt(unpaid, amount);
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Could not apply" }, { status: 400 });
+  }
+
+  const applied = Math.round((Number(amount) - Number(plan.leftover || 0)) * 100) / 100;
+  if (!(applied > 0)) {
+    return NextResponse.json({ error: "There is nothing left to apply this to." }, { status: 400 });
   }
 
   if (plan.removeIds.length) {
@@ -146,7 +108,7 @@ export async function POST(request: Request) {
     agreement_id: agreement.id,
     instalment_number: n,
     due_date: paidDate,
-    amount: Math.round(Number(amount) * 100) / 100,
+    amount: applied,
     status: "paid",
     paid_date: paidDate,
     notes: note,
@@ -174,7 +136,8 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     agreement_number: agreement.agreement_number,
-    applied: Math.round(Number(amount) * 100) / 100,
+    applied,
+    paid_date: paidDate,
     cleared: plan.removeIds.length,
     reduced: !!plan.reduce,
     settled: !stillDue,

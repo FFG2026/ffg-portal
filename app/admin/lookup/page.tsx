@@ -6,7 +6,6 @@ import { Suspense } from "react";
 import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
 import PageHero from "../PageHero";
 import { notifyBookChanged } from "../../../lib/admin-book-reload";
-import { pickBankPaymentInstalment } from "../../../lib/part-settlement";
 
 type RelatedAgreement = {
   agreement_number: string;
@@ -513,6 +512,7 @@ function LookupInner() {
                 </div>
               </div>
 
+              <div className="lookup-deal-actions">
               <AmendDealForm
                 key={result.agreement.agreement_number}
                 result={result}
@@ -522,13 +522,11 @@ function LookupInner() {
                 }}
               />
 
-              {result.status.live && (
-                <>
-                  <RecordInstalmentForm
-                    key={`${result.agreement.agreement_number}-bank`}
+              {result.status.live && result.status.settlement_figure > 0 && (
+                  <ManualPaymentsForm
+                    key={`${result.agreement.agreement_number}-manual`}
                     agreementNumber={result.agreement.agreement_number}
-                    schedule={result.schedule}
-                    missedMonths={result.missed_months || []}
+                    owing={result.status.settlement_figure}
                     onDone={() => {
                       runLookup("agreement", result.agreement.agreement_number);
                       notifyBookChanged();
@@ -536,22 +534,8 @@ function LookupInner() {
                     gbp={gbp}
                     formatDate={formatDate}
                   />
-                {result.status.settlement_figure > 0 && (
-                  <ManualPaymentForm
-                    agreementNumber={result.agreement.agreement_number}
-                    owing={result.status.settlement_figure}
-                    onDone={() => {
-                      runLookup(
-                        "agreement",
-                        result.agreement.agreement_number
-                      );
-                      notifyBookChanged();
-                    }}
-                    gbp={gbp}
-                  />
-                )}
-                </>
               )}
+              </div>
 
               <DriveDocuments
                 agreementNumber={result.agreement.agreement_number}
@@ -592,19 +576,23 @@ function LookupInner() {
                         }
                       >
                         <td>{row.instalment_number}</td>
-                        <td>{formatDate(row.due_date)}</td>
+                        <td>
+                          {formatDate(row.due_date)}
+                          {row.status === "paid" &&
+                            row.paid_date &&
+                            row.paid_date.slice(0, 10) !==
+                              String(row.due_date || "").slice(0, 10) && (
+                              <div className="lookup-row-note">
+                                Paid {formatDate(row.paid_date)}
+                              </div>
+                            )}
+                        </td>
                         <td className="mono">{gbp(row.amount)}</td>
                         <td>
                           {row.status === "paid" ? (
                             <span className="lookup-paid">
-                              {row.source === "manual"
-                                ? "Part settlement"
-                                : row.source === "bank"
-                                ? (result.missed_months || []).includes(
-                                    String(row.due_date || "").slice(0, 7)
-                                  )
-                                  ? "Bank payment after miss"
-                                  : "Bank payment"
+                              {row.source === "manual" || row.source === "bank"
+                                ? "Manual payment"
                                 : (result.missed_months || []).includes(
                                     String(row.due_date || "").slice(0, 7)
                                   )
@@ -849,196 +837,24 @@ function DriveDocuments({ agreementNumber }: { agreementNumber: string }) {
   );
 }
 
-function RecordInstalmentForm({
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function ManualPaymentsForm({
   agreementNumber,
-  schedule,
-  missedMonths,
+  owing,
   onDone,
   gbp,
   formatDate,
 }: {
   agreementNumber: string;
-  schedule: {
-    amount: number;
-    due_date: string;
-    instalment_number: number;
-    status: string;
-  }[];
-  missedMonths: string[];
+  owing: number;
   onDone: () => void;
   gbp: (n: number) => string;
   formatDate: (d: string | null) => string;
 }) {
-  const unpaid = schedule.filter((row) => row.status !== "paid");
-  const glacier = currentAdminBook() === "gg";
-  const [open, setOpen] = useState(
-    glacier || missedMonths.length > 0 || unpaid.some((row) => row.status === "failed")
-  );
-  const [paidDate, setPaidDate] = useState(todayIso());
-  const suggested = pickBankPaymentInstalment(unpaid, paidDate);
-  const [instalmentNumber, setInstalmentNumber] = useState(
-    suggested ? String(suggested.instalment_number) : ""
-  );
-  const selected =
-    unpaid.find((row) => String(row.instalment_number) === instalmentNumber) ||
-    suggested;
-  const [amount, setAmount] = useState(selected ? String(selected.amount) : "");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [error, setError] = useState("");
-
-  if (!unpaid.length) return null;
-
-  const applyInstalment = (row: (typeof unpaid)[0] | null | undefined) => {
-    if (!row) return;
-    setInstalmentNumber(String(row.instalment_number));
-    setAmount(String(row.amount));
-  };
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setMsg("");
-    setError("");
-    try {
-      const res = await fetch("/api/admin/manual-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...adminHeaders() },
-        body: JSON.stringify({
-          agreement_number: agreementNumber,
-          amount,
-          paid_date: paidDate,
-          note:
-            note ||
-            (glacier ? "Standing order / bank payment" : "Bank payment after missed Direct Debit"),
-          mode: "next",
-          instalment_number: selected?.instalment_number,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not save");
-      setMsg(
-        `Recorded ${gbp(json.applied)} on ${formatDate(paidDate)} against instalment ${
-          json.instalment_number
-        }.`
-      );
-      setNote("");
-      setOpen(false);
-      onDone();
-    } catch (err: any) {
-      setError(err.message || "Could not save");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="lookup-manual">
-      <button
-        type="button"
-        className="lookup-manual-toggle"
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open ? "Cancel" : "Record a bank payment"}
-      </button>
-      {msg && <div className="lookup-ok">{msg}</div>}
-      {open && (
-        <form className="lookup-manual-form" onSubmit={submit}>
-          <p className="lookup-manual-help">
-            {glacier
-              ? "Tick the next instalment as paid. Glacier Gem collections are standing orders, not GoCardless."
-              : "When a Direct Debit misses and they pay into the bank, record the amount and date. It ticks that month as paid — the miss still shows on the agreement."}
-          </p>
-          <div className="lookup-field">
-            <label>Amount</label>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-          <div className="lookup-field">
-            <label>Date received</label>
-            <input
-              type="date"
-              value={paidDate}
-              onChange={(e) => {
-                const next = e.target.value;
-                setPaidDate(next);
-                applyInstalment(pickBankPaymentInstalment(unpaid, next));
-              }}
-              required
-            />
-          </div>
-          <div className="lookup-field lookup-field-wide">
-            <label>Apply to</label>
-            <select
-              value={selected ? String(selected.instalment_number) : ""}
-              onChange={(e) => {
-                const row = unpaid.find(
-                  (item) => String(item.instalment_number) === e.target.value
-                );
-                applyInstalment(row);
-              }}
-              required
-            >
-              {unpaid.map((row) => (
-                <option key={row.instalment_number} value={row.instalment_number}>
-                  #{row.instalment_number} · {formatDate(row.due_date)} · {gbp(row.amount)}
-                  {row.status === "failed" ? " · missed DD" : ""}
-                  {missedMonths.includes(String(row.due_date).slice(0, 7))
-                    ? " · missed month"
-                    : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="lookup-field lookup-field-wide">
-            <label>Note (optional)</label>
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={
-                glacier ? "e.g. Standing order 21 Sep" : "e.g. Paid into bank 23 Sep"
-              }
-            />
-          </div>
-          <button type="submit" disabled={saving || !selected}>
-            {saving
-              ? "Saving…"
-              : selected
-              ? `Record ${gbp(Number(amount) || selected.amount)} on ${formatDate(paidDate)}`
-              : "Record bank payment"}
-          </button>
-          {error && <div className="lookup-error">{error}</div>}
-        </form>
-      )}
-    </div>
-  );
-}
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function ManualPaymentForm({
-  agreementNumber,
-  owing,
-  onDone,
-  gbp,
-}: {
-  agreementNumber: string;
-  owing: number;
-  onDone: () => void;
-  gbp: (n: number) => string;
-}) {
   const [open, setOpen] = useState(false);
-  const [fullSettle, setFullSettle] = useState(false);
   const [amount, setAmount] = useState("");
   const [paidDate, setPaidDate] = useState(todayIso);
   const [note, setNote] = useState("");
@@ -1046,7 +862,7 @@ function ManualPaymentForm({
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
-  const payAmount = fullSettle ? owing : Number(amount);
+  const payAmount = Number(amount);
   const remainingAfter =
     Number.isFinite(payAmount) && payAmount > 0
       ? Math.round((owing - payAmount) * 100) / 100
@@ -1063,7 +879,7 @@ function ManualPaymentForm({
         headers: { "Content-Type": "application/json", ...adminHeaders() },
         body: JSON.stringify({
           agreement_number: agreementNumber,
-          amount: fullSettle ? owing : amount,
+          amount,
           paid_date: paidDate,
           note,
         }),
@@ -1072,12 +888,13 @@ function ManualPaymentForm({
       if (!res.ok) throw new Error(json.error || "Could not save");
       setMsg(
         json.settled
-          ? `Recorded ${gbp(json.applied)} — this agreement is now settled.`
-          : `Recorded ${gbp(json.applied)}. ${gbp(remainingAfter)} still owing.`
+          ? `Recorded ${gbp(json.applied)} on ${formatDate(paidDate)} — this agreement is now settled.`
+          : `Recorded ${gbp(json.applied)} on ${formatDate(paidDate)}. ${gbp(
+              Math.max(0, remainingAfter)
+            )} still owing.`
       );
       setAmount("");
       setNote("");
-      setFullSettle(false);
       setOpen(false);
       onDone();
     } catch (err: any) {
@@ -1094,18 +911,16 @@ function ManualPaymentForm({
         className="lookup-manual-toggle"
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? "Cancel" : "Record a part settlement"}
+        {open ? "Cancel" : "Manual payments"}
       </button>
-      {open && (
-        <p className="lookup-manual-help">
-          For a lump that is not a monthly Direct Debit — insurance on a stolen
-          van, a vehicle sold off the agreement, or a customer paying down
-          part of the balance.
-        </p>
-      )}
       {msg && <div className="lookup-ok">{msg}</div>}
       {open && (
         <form className="lookup-manual-form" onSubmit={submit}>
+          <p className="lookup-manual-help">
+            Use this when they pay into the bank after a missed Direct Debit,
+            or for any other receipt that is not a GoCardless collection. The
+            amount and date sit on the schedule as their own line.
+          </p>
           <div className="lookup-field">
             <label>Amount</label>
             <input
@@ -1113,14 +928,10 @@ function ManualPaymentForm({
               min="0.01"
               step="0.01"
               max={owing}
-              value={fullSettle ? String(owing) : amount}
-              onChange={(e) => {
-                setFullSettle(false);
-                setAmount(e.target.value);
-              }}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
               placeholder={gbp(owing)}
-              required={!fullSettle}
-              disabled={fullSettle}
+              required
             />
           </div>
           <div className="lookup-field">
@@ -1133,30 +944,28 @@ function ManualPaymentForm({
             />
           </div>
           <div className="lookup-field lookup-field-wide">
-            <label>What was this for?</label>
+            <label>Reason</label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Insurance payout — stolen van"
+              placeholder="e.g. Paid into bank after missed Direct Debit"
               required
             />
           </div>
-          <label className="lookup-check">
-            <input
-              type="checkbox"
-              checked={fullSettle}
-              onChange={(e) => setFullSettle(e.target.checked)}
-            />
-            This pays the agreement off in full ({gbp(owing)})
-          </label>
           <p className="lookup-manual-preview">
             {remainingAfter <= 0.009
               ? "After this, the settlement figure will be £0.00."
-              : `After this, ${gbp(remainingAfter)} will still be owing.`}
+              : Number.isFinite(payAmount) && payAmount > 0
+              ? `After this, ${gbp(remainingAfter)} will still be owing.`
+              : `Currently owing ${gbp(owing)}.`}
           </p>
           <button type="submit" disabled={saving}>
-            {saving ? "Saving…" : "Apply to this agreement"}
+            {saving
+              ? "Saving…"
+              : payAmount > 0
+              ? `Record ${gbp(payAmount)} on ${formatDate(paidDate)}`
+              : "Record payment"}
           </button>
           {error && <div className="lookup-error">{error}</div>}
         </form>

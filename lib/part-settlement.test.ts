@@ -1,9 +1,9 @@
 import {
   planPartSettlement,
+  planManualReceipt,
   nextInstalmentNumber,
   sortByDueDate,
   withRemainingBalance,
-  pickBankPaymentInstalment,
 } from "./part-settlement";
 
 function assert(cond: unknown, msg: string) {
@@ -85,32 +85,25 @@ const hp21 = planPartSettlement(hp21Unpaid, 5120, "2026-02-06", "2026-02-06");
 assert(hp21.removeIds.length === 8, "full settlement clears the failed DD and remaining months");
 assert(hp21.reduce === null, "HP21 does not leave a reduced instalment");
 
-const bankTarget = pickBankPaymentInstalment(
+const l3 = planManualReceipt(
   [
-    { id: "aug", due_date: "2026-08-08", status: "paid", instalment_number: 11 },
-    { id: "sep-fail", due_date: "2026-09-08", status: "failed", instalment_number: 12 },
-    { id: "oct", due_date: "2026-10-08", status: "due", instalment_number: 13 },
-  ].filter((row) => row.status !== "paid"),
-  "2026-09-15"
-);
-assert(bankTarget?.id === "sep-fail", "bank receipt ticks the missed September Direct Debit");
-
-const laterBank = pickBankPaymentInstalment(
-  [
-    { id: "sep-fail", due_date: "2026-09-08", status: "failed", instalment_number: 12 },
-    { id: "oct", due_date: "2026-10-08", status: "due", instalment_number: 13 },
+    { id: "aug", instalment_number: 14, amount: 1000, due_date: "2026-08-01" },
+    { id: "sep", instalment_number: 15, amount: 1000, due_date: "2026-09-01" },
   ],
-  "2026-10-20"
+  500
 );
-assert(laterBank?.id === "oct", "October bank receipt ticks October, not an older miss");
+assert(l3.removeIds.length === 0, "£500 receipt does not wipe the August rent");
+assert(l3.reduce?.id === "aug", "takes the £500 off August first");
+assert(l3.reduce?.amount === 500, `August remaining should be £500, got ${l3.reduce?.amount}`);
 
-const noMonth = pickBankPaymentInstalment(
+const fullMonth = planManualReceipt(
   [
-    { id: "fail", due_date: "2026-09-08", status: "failed", instalment_number: 12 },
-    { id: "due", due_date: "2026-10-08", status: "due", instalment_number: 13 },
+    { id: "aug", instalment_number: 14, amount: 1000, due_date: "2026-08-01" },
+    { id: "sep", instalment_number: 15, amount: 1000, due_date: "2026-09-01" },
   ],
-  "2026-11-02"
+  1000
 );
-assert(noMonth?.id === "fail", "with no matching month, still clear the failed Direct Debit first");
+assert(fullMonth.removeIds.join() === "aug", "a full month clears the oldest unpaid rent");
+assert(fullMonth.reduce === null, "no leftover on September");
 
 console.log("part-settlement tests ok");
