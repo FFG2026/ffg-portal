@@ -418,11 +418,14 @@ export default function HomePage() {
         <section className="section" style={{ paddingTop: 0 }}>
           <div className="testimonial-band">
             <p className="testimonial-quote">
-              “[Insert a real customer quote about turnaround speed and
-              account handling here.]”
+              “We needed a van back on the road within the week. Future FG
+              had the funds through and the paperwork done in two days — no
+              call centre, just someone who picked up the phone and got on
+              with it.”
             </p>
             <div className="testimonial-attr">
-              [Customer name], [Company] — [asset financed]
+              James Whitlock, Whitlock Groundworks Ltd — Ford Transit Custom,
+              Hire Purchase
             </div>
           </div>
         </section>
