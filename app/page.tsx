@@ -221,16 +221,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        <div className="trust-bar">
-          <span>FCA regulated (CONC-aligned)</span>
-          <span className="sep">|</span>
-          <span>NACFB member</span>
-          <span className="sep">|</span>
-          <span>Panel of 12+ funders</span>
-          <span className="sep">|</span>
-          <span>Rochester, Kent</span>
-        </div>
-
         <section className="stats-strip">
           <div className="stats-band">
             <div className="stats-grid">
