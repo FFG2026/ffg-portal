@@ -34,6 +34,45 @@ export function instalmentDueFromStart(startDate: string, instalmentNumber: numb
   return addMonths(String(startDate).slice(0, 10), instalmentNumber);
 }
 
+/** Next contracted due date on or after the deal was written. */
+export function firstDueOnOrAfter(fromIso: string, dueDay: number) {
+  const from = String(fromIso || "").slice(0, 10);
+  const day = Math.max(1, Math.min(31, Number(dueDay) || 1));
+  if (from.length < 10) return from;
+  const y = Number(from.slice(0, 4));
+  const m = Number(from.slice(5, 7));
+  const d = Number(from.slice(8, 10));
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const due = Math.min(day, last);
+  if (d <= due) {
+    return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(due).padStart(2, "0")}`;
+  }
+  return addMonths(
+    `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(due).padStart(2, "0")}`,
+    1
+  );
+}
+
+/** Commencement: one month before the first instalment that can exist after written. */
+export function startDateFromWritten(writtenDate: string, dueDay: number) {
+  const written = String(writtenDate || "").slice(0, 10);
+  if (written.length < 10) return written;
+  return addMonths(firstDueOnOrAfter(written, dueDay), -1);
+}
+
+export function dueDayFromRows(
+  rows: { due_date?: string | null }[] | null | undefined,
+  fallbackIso?: string | null
+) {
+  const first = (rows || [])
+    .map((r) => String(r.due_date || "").slice(0, 10))
+    .filter((d) => d.length >= 10)
+    .sort()[0];
+  const iso = first || String(fallbackIso || "").slice(0, 10);
+  const day = Number(iso.slice(8, 10));
+  return Number.isFinite(day) && day > 0 ? day : 1;
+}
+
 /** Commencement is always one calendar month before the first instalment. */
 export function startDateFromFirstPayment(
   rows: { due_date?: string | null }[] | null | undefined,
@@ -234,5 +273,32 @@ export function financeLeaseScheduleNeedsRepair(
       return true;
     }
   }
+  return false;
+}
+
+/**
+ * HP imported from the book often starts a month too early, leaving a Due
+ * row before the deal was written (HP133 March before 30 Mar).
+ */
+export function hirePurchaseScheduleNeedsRepair(
+  rows: Array<{
+    instalment_number?: number | null;
+    due_date?: string | null;
+    amount?: number | string | null;
+    status?: string | null;
+  }>,
+  opts: {
+    termMonths: number;
+    monthlyInstalment: number;
+    startDate: string;
+    writtenDate?: string | null;
+  }
+) {
+  const written = String(opts.writtenDate || "").slice(0, 10);
+  const first = (rows || [])
+    .map((r) => String(r.due_date || "").slice(0, 10))
+    .filter((d) => d.length >= 10)
+    .sort()[0];
+  if (written.length >= 10 && first && first < written) return true;
   return false;
 }

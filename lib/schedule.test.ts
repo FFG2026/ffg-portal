@@ -7,6 +7,9 @@ import {
   rewritePaymentSchedule,
   startDateFromDriveFolder,
   startDateFromFirstPayment,
+  startDateFromWritten,
+  firstDueOnOrAfter,
+  hirePurchaseScheduleNeedsRepair,
   visibleScheduleNote,
 } from "./schedule";
 
@@ -165,5 +168,40 @@ assert(
 
 assert(visibleScheduleNote("GoCardless collection") == null, "hide internal GC label");
 assert(visibleScheduleNote("Refund of double payment") === "Refund of double payment", "keep real notes");
+
+assert(firstDueOnOrAfter("2026-03-30", 9) === "2026-04-09", "HP133 first due is the 9th after written");
+assert(startDateFromWritten("2026-03-30", 9) === "2026-03-09", "HP133 start is a month before first due");
+assert(firstDueOnOrAfter("2026-04-09", 9) === "2026-04-09", "written on the due day keeps that month");
+assert(
+  hirePurchaseScheduleNeedsRepair(
+    [
+      { instalment_number: 1, due_date: "2026-03-09", amount: 850, status: "due" },
+      { instalment_number: 2, due_date: "2026-04-09", amount: 850, status: "paid" },
+    ],
+    {
+      termMonths: 48,
+      monthlyInstalment: 850,
+      startDate: "2026-03-09",
+      writtenDate: "2026-03-30",
+    }
+  ),
+  "HP133 March due before written needs a rebuild"
+);
+assert(
+  hirePurchaseScheduleNeedsRepair(
+    buildPaymentSchedule({
+      termMonths: 48,
+      monthlyInstalment: 850,
+      startDate: "2026-03-09",
+    }),
+    {
+      termMonths: 48,
+      monthlyInstalment: 850,
+      startDate: "2026-03-09",
+      writtenDate: "2026-03-30",
+    }
+  ) === false,
+  "rebuilt HP133 schedule starting April is clean"
+);
 
 console.log("schedule tests ok");

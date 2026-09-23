@@ -253,6 +253,35 @@ function nearestInstalment(
   return best;
 }
 
+function sameCalendarMonth(a: string, b: string) {
+  return dateOnly(a).slice(0, 7) === dateOnly(b).slice(0, 7);
+}
+
+/** Monthly Direct Debit charged in April belongs on the April instalment. */
+function instalmentInChargeMonth(
+  instalments: Instalment[],
+  gcPayment: GoCardlessPayment,
+  usedInstalmentIds: Set<string>,
+  mode: "paid" | "failed"
+): Instalment | null {
+  const chargeDate = gcPayment.charge_date;
+  if (!chargeDate) return null;
+  const matches = instalments.filter((instalment) => {
+    if (usedInstalmentIds.has(instalment.id)) return false;
+    if (instalment.gocardless_payment_id) return false;
+    if (mode === "failed" && instalment.status === "paid") return false;
+    if (!sameCalendarMonth(instalment.due_date, chargeDate)) return false;
+    return amountsClose(instalment.amount, gcPayment.amount);
+  });
+  if (matches.length === 0) return null;
+  matches.sort(
+    (a, b) =>
+      Math.abs(daysBetween(a.due_date, chargeDate)) -
+      Math.abs(daysBetween(b.due_date, chargeDate))
+  );
+  return matches[0];
+}
+
 function instalmentByNumber(
   instalments: Instalment[],
   gcPayment: GoCardlessPayment,
@@ -303,6 +332,12 @@ export function matchGcPaymentsToInstalments(
         usedInstalmentIds,
         "paid"
       ) ||
+      instalmentInChargeMonth(
+        instalments,
+        payment,
+        usedInstalmentIds,
+        "paid"
+      ) ||
       (opts?.looseDateDays
         ? nearestInstalment(
             instalments,
@@ -332,6 +367,12 @@ export function matchGcPaymentsToInstalments(
     const instalment =
       instalmentByNumber(instalments, payment, usedInstalmentIds, "failed") ||
       nearestInstalment(
+        instalments,
+        payment,
+        usedInstalmentIds,
+        "failed"
+      ) ||
+      instalmentInChargeMonth(
         instalments,
         payment,
         usedInstalmentIds,

@@ -213,4 +213,27 @@ assert(looksLikeMonthlyVariation(1214, 1409), "FL2 reduced months are still mont
 assert(!looksLikeMonthlyVariation(50, 1409), "£50 leftover is not a monthly rent");
 assert(!looksLikeMonthlyVariation(5760, 1409), "deposit is not a monthly rent");
 
+const hp133 = [
+  { id: "mar", due_date: "2026-03-09", status: "due", amount: "850", gocardless_payment_id: null, instalment_number: 1 },
+  { id: "apr", due_date: "2026-04-09", status: "paid", amount: "850", gocardless_payment_id: null, instalment_number: 2 },
+  { id: "may", due_date: "2026-05-09", status: "due", amount: "850", gocardless_payment_id: null, instalment_number: 3 },
+];
+const hp133Gc = matchGcPaymentsToInstalments(
+  hp133,
+  [
+    { id: "PM_APR", charge_date: "2026-04-20", status: "paid_out", amount: 85000 },
+    { id: "PM_MAY", charge_date: "2026-05-05", status: "paid_out", amount: 85000 },
+  ],
+  { looseDateDays: 40 }
+);
+assert(
+  hp133Gc.find((m) => m.instalmentId === "apr")?.chargeDate === "2026-04-20",
+  "April GoCardless collection ticks April even 11+ days off the 9th"
+);
+assert(
+  hp133Gc.find((m) => m.instalmentId === "may")?.chargeDate === "2026-05-05",
+  "May GoCardless collection ticks May"
+);
+assert(!hp133Gc.find((m) => m.instalmentId === "mar"), "March stays unticked when GoCardless has no March collection");
+
 console.log("match-payments tests ok");
