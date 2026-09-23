@@ -10,6 +10,16 @@ export function isSettledAgreement(status: string | null | undefined) {
   return String(status || "").trim().toLowerCase() === "settled";
 }
 
+/** Finished: paid off, or unwound / cancelled and off the live book. */
+export function isFinishedAgreement(status: string | null | undefined) {
+  const s = String(status || "").trim().toLowerCase();
+  return s === "settled" || s === "cancelled";
+}
+
+export function isUnwoundAgreement(status: string | null | undefined) {
+  return String(status || "").trim().toLowerCase() === "cancelled";
+}
+
 export function paidCount(
   rows: { status?: string | null }[] | null | undefined
 ) {
@@ -125,12 +135,14 @@ export function openingOwing(agreement: {
 /** Still on the book: day-one owing minus collections received. */
 export function netBookValue(
   agreement: {
+    status?: string | null;
     total_lend?: number | string | null;
     total_repayable?: number | string | null;
     commission?: number | string | null;
   },
   rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
 ) {
+  if (isUnwoundAgreement(agreement.status)) return 0;
   return Math.max(0, roundMoney(openingOwing(agreement) - paidSum(rows)));
 }
 
@@ -149,6 +161,7 @@ export function isAsAndWhenDeal(agreement: {
  */
 export function settlementFigure(
   agreement: {
+    status?: string | null;
     monthly_instalment?: number | string | null;
     total_lend?: number | string | null;
     total_repayable?: number | string | null;
@@ -156,6 +169,7 @@ export function settlementFigure(
   },
   rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
 ) {
+  if (isUnwoundAgreement(agreement.status)) return 0;
   if (isAsAndWhenDeal(agreement)) return netBookValue(agreement, rows);
   return unpaidSum(rows);
 }
@@ -175,7 +189,7 @@ export function isLiveDeal(
   },
   rows: { status?: string | null }[] | null | undefined
 ) {
-  if (isSettledAgreement(agreement.status)) return false;
+  if (isFinishedAgreement(agreement.status)) return false;
   if (
     agreement.monthly_instalment != null &&
     Number(agreement.monthly_instalment) <= 0

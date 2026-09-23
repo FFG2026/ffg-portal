@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchAllRows } from "../../../../lib/supabase/fetch-all";
-import { isSettledAgreement } from "../../../../lib/deal-status";
+import { isFinishedAgreement } from "../../../../lib/deal-status";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     const paidCount = agreementId
       ? paidCountByAgreementId.get(agreementId) || 0
       : 0;
-    const isLive = isSettledAgreement(a.status)
+    const isLive = isFinishedAgreement(a.status)
       ? false
       : a.term_months
         ? paidCount < a.term_months

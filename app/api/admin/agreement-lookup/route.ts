@@ -4,7 +4,7 @@ import { fetchAllIn } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
-import { isLiveDeal, paidCount, netBookValue, openingOwing, settlementFigure, amountFinanced } from "../../../../lib/deal-status";
+import { isLiveDeal, isUnwoundAgreement, paidCount, netBookValue, openingOwing, settlementFigure, amountFinanced } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment, visibleScheduleNote } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
@@ -127,6 +127,7 @@ export async function GET(request: Request) {
             paid_count: paidCount(rows),
             term_months: a.term_months,
             live: isLiveDeal(a, rows),
+            unwound: isUnwoundAgreement(a.status),
             settlement_figure: settlementFigure(a, rows),
             net_book_value: netBookValue(a, rows),
             has_schedule: rows.length > 0,
@@ -266,6 +267,7 @@ export async function GET(request: Request) {
             agreement_type: a.agreement_type,
             asset_description: a.asset_description,
             live: isLiveDeal(a, rows),
+            unwound: isUnwoundAgreement(a.status),
             paid_count: paidCount(rows),
             term_months: a.term_months,
             settlement_figure: settlementFigure(a, rows),
@@ -276,6 +278,7 @@ export async function GET(request: Request) {
         paid_count: paidCount(schedule),
         term_months: agreement.term_months,
         live: isLiveDeal(agreement, schedule),
+        unwound: isUnwoundAgreement(agreement.status),
         settlement_figure: settlementFigure(agreement, schedule),
         net_book_value: netBookValue(agreement, schedule),
         last_payment_date: lastPaid

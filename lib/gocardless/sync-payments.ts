@@ -21,6 +21,7 @@ import {
   hirePurchaseScheduleNeedsRepair,
   rebuildFinanceLeaseSchedule,
 } from "../schedule";
+import { isUnwoundAgreement } from "../deal-status";
 import { createAdminClient } from "../supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -161,6 +162,16 @@ async function applyMatches(
     .maybeSingle();
   if (headerRes.error) throw new Error(headerRes.error.message);
   const header = headerRes.data;
+
+  if (isUnwoundAgreement(header?.status)) {
+    return {
+      agreementId: agreement.id,
+      mandateId: agreement.gocardless_mandate_id || "",
+      gcPayments: gcPayments.length,
+      markedPaid: 0,
+      markedFailed: 0,
+    };
+  }
 
   const paymentsRes = await supabase
     .from("payments")
@@ -334,7 +345,8 @@ async function applyMatches(
     else markedFailed += 1;
   }
 
-  const settled = String(header?.status || "").trim().toLowerCase() === "settled";
+  const finished =
+    String(header?.status || "").trim().toLowerCase() === "settled";
 
   const { count } = await supabase
     .from("payments")
@@ -344,7 +356,7 @@ async function applyMatches(
   let nextNumber =
     Math.max(0, ...instalments.map((row) => Number(row.instalment_number || 0))) +
     1;
-  if (!settled && term > have && monthly > 0 && start.length >= 10) {
+  if (!finished && term > have && monthly > 0 && start.length >= 10) {
     const extras = [];
     for (let n = nextNumber; extras.length + have < term; n += 1) {
       extras.push({
