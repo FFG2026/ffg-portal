@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { authorizeAdminRequest } from "../../../../lib/admin";
-import { planPartSettlement, nextInstalmentNumber } from "../../../../lib/part-settlement";
+import { planPartSettlement, nextInstalmentNumber, pickBankPaymentInstalment } from "../../../../lib/part-settlement";
 
 export const dynamic = "force-dynamic";
 
@@ -60,10 +60,15 @@ export async function POST(request: Request) {
       instalment_number: p.instalment_number,
       amount: Number(p.amount),
       due_date: p.due_date,
+      status: p.status,
     }));
 
   if (mode === "next") {
-    const next = unpaid[0];
+    const requested = Number(body.instalment_number);
+    const next =
+      Number.isFinite(requested) && requested > 0
+        ? unpaid.find((p) => Number(p.instalment_number) === requested) || null
+        : pickBankPaymentInstalment(unpaid, paidDate);
     if (!next) {
       return NextResponse.json(
         { error: "There is nothing left to mark paid on this agreement." },
@@ -77,8 +82,8 @@ export async function POST(request: Request) {
         status: "paid",
         paid_date: paidDate,
         amount: Math.round(paidAmount * 100) / 100,
-        notes: note || "Manual collection",
-        source: "manual",
+        notes: note || "Bank payment",
+        source: "bank",
         updated_at: new Date().toISOString(),
       })
       .eq("id", next.id);

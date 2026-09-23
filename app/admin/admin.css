@@ -51,6 +51,8 @@
 .admin-attn td:nth-child(2){white-space:normal;}
 .admin-attn tr:hover td{background:var(--blue-pale); cursor:pointer;}
 .admin-pill{display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; padding:3px 8px; border-radius:5px; background:var(--gold-pale); color:#8A6A24;}
+.admin-pill.miss{background:#FBEAEA; color:#B4232C;}
+.admin-pill.miss.now{background:#E31D25; color:#fff;}
 .admin-action-centre h2{margin-bottom:4px;}
 .admin-action-centre h3{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; color:var(--navy); margin:18px 0 8px;}
 .admin-action-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;}
@@ -256,6 +258,15 @@
 .action-centre .admin-attn{font-size:11px;}
 .action-centre .admin-attn th{font-size:8.5px; padding:7px 5px;}
 .action-centre .admin-attn td{padding:9px 5px;}
+.dd-miss-panel{margin-top:16px; padding-top:14px; border-top:1px solid var(--rule);}
+.dd-miss-help{font-size:11.5px; color:var(--slate); margin:0 0 10px; line-height:1.4;}
+.dd-miss-months{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;}
+.dd-miss-chip{display:inline-flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid var(--rule); border-radius:8px; background:#fff; color:var(--ink-soft); font-size:12px; font-weight:600; cursor:pointer;}
+.dd-miss-chip b{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--slate);}
+.dd-miss-chip.has-miss b{color:#B4232C;}
+.dd-miss-chip.on{border-color:#B4232C; background:#FFF1F1; color:#B4232C;}
+.dd-miss-row-months{display:flex; flex-wrap:wrap; gap:4px; align-items:center;}
+.dd-miss-regular{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; color:#B4232C; font-weight:700;}
 .view-agreement{padding:9px 18px; border:1px solid var(--blue-deep); border-radius:8px; background:var(--blue); color:#fff; font-size:13.5px; font-weight:800; letter-spacing:0.02em; cursor:pointer; white-space:nowrap; box-shadow:0 2px 0 rgba(10,111,203,0.4);}
 .view-agreement:hover{background:var(--blue-deep); color:#fff;}
 .cashflow-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:9px;}

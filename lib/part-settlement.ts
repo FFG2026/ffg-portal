@@ -133,6 +133,33 @@ export function sortByDueDate<T extends { due_date: string; instalment_number: n
 }
 
 /**
+ * Bank receipt after a missed Direct Debit: tick the unpaid month they
+ * paid for, preferring a failed row in that month.
+ */
+export function pickBankPaymentInstalment<
+  T extends { due_date: string; status?: string | null; instalment_number?: number }
+>(unpaid: T[], paidDate: string): T | null {
+  if (!unpaid.length) return null;
+  const ordered = sortByDueDate(
+    unpaid.map((row) => ({
+      ...row,
+      instalment_number: Number(row.instalment_number || 0),
+    }))
+  );
+  const month = String(paidDate || "").slice(0, 7);
+  const inMonth = month
+    ? ordered.filter((row) => String(row.due_date).slice(0, 7) === month)
+    : [];
+  return (
+    inMonth.find((row) => String(row.status || "") === "failed") ||
+    inMonth[0] ||
+    ordered.find((row) => String(row.status || "") === "failed") ||
+    ordered[0] ||
+    null
+  );
+}
+
+/**
  * Spreadsheet-style running remaining: start from the original book
  * (every instalment, paid or not) and count down each line. A deal paid
  * from start to finish ends at £0 — it must not keep showing the original

@@ -28,6 +28,14 @@ type Dashboard = {
     reason: string;
     amount: number | null;
   }[];
+  dd_misses?: {
+    agreement_number: string;
+    company_name: string;
+    months: string[];
+    latest_amount: number;
+    latest_charge_date: string;
+  }[];
+  dd_miss_months?: string[];
   cashflow: { days: number; amount: number; count: number }[];
   recent_activity: {
     date: string;
@@ -59,6 +67,7 @@ function DashboardInner() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [reloading, setReloading] = useState(true);
+  const [missMonth, setMissMonth] = useState("");
   const loadSeq = useRef(0);
 
   const load = useCallback(async (opts?: { showBusy?: boolean }) => {
@@ -84,6 +93,10 @@ function DashboardInner() {
       }
       setError("");
       setData(json);
+      const months: string[] = json.dd_miss_months || [];
+      setMissMonth((current) =>
+        current && months.includes(current) ? current : months[months.length - 1] || ""
+      );
     } catch {
       if (seq !== loadSeq.current) return;
       setError("Couldn't load the dashboard.");
@@ -259,6 +272,19 @@ function DashboardInner() {
                 </table>
                 </div>
               )}
+              {base !== "/admin/gg" && (
+                <DdMissPanel
+                  months={data.dd_miss_months || []}
+                  selected={missMonth}
+                  onSelect={setMissMonth}
+                  rows={data.dd_misses || []}
+                  onOpen={(agreement) =>
+                    router.push(
+                      `${base}/lookup?agreement=${encodeURIComponent(agreement)}`
+                    )
+                  }
+                />
+              )}
             </section>
           </div>
 
@@ -303,6 +329,100 @@ function DashboardInner() {
             </div>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+function DdMissPanel({
+  months,
+  selected,
+  onSelect,
+  rows,
+  onOpen,
+}: {
+  months: string[];
+  selected: string;
+  onSelect: (month: string) => void;
+  rows: {
+    agreement_number: string;
+    company_name: string;
+    months: string[];
+    latest_amount: number;
+  }[];
+  onOpen: (agreement: string) => void;
+}) {
+  const visible = rows.filter((row) => !selected || row.months.includes(selected));
+  const countFor = (month: string) =>
+    rows.filter((row) => row.months.includes(month)).length;
+
+  return (
+    <div className="dd-miss-panel">
+      <h3>Direct Debit misses</h3>
+      <p className="dd-miss-help">
+        Failed collections from September 2026. Retries stay on the month they first missed.
+      </p>
+      <div className="dd-miss-months">
+        {months.map((month) => (
+          <button
+            key={month}
+            type="button"
+            className={`dd-miss-chip ${selected === month ? "on" : ""} ${countFor(month) ? "has-miss" : ""}`}
+            onClick={() => onSelect(month)}
+          >
+            {new Date(`${month}-01`).toLocaleDateString("en-GB", {
+              month: "short",
+              year: "numeric",
+            })}
+            <b>{countFor(month)}</b>
+          </button>
+        ))}
+      </div>
+      {visible.length === 0 ? (
+        <p className="admin-lead">No Direct Debit misses this month.</p>
+      ) : (
+        <div className="admin-action-scroll">
+          <table className="admin-attn">
+            <thead>
+              <tr>
+                <th>Agreement</th>
+                <th>Customer</th>
+                <th>Months missed</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((row) => (
+                <tr key={row.agreement_number} onClick={() => onOpen(row.agreement_number)}>
+                  <td>
+                    <strong>{row.agreement_number}</strong>
+                  </td>
+                  <td>{row.company_name}</td>
+                  <td>
+                    <div className="dd-miss-row-months">
+                      {row.months.map((month) => (
+                        <span
+                          key={month}
+                          className={`admin-pill miss ${month === selected ? "now" : ""}`}
+                        >
+                          {new Date(`${month}-01`).toLocaleDateString("en-GB", {
+                            month: "short",
+                          })}
+                        </span>
+                      ))}
+                      {row.months.length > 1 && (
+                        <span className="dd-miss-regular">Regular</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <button className="view-agreement">View →</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

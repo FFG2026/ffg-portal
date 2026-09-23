@@ -10,8 +10,17 @@ import {
   unpaidSum,
   currentMonthInstalmentTotals,
 } from "../../../../lib/deal-status";
-import { fetchGoCardlessPaymentsChargedBetween } from "../../../../lib/gocardless/client";
+import { fetchGoCardlessPaymentsChargedBetween, fetchGoCardlessFailedPaymentsChargedBetween } from "../../../../lib/gocardless/client";
 import { paidOutPoundsFromGoCardlessPayments, collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
+import {
+  DD_MISS_FROM,
+  missMonthsFrom,
+  summariseDdMisses,
+} from "../../../../lib/gocardless/dd-misses";
+import {
+  missRowsForAgreements,
+  persistDirectDebitMissRows,
+} from "../../../../lib/gocardless/sync-payments";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -58,6 +67,7 @@ export async function GET(request: Request) {
   let gcMonthLoaded = false;
   let gcMonthCount = 0;
   let gcHistory: any[] = [];
+  let gcFailed: any[] = [];
   try {
     [agreements, customers] = await Promise.all([
       fetchAllRows(() =>
@@ -73,12 +83,17 @@ export async function GET(request: Request) {
 
     if (book === "ffg" && process.env.GOCARDLESS_ACCESS_TOKEN) {
       try {
-        gcHistory = await Promise.race([
-          fetchGoCardlessPaymentsChargedBetween(chartStart, nextMonth),
+        const loaded = await Promise.race([
+          Promise.all([
+            fetchGoCardlessPaymentsChargedBetween(chartStart, nextMonth),
+            fetchGoCardlessFailedPaymentsChargedBetween(DD_MISS_FROM, nextMonth),
+          ]),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("GoCardless timed out")), 25000)
           ),
         ]);
+        gcHistory = loaded[0];
+        gcFailed = loaded[1];
         const gcMonth = gcHistory.filter((payment) => {
           const charged = String(payment.charge_date || "").slice(0, 10);
           return charged >= monthStart && charged < nextMonth;
@@ -101,6 +116,25 @@ export async function GET(request: Request) {
           .order("id"),
       ids
     );
+
+    if (book === "ffg" && gcFailed.length) {
+      try {
+        await persistDirectDebitMissRows(
+          supabase,
+          missRowsForAgreements(
+            gcFailed,
+            (agreements || []).map((agreement) => ({
+              id: agreement.id,
+              agreement_number: agreement.agreement_number,
+              gocardless_mandate_id: agreement.gocardless_mandate_id,
+              monthly_instalment: agreement.monthly_instalment,
+            }))
+          )
+        );
+      } catch {
+        // Miss list still loads from anything already stored.
+      }
+    }
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Could not load the book" },
@@ -163,7 +197,10 @@ export async function GET(request: Request) {
       bucket.paid += amount;
       const collectedOn = (p.paid_date || p.due_date || "").slice(0, 10);
       if (collectedOn >= monthStart && collectedOn < nextMonth) {
-        if (String((p as { source?: string }).source || "") === "manual") {
+        if (
+          String((p as { source?: string }).source || "") === "manual" ||
+          String((p as { source?: string }).source || "") === "bank"
+        ) {
           manualThisMonth += amount;
         }
       }
@@ -284,6 +321,41 @@ export async function GET(request: Request) {
 
   attention.sort((a, b) => (b.amount || 0) - (a.amount || 0));
 
+  let storedMisses: {
+    agreement_id: string;
+    charge_date: string;
+    amount: number | string;
+    month: string;
+  }[] = [];
+  if (book === "ffg") {
+    try {
+      storedMisses = await fetchAllIn(
+        (chunk) =>
+          supabase
+            .from("direct_debit_misses")
+            .select("agreement_id, charge_date, amount, month")
+            .gte("charge_date", DD_MISS_FROM)
+            .in("agreement_id", chunk),
+        (agreements || []).map((agreement) => agreement.id)
+      );
+    } catch {
+      storedMisses = [];
+    }
+  }
+  const dd_misses = summariseDdMisses(
+    storedMisses,
+    new Map(
+      (agreements || []).map((agreement) => [
+        agreement.id as string,
+        {
+          agreement_number: agreement.agreement_number as string,
+          company_name: nameById.get(agreement.customer_id) || "(unknown)",
+        },
+      ])
+    )
+  );
+  const dd_miss_months = book === "ffg" ? missMonthsFrom(DD_MISS_FROM, today) : [];
+
   const todayUtc = new Date(`${today}T00:00:00.000Z`);
   const cashflow = [30, 60, 90].map((days) => {
     const end = new Date(todayUtc);
@@ -333,6 +405,8 @@ export async function GET(request: Request) {
     chart,
     lending,
     attention,
+    dd_misses,
+    dd_miss_months,
     cashflow,
     recent_activity: recentActivity,
     },
