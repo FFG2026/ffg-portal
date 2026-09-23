@@ -17,9 +17,9 @@ import {
   addMonths,
   dueDayFromRows,
   financeLeaseScheduleNeedsRepair,
+  hirePurchaseKeepFrom,
   hirePurchaseScheduleNeedsRepair,
   rebuildFinanceLeaseSchedule,
-  startDateFromWritten,
 } from "../schedule";
 import { createAdminClient } from "../supabase/admin";
 
@@ -184,9 +184,35 @@ async function applyMatches(
     .map((row) => String(row.due_date || "").slice(0, 10))
     .filter((d) => d.length >= 10)
     .sort()[0];
+  const firstGcDue = (paymentsRes.data || [])
+    .filter(
+      (row) =>
+        String(row.status) === "paid" &&
+        (row as { gocardless_payment_id?: string | null }).gocardless_payment_id
+    )
+    .map((row) => String(row.due_date || "").slice(0, 10))
+    .filter((d) => d.length >= 10)
+    .sort()[0];
+  const keepFrom = !isFl
+    ? hirePurchaseKeepFrom({
+        writtenDate: written,
+        dueDay,
+        firstDue,
+        firstGcDue,
+      })
+    : "";
+  const hpNeedsRebuild =
+    !isFl &&
+    hirePurchaseScheduleNeedsRepair(paymentsRes.data || [], {
+      termMonths: term,
+      monthlyInstalment: monthly,
+      startDate: storedStart,
+      writtenDate: written,
+      firstGcDue,
+    });
   const start =
-    !isFl && written.length >= 10 && firstDue && firstDue < written
-      ? startDateFromWritten(written, dueDay)
+    hpNeedsRebuild && keepFrom.length >= 10
+      ? addMonths(keepFrom, -1)
       : storedStart;
 
   let instalments = (paymentsRes.data || []) as Instalment[];
@@ -208,6 +234,7 @@ async function applyMatches(
           monthlyInstalment: monthly,
           startDate: start,
           writtenDate: written,
+          firstGcDue,
         })
   );
 
@@ -225,14 +252,17 @@ async function applyMatches(
     const fromRows = instalments
       .filter((row) => {
         if (String(row.status) !== "paid") return false;
+        const source = String((row as { source?: string | null }).source || "");
+        if (source === "manual") return true;
+        if (row.gocardless_payment_id) return true;
+        if (fromGc.length) return false;
         const when = String(
           (row as { paid_date?: string | null }).paid_date || row.due_date || ""
         ).slice(0, 10);
+        if (keepFrom.length >= 10 && when < keepFrom) return false;
         if (
           written.length >= 10 &&
-          when < written &&
-          !row.gocardless_payment_id &&
-          String((row as { source?: string | null }).source || "") !== "manual"
+          when < written
         ) {
           return false;
         }
