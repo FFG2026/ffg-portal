@@ -53,11 +53,18 @@ assert(
 
 assert(paidSum([{ status: "paid", amount: 784.2 }, { status: "due", amount: 784.2 }]) === 784.2, "paid sum ignores dues");
 assert(
-  netBookValue(24303.4, [
+  netBookValue({ total_lend: 24303.4 }, [
     { status: "paid", amount: 784.2 },
     { status: "paid", amount: 285 },
   ]) === 23234.2,
   "net book value is net lend minus collections"
+);
+assert(
+  netBookValue(
+    { total_lend: 24303.4, total_repayable: 28231.2 },
+    [{ status: "paid", amount: 6019.2 }]
+  ) === 22212,
+  "HP104 net book value starts from day-one owing including interest"
 );
 assert(
   isLiveDeal({ status: "active", monthly_instalment: 0, term_months: 20 }, [

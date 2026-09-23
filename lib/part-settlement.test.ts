@@ -71,6 +71,16 @@ const l2 = withRemainingBalance(
 assert(l2[0].balance_after === 91302.75, "L2 remaining after first collection");
 assert(l2[35].balance_after === 0, "L2 paid in full ends at zero");
 
+const hp104Balances = withRemainingBalance(
+  [
+    { amount: 784.2, status: "paid" },
+    { amount: 285, status: "paid" },
+  ],
+  28231.2
+);
+assert(hp104Balances[0].balance_after === 27447, "HP104 running balance starts from day-one owing");
+assert(hp104Balances[1].balance_after === 27162, "then counts down actual receipts");
+
 const hp21Unpaid = [
   { id: "failed-may", instalment_number: 32, amount: 640, due_date: "2025-05-05" },
   { id: "mar", instalment_number: 42, amount: 640, due_date: "2026-03-05" },

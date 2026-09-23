@@ -195,10 +195,12 @@ export function planManualReceipt(
  */
 export function withRemainingBalance<
   T extends { amount: number | string; status: string },
->(rows: T[]) {
-  let left = round2(
+>(rows: T[], opening?: number | string | null) {
+  const contracted = round2(
     rows.reduce((sum, r) => sum + Number(r.amount || 0), 0)
   );
+  const start = Number(opening || 0);
+  let left = start > contracted ? round2(start) : contracted;
   return rows.map((row) => {
     left = round2(left - Number(row.amount || 0));
     return { ...row, balance_after: Math.max(0, left) };
