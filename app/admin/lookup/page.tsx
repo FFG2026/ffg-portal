@@ -12,6 +12,7 @@ type RelatedAgreement = {
   agreement_type: string;
   asset_description: string | null;
   live: boolean;
+  unwound?: boolean;
   paid_count: number;
   term_months: number;
   settlement_figure: number;
@@ -46,6 +47,7 @@ type LookupResult = {
     paid_count: number;
     term_months: number;
     live: boolean;
+    unwound?: boolean;
     settlement_figure: number;
     last_payment_date: string | null;
     net_book_value?: number;
@@ -71,6 +73,7 @@ type CompanyAgreement = {
   paid_count: number;
   term_months: number;
   live: boolean;
+  unwound?: boolean;
   settlement_figure: number;
   has_schedule: boolean;
   gocardless_mandate_id: string | null;
@@ -89,6 +92,12 @@ type CompanyResult = {
 
 function primaryAgreement(agreements: CompanyAgreement[]) {
   return agreements.find((a) => a.live) || agreements[0] || null;
+}
+
+function dealStatusLabel(live: boolean, unwound?: boolean) {
+  if (live) return "Live";
+  if (unwound) return "Unwound";
+  return "Finished";
 }
 
 export default function AgreementLookupPage() {
@@ -315,7 +324,7 @@ function LookupInner() {
                           <span
                             className={`lookup-status ${a.live ? "live" : "finished"}`}
                           >
-                            {a.live ? "Live" : "Finished"}
+                            {dealStatusLabel(a.live, a.unwound)}
                           </span>
                           {!a.has_schedule && (
                             <span className="lookup-warn">No schedule</span>
@@ -376,7 +385,7 @@ function LookupInner() {
                 <span
                   className={`lookup-status ${result.status.live ? "live" : "finished"}`}
                 >
-                  {result.status.live ? "Live" : "Finished"}
+                  {dealStatusLabel(result.status.live, result.status.unwound)}
                 </span>
               </div>
 
@@ -439,7 +448,7 @@ function LookupInner() {
                           <span
                             className={`lookup-status ${a.live ? "live" : "finished"}`}
                           >
-                            {a.live ? "Live" : "Done"}
+                            {dealStatusLabel(a.live, a.unwound)}
                           </span>
                         </button>
                       );
@@ -455,7 +464,9 @@ function LookupInner() {
                       ? result.agreement.agreement_type === "FL"
                         ? "Settlement figure — close of business today, including VAT"
                         : "Settlement figure — close of business today"
-                      : "Paid in full"}
+                      : result.status.unwound
+                        ? "Unwound"
+                        : "Paid in full"}
                   </div>
                   <div className="lookup-settlement-amt">
                     {gbp(result.status.settlement_figure)}
@@ -469,13 +480,21 @@ function LookupInner() {
                       )}
                     </strong>
                   </div>
-                  {result.status.last_payment_date && (
+                  {result.status.unwound ? (
+                    <div className="lookup-settlement-note">
+                      Vehicle returned to the dealer. Collections and the
+                      {result.agreement.customer_deposit
+                        ? ` ${gbp(result.agreement.customer_deposit)} deposit`
+                        : " deposit"}{" "}
+                      were refunded. Nothing owing.
+                    </div>
+                  ) : result.status.last_payment_date ? (
                     <div className="lookup-settlement-note">
                       {result.status.live
                         ? `Last payment ${formatDate(result.status.last_payment_date)}`
                         : `Nothing owing. Last payment ${formatDate(result.status.last_payment_date)}.`}
                     </div>
-                  )}
+                  ) : null}
                 </div>
                 <div className="lookup-grid">
                   <div className="lookup-item lookup-item-wide">

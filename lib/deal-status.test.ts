@@ -136,6 +136,60 @@ assert(
   "settled as-and-when HP is finished"
 );
 
+const hp126Refunded = [
+  { status: "paid", amount: 600.09 },
+  { status: "paid", amount: 600.09 },
+  { status: "paid", amount: 600.09 },
+  { status: "paid", amount: 600.09 },
+  { status: "paid", amount: 600.09 },
+  { status: "paid", amount: 600.09 },
+];
+assert(
+  isLiveDeal(
+    { status: "cancelled", term_months: 36, monthly_instalment: 600.09 },
+    hp126Refunded
+  ) === false,
+  "unwound HP126 is off the live book"
+);
+assert(
+  netBookValue(
+    {
+      status: "cancelled",
+      total_lend: 17207,
+      commission: 860.35,
+    },
+    hp126Refunded
+  ) === 0,
+  "unwound HP126 net book value is zero"
+);
+assert(
+  settlementFigure(
+    {
+      status: "cancelled",
+      monthly_instalment: 600.09,
+      total_lend: 17207,
+      commission: 860.35,
+    },
+    hp126Refunded
+  ) === 0,
+  "unwound HP126 settlement is zero"
+);
+assert(
+  isLiveDeal(
+    { status: "cancelled", term_months: 36, monthly_instalment: 600.09 },
+    [...hp126Refunded, { status: "due", amount: 600.09 }]
+  ) === false,
+  "unwound stays finished even if leftover dues remain"
+);
+assert(
+  liveOverdueSum(
+    { status: "cancelled", term_months: 36 },
+    [{ status: "due", amount: 600.09, due_date: "2026-03-09" }],
+    "2026-09-21"
+  ) === 0,
+  "unwound HP is not overdue on the dashboard"
+);
+
 assert(
   liveOverdueSum(
     { status: "settled", term_months: 36 },
