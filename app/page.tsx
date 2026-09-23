@@ -168,38 +168,37 @@ export default function HomePage() {
 
       <div className="wrap">
         <section className="hero">
-          <div className="hero-tag">Rochester, Kent &middot; Business asset finance</div>
-          <h1>
-            Finance for the assets that keep your business <em>moving</em>.
-          </h1>
-          <p>
-            Hire purchase, finance lease and loan agreements for vehicles,
-            plant and equipment — arranged directly with a lender who still
-            answers the phone.
-          </p>
-          <div className="hero-ctas">
-            <button
-              className="btn btn-solid"
-              style={{ border: "none" }}
-              onClick={() => setDrawerOpen(true)}
-            >
-              Apply for finance
-            </button>
-            <a href="#portal" className="btn btn-outline">
-              Get your settlement figure
-            </a>
-          </div>
-
-          <div className="hero-visual">
-            <div className="hero-visual-inner">
-              <div>
-                <div className="hv-label">Settlement, on demand</div>
-                <h3>
-                  See exactly what it costs to settle early — any time you
-                  need it.
-                </h3>
+          <div className="hero-grid">
+            <div className="hero-copy">
+              <div className="hero-tag">Rochester, Kent &middot; Business asset finance</div>
+              <h1>
+                Finance for the assets that keep your business <em>moving</em>.
+              </h1>
+              <p>
+                Hire purchase, finance lease and loan agreements for vehicles,
+                plant and equipment — arranged directly with a lender who
+                still answers the phone.
+              </p>
+              <div className="hero-ctas">
+                <button
+                  className="btn btn-solid"
+                  style={{ border: "none" }}
+                  onClick={() => setDrawerOpen(true)}
+                >
+                  Apply for finance
+                </button>
+                <a href="#portal" className="btn btn-outline">
+                  Get your settlement figure
+                </a>
               </div>
+            </div>
+
+            <div className="hero-visual">
               <div className="hv-card">
+                <div className="hv-top">
+                  <span className="hv-eyebrow">Settlement summary</span>
+                  <span className="hv-status">Active</span>
+                </div>
                 <div className="row">
                   <span>Agreement</span>
                   <span>HP5962</span>
@@ -216,28 +215,41 @@ export default function HomePage() {
                   <span className="l">Settlement</span>
                   <span className="v">£6,738</span>
                 </div>
+                <div className="cta">Request settlement letter</div>
               </div>
             </div>
           </div>
         </section>
 
+        <div className="trust-bar">
+          <span>FCA regulated (CONC-aligned)</span>
+          <span className="sep">|</span>
+          <span>NACFB member</span>
+          <span className="sep">|</span>
+          <span>Panel of 12+ funders</span>
+          <span className="sep">|</span>
+          <span>Rochester, Kent</span>
+        </div>
+
         <section className="stats-strip">
-          <div className="stats-grid">
-            <div className="stat">
-              <div className="num">2.5%</div>
-              <div className="lbl">Rates from</div>
-            </div>
-            <div className="stat">
-              <div className="num">£7.5K–£10M</div>
-              <div className="lbl">Lending range</div>
-            </div>
-            <div className="stat">
-              <div className="num">24 hrs</div>
-              <div className="lbl">Average turnaround</div>
-            </div>
-            <div className="stat">
-              <div className="num">HP &middot; FL &middot; L</div>
-              <div className="lbl">Agreement types</div>
+          <div className="stats-band">
+            <div className="stats-grid">
+              <div className="stat">
+                <div className="num">2.5%</div>
+                <div className="lbl">Rates from</div>
+              </div>
+              <div className="stat">
+                <div className="num">£7.5K–£10M</div>
+                <div className="lbl">Lending range</div>
+              </div>
+              <div className="stat">
+                <div className="num">24 hrs</div>
+                <div className="lbl">Average turnaround</div>
+              </div>
+              <div className="stat">
+                <div className="num">HP &middot; FL &middot; L</div>
+                <div className="lbl">Agreement types</div>
+              </div>
             </div>
           </div>
         </section>
@@ -254,7 +266,8 @@ export default function HomePage() {
             </p>
           </div>
           <div className="products-grid">
-            <div className="product-card">
+            <div className="product-card featured">
+              <span className="badge">MOST POPULAR</span>
               <div className="p-icon">
                 <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
                   <path d="M3 12h18M3 6h18M3 18h18" />
@@ -306,7 +319,7 @@ export default function HomePage() {
             <h2>Assets we finance</h2>
           </div>
           <div className="spec-strip">
-            <div className="spec-item">
+            <div className="spec-item spec-navy">
               <div className="s-icon">
                 <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
                   <rect x="2" y="8" width="14" height="8" rx="1" />
@@ -317,7 +330,7 @@ export default function HomePage() {
               </div>
               <span>Vehicles</span>
             </div>
-            <div className="spec-item">
+            <div className="spec-item spec-gold">
               <div className="s-icon">
                 <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
                   <rect x="1" y="10" width="12" height="7" rx="1" />
@@ -337,7 +350,7 @@ export default function HomePage() {
               </div>
               <span>Plant &amp; construction</span>
             </div>
-            <div className="spec-item">
+            <div className="spec-item spec-green">
               <div className="s-icon">
                 <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8}>
                   <circle cx="7" cy="17" r="3" />
@@ -406,6 +419,20 @@ export default function HomePage() {
                   Kent-based, UK-wide
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="wrap">
+        <section className="section" style={{ paddingTop: 0 }}>
+          <div className="testimonial-band">
+            <p className="testimonial-quote">
+              “[Insert a real customer quote about turnaround speed and
+              account handling here.]”
+            </p>
+            <div className="testimonial-attr">
+              [Customer name], [Company] — [asset financed]
             </div>
           </div>
         </section>
