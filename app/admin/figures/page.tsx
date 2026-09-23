@@ -363,27 +363,38 @@ function MonthAtATime() {
   const peakReceived = Math.max(
     ...MONTHLY_FIGURES.map((m) => m.payments_received)
   );
+  const lowestReceived = Math.min(
+    ...MONTHLY_FIGURES.map((m) => m.payments_received)
+  );
+  const heatRange = Math.max(peakReceived - lowestReceived, 1);
 
   return (
     <section className="book-month">
-      <h2>Last 12 months</h2>
-      <div className="book-month-bar">
-        <button
-          type="button"
-          disabled={!prev}
-          onClick={() => prev && setMonthKey(prev.key)}
-        >
-          ←
-        </button>
-        <strong>{monthLabel(row)}</strong>
-        <button
-          type="button"
-          disabled={!next}
-          onClick={() => next && setMonthKey(next.key)}
-        >
-          →
-        </button>
-        {row.mtd && <span className="book-month-mtd">Month to date</span>}
+      <div className="book-month-heading">
+        <div>
+          <span>Cash activity</span>
+          <h2>Last 12 months</h2>
+        </div>
+        <div className="book-month-bar">
+          <button
+            type="button"
+            disabled={!prev}
+            onClick={() => prev && setMonthKey(prev.key)}
+            aria-label="Previous month"
+          >
+            ←
+          </button>
+          <strong>{monthLabel(row)}</strong>
+          <button
+            type="button"
+            disabled={!next}
+            onClick={() => next && setMonthKey(next.key)}
+            aria-label="Next month"
+          >
+            →
+          </button>
+          {row.mtd && <span className="book-month-mtd">Month to date</span>}
+        </div>
       </div>
       <div className="book-month-kpis">
         <div>
@@ -399,20 +410,26 @@ function MonthAtATime() {
           <b>{gbp(row.amount_lent)}</b>
         </div>
       </div>
+      <div className="book-heatmap-head">
+        <span>Newest first · shade shows payments received</span>
+        <span className="book-heatmap-scale"><i /> Lower <i /> <i /> <i /> Higher</span>
+      </div>
       <div className="book-month-grid">
-        {MONTHLY_FIGURES.slice().reverse().map((m) => (
-          <button
-            type="button"
-            key={m.key}
-            className={m.key === row.key ? "book-month-card on" : "book-month-card"}
-            onClick={() => setMonthKey(m.key)}
-          >
-            <span>{monthLabel(m)}</span>
-            <strong>{gbp(m.payments_received)}</strong>
-            <i><b style={{ width: `${peakReceived > 0 ? (m.payments_received / peakReceived) * 100 : 0}%` }} /></i>
-            <small>{m.new_deals} deals · {gbp(m.amount_lent)} lent</small>
-          </button>
-        ))}
+        {MONTHLY_FIGURES.slice().reverse().map((m) => {
+          const heat = 1 + Math.round(((m.payments_received - lowestReceived) / heatRange) * 4);
+          return (
+            <button
+              type="button"
+              key={m.key}
+              className={`${m.key === row.key ? "book-month-card on" : "book-month-card"} heat-${heat}`}
+              onClick={() => setMonthKey(m.key)}
+            >
+              <span>{monthLabel(m)}</span>
+              <strong>{gbp(m.payments_received)}</strong>
+              <small><b>{m.new_deals}</b> deals <i /> {gbp(m.amount_lent)} lent</small>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
