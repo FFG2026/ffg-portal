@@ -3,6 +3,7 @@ import {
   unpaidSum,
   paidSum,
   netBookValue,
+  settlementFigure,
   paidCount,
   liveOverdueSum,
   chaseOverdueSum,
@@ -65,6 +66,24 @@ assert(
     [{ status: "paid", amount: 6019.2 }]
   ) === 22212,
   "HP104 net book value starts from day-one owing including interest"
+);
+assert(
+  settlementFigure(
+    {
+      monthly_instalment: 0,
+      total_lend: 24303.4,
+      total_repayable: 28231.2,
+    },
+    [{ status: "paid", amount: 6019.2 }]
+  ) === 22212,
+  "as-and-when settlement is what is still owing after receipts"
+);
+assert(
+  settlementFigure({ monthly_instalment: 784.2 }, [
+    { status: "paid", amount: 784.2 },
+    { status: "due", amount: 784.2 },
+  ]) === 784.2,
+  "contracted HP settlement stays the unpaid instalments"
 );
 assert(
   isLiveDeal({ status: "active", monthly_instalment: 0, term_months: 20 }, [

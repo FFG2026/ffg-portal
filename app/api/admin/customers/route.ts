@@ -6,7 +6,7 @@ import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import {
   isLiveDeal,
-  unpaidSum,
+  settlementFigure,
   chaseOverdueSum,
   isPaidRow,
 } from "../../../../lib/deal-status";
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     supabase
       .from("agreements")
       .select(
-        "id, customer_id, agreement_number, monthly_instalment, term_months, status, asset_description, gocardless_mandate_id"
+        "id, customer_id, agreement_number, monthly_instalment, term_months, status, asset_description, gocardless_mandate_id, total_lend, total_repayable"
       )
       .eq("book", book)
   );
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
       let missingAsset = false;
       for (const a of liveAgs) {
         const rows = rowsByAgreement.get(a.id) || [];
-        exposure += unpaidSum(rows);
+        exposure += settlementFigure(a, rows);
         overdue += chaseOverdueSum(c.company_name, a, rows, today);
         if (!a.asset_description || String(a.asset_description).startsWith("Pending")) {
           missingAsset = true;

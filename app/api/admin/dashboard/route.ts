@@ -8,6 +8,7 @@ import {
   chaseOverdueSum,
   isPaidRow,
   unpaidSum,
+  settlementFigure,
   currentMonthInstalmentTotals,
 } from "../../../../lib/deal-status";
 import { fetchGoCardlessPaymentsChargedBetween, fetchGoCardlessFailedPaymentsChargedBetween } from "../../../../lib/gocardless/client";
@@ -74,7 +75,7 @@ export async function GET(request: Request) {
         supabase
           .from("agreements")
           .select(
-            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, written_date, gocardless_mandate_id, total_lend, status, book"
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, written_date, gocardless_mandate_id, total_lend, total_repayable, status, book"
           )
           .eq("book", book)
       ),
@@ -228,7 +229,7 @@ export async function GET(request: Request) {
     const company = nameById.get(a.customer_id) || "";
     const od = chaseOverdueSum(company, a, rows, today);
     overdue += od;
-    outstanding += unpaidSum(rows) - od;
+    outstanding += settlementFigure(a, rows) - od;
   }
 
   if (gcMonthLoaded) {

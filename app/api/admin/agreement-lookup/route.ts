@@ -4,7 +4,7 @@ import { fetchAllIn } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
-import { isLiveDeal, paidCount, unpaidSum, netBookValue, openingOwing } from "../../../../lib/deal-status";
+import { isLiveDeal, paidCount, netBookValue, openingOwing, settlementFigure } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment, visibleScheduleNote } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
@@ -127,7 +127,7 @@ export async function GET(request: Request) {
             paid_count: paidCount(rows),
             term_months: a.term_months,
             live: isLiveDeal(a, rows),
-            settlement_figure: unpaidSum(rows),
+            settlement_figure: settlementFigure(a, rows),
             net_book_value: netBookValue(a, rows),
             has_schedule: rows.length > 0,
             gocardless_mandate_id: a.gocardless_mandate_id,
@@ -267,7 +267,7 @@ export async function GET(request: Request) {
             live: isLiveDeal(a, rows),
             paid_count: paidCount(rows),
             term_months: a.term_months,
-            settlement_figure: unpaidSum(rows),
+            settlement_figure: settlementFigure(a, rows),
             net_book_value: netBookValue(a, rows),
           };
         }),
@@ -275,7 +275,7 @@ export async function GET(request: Request) {
         paid_count: paidCount(schedule),
         term_months: agreement.term_months,
         live: isLiveDeal(agreement, schedule),
-        settlement_figure: unpaidSum(schedule),
+        settlement_figure: settlementFigure(agreement, schedule),
         net_book_value: netBookValue(agreement, schedule),
         last_payment_date: lastPaid
           ? lastPaid.paid_date || lastPaid.due_date

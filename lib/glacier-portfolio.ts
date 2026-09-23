@@ -1,4 +1,4 @@
-import { roundMoney, unpaidSum, isPaidRow } from "./deal-status";
+import { roundMoney, settlementFigure, isPaidRow } from "./deal-status";
 
 export const GLACIER_SHAREHOLDERS = ["Owen", "Ron", "Bob", "Len"] as const;
 
@@ -11,6 +11,7 @@ export type GlacierDealInput = {
   total_lend?: number | string | null;
   commission?: number | string | null;
   monthly_instalment?: number | string | null;
+  total_repayable?: number | string | null;
   term_months?: number | null;
   payments?: { status?: string | null; amount?: number | string | null }[];
 };
@@ -117,7 +118,7 @@ export function buildGlacierPortfolio(
     commission += Number(deal.commission || 0);
     contracted += contractedOn(deal);
     paid += paidOn(deal);
-    outstanding += unpaidSum(deal.payments);
+    outstanding += settlementFigure(deal, deal.payments);
     termWeight += Number(deal.term_months || 0) * lend;
   }
 
