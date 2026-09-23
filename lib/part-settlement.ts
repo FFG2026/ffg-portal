@@ -132,31 +132,59 @@ export function sortByDueDate<T extends { due_date: string; instalment_number: n
   );
 }
 
+function allocateFromFront(pool: UnpaidInstalment[], pay: number): PartSettlementPlan {
+  const sorted = [...pool].sort((a, b) => {
+    const byDate = String(a.due_date || "").localeCompare(String(b.due_date || ""));
+    if (byDate) return byDate;
+    return a.instalment_number - b.instalment_number;
+  });
+  let remaining = pay;
+  const removeIds: string[] = [];
+  let reduce: { id: string; amount: number } | null = null;
+
+  for (const row of sorted) {
+    if (remaining <= 0.009) break;
+    const rowAmt = round2(Number(row.amount));
+    if (remaining + 0.009 >= rowAmt) {
+      removeIds.push(row.id);
+      remaining = round2(remaining - rowAmt);
+    } else {
+      reduce = { id: row.id, amount: round2(rowAmt - remaining) };
+      remaining = 0;
+      break;
+    }
+  }
+
+  return { removeIds, reduce, leftover: remaining };
+}
+
 /**
- * Bank receipt after a missed Direct Debit: tick the unpaid month they
- * paid for, preferring a failed row in that month.
+ * Bank / standing-order receipt: keep the payment on the date it arrived
+ * and take it off the oldest unpaid rent so a £500 receipt does not rewrite
+ * a £1,000 Direct Debit down to £500.
  */
-export function pickBankPaymentInstalment<
-  T extends { due_date: string; status?: string | null; instalment_number?: number }
->(unpaid: T[], paidDate: string): T | null {
-  if (!unpaid.length) return null;
-  const ordered = sortByDueDate(
-    unpaid.map((row) => ({
-      ...row,
-      instalment_number: Number(row.instalment_number || 0),
-    }))
+export function planManualReceipt(
+  unpaid: UnpaidInstalment[],
+  amount: number
+): PartSettlementPlan {
+  const pay = round2(amount);
+  if (!(pay > 0)) {
+    throw new Error("Enter an amount greater than zero.");
+  }
+  if (unpaid.length === 0) {
+    throw new Error("There are no instalments left to apply this to.");
+  }
+  const allOwing = round2(
+    unpaid.reduce((sum, row) => sum + Number(row.amount), 0)
   );
-  const month = String(paidDate || "").slice(0, 7);
-  const inMonth = month
-    ? ordered.filter((row) => String(row.due_date).slice(0, 7) === month)
-    : [];
-  return (
-    inMonth.find((row) => String(row.status || "") === "failed") ||
-    inMonth[0] ||
-    ordered.find((row) => String(row.status || "") === "failed") ||
-    ordered[0] ||
-    null
-  );
+  if (pay + 0.009 >= allOwing) {
+    return {
+      removeIds: unpaid.map((row) => row.id),
+      reduce: null,
+      leftover: round2(Math.max(0, pay - allOwing)),
+    };
+  }
+  return allocateFromFront(unpaid, pay);
 }
 
 /**
