@@ -191,8 +191,9 @@ export function collectedThisMonthFromLinkedRows(
     const on = String(row.paid_date || "").slice(0, 10);
     if (on < monthStart || on >= nextMonth) continue;
     const gc = row.gocardless_payment_id || "";
-    const manual = String(row.source || "") === "manual";
-    if (!gc && !manual) continue;
+    const source = String(row.source || "");
+    const bank = source === "manual" || source === "bank";
+    if (!gc && !bank) continue;
     if (gc) {
       if (seen.has(gc)) continue;
       seen.add(gc);

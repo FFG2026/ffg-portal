@@ -197,7 +197,10 @@ export async function GET(request: Request) {
       bucket.paid += amount;
       const collectedOn = (p.paid_date || p.due_date || "").slice(0, 10);
       if (collectedOn >= monthStart && collectedOn < nextMonth) {
-        if (String((p as { source?: string }).source || "") === "manual") {
+        if (
+          String((p as { source?: string }).source || "") === "manual" ||
+          String((p as { source?: string }).source || "") === "bank"
+        ) {
           manualThisMonth += amount;
         }
       }

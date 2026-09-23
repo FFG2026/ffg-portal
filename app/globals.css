@@ -297,8 +297,8 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
 .lookup-form{display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px; background:#fff; border:1px solid var(--rule); border-radius:12px; padding:14px 16px;}
 .lookup-field{flex:1; min-width:160px;}
 .lookup-field label{display:block; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--slate); margin-bottom:6px;}
-.lookup-field input{width:100%; padding:11px 13px; border:1px solid var(--rule); border-radius:8px; font-size:14px; font-family:'Inter', sans-serif; background:#fff;}
-.lookup-field input:focus{outline:none; border-color:var(--blue);}
+.lookup-field input,.lookup-field select{width:100%; padding:11px 13px; border:1px solid var(--rule); border-radius:8px; font-size:14px; font-family:'Inter', sans-serif; background:#fff;}
+.lookup-field input:focus,.lookup-field select:focus{outline:none; border-color:var(--blue);}
 .lookup-form button{padding:11px 22px; border-radius:8px; background:var(--blue); color:#fff; font-size:14px; font-weight:600; border:none; cursor:pointer; transition:background .15s; white-space:nowrap;}
 .lookup-form button:hover{background:var(--blue-deep);}
 .lookup-form button:disabled{background:var(--rule); color:var(--slate); cursor:not-allowed;}

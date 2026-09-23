@@ -3,6 +3,7 @@ import {
   nextInstalmentNumber,
   sortByDueDate,
   withRemainingBalance,
+  pickBankPaymentInstalment,
 } from "./part-settlement";
 
 function assert(cond: unknown, msg: string) {
@@ -83,5 +84,33 @@ const hp21Unpaid = [
 const hp21 = planPartSettlement(hp21Unpaid, 5120, "2026-02-06", "2026-02-06");
 assert(hp21.removeIds.length === 8, "full settlement clears the failed DD and remaining months");
 assert(hp21.reduce === null, "HP21 does not leave a reduced instalment");
+
+const bankTarget = pickBankPaymentInstalment(
+  [
+    { id: "aug", due_date: "2026-08-08", status: "paid", instalment_number: 11 },
+    { id: "sep-fail", due_date: "2026-09-08", status: "failed", instalment_number: 12 },
+    { id: "oct", due_date: "2026-10-08", status: "due", instalment_number: 13 },
+  ].filter((row) => row.status !== "paid"),
+  "2026-09-15"
+);
+assert(bankTarget?.id === "sep-fail", "bank receipt ticks the missed September Direct Debit");
+
+const laterBank = pickBankPaymentInstalment(
+  [
+    { id: "sep-fail", due_date: "2026-09-08", status: "failed", instalment_number: 12 },
+    { id: "oct", due_date: "2026-10-08", status: "due", instalment_number: 13 },
+  ],
+  "2026-10-20"
+);
+assert(laterBank?.id === "oct", "October bank receipt ticks October, not an older miss");
+
+const noMonth = pickBankPaymentInstalment(
+  [
+    { id: "fail", due_date: "2026-09-08", status: "failed", instalment_number: 12 },
+    { id: "due", due_date: "2026-10-08", status: "due", instalment_number: 13 },
+  ],
+  "2026-11-02"
+);
+assert(noMonth?.id === "fail", "with no matching month, still clear the failed Direct Debit first");
 
 console.log("part-settlement tests ok");

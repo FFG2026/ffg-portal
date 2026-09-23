@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
 import PageHero from "../PageHero";
 import { notifyBookChanged } from "../../../lib/admin-book-reload";
+import { pickBankPaymentInstalment } from "../../../lib/part-settlement";
 
 type RelatedAgreement = {
   agreement_number: string;
@@ -523,20 +524,18 @@ function LookupInner() {
 
               {result.status.live && (
                 <>
-                  {currentAdminBook() === "gg" && (
-                    <RecordInstalmentForm
-                      agreementNumber={result.agreement.agreement_number}
-                      nextDue={
-                        result.schedule.find((row) => row.status !== "paid") ||
-                        null
-                      }
-                      onDone={() => {
-                        runLookup("agreement", result.agreement.agreement_number);
-                        notifyBookChanged();
-                      }}
-                      gbp={gbp}
-                    />
-                  )}
+                  <RecordInstalmentForm
+                    key={`${result.agreement.agreement_number}-bank`}
+                    agreementNumber={result.agreement.agreement_number}
+                    schedule={result.schedule}
+                    missedMonths={result.missed_months || []}
+                    onDone={() => {
+                      runLookup("agreement", result.agreement.agreement_number);
+                      notifyBookChanged();
+                    }}
+                    gbp={gbp}
+                    formatDate={formatDate}
+                  />
                 {result.status.settlement_figure > 0 && (
                   <ManualPaymentForm
                     agreementNumber={result.agreement.agreement_number}
@@ -600,6 +599,12 @@ function LookupInner() {
                             <span className="lookup-paid">
                               {row.source === "manual"
                                 ? "Part settlement"
+                                : row.source === "bank"
+                                ? (result.missed_months || []).includes(
+                                    String(row.due_date || "").slice(0, 7)
+                                  )
+                                  ? "Bank payment after miss"
+                                  : "Bank payment"
                                 : (result.missed_months || []).includes(
                                     String(row.due_date || "").slice(0, 7)
                                   )
@@ -846,28 +851,50 @@ function DriveDocuments({ agreementNumber }: { agreementNumber: string }) {
 
 function RecordInstalmentForm({
   agreementNumber,
-  nextDue,
+  schedule,
+  missedMonths,
   onDone,
   gbp,
+  formatDate,
 }: {
   agreementNumber: string;
-  nextDue: {
+  schedule: {
     amount: number;
     due_date: string;
     instalment_number: number;
-  } | null;
+    status: string;
+  }[];
+  missedMonths: string[];
   onDone: () => void;
   gbp: (n: number) => string;
+  formatDate: (d: string | null) => string;
 }) {
-  const [open, setOpen] = useState(true);
-  const [amount, setAmount] = useState(nextDue ? String(nextDue.amount) : "");
+  const unpaid = schedule.filter((row) => row.status !== "paid");
+  const glacier = currentAdminBook() === "gg";
+  const [open, setOpen] = useState(
+    glacier || missedMonths.length > 0 || unpaid.some((row) => row.status === "failed")
+  );
   const [paidDate, setPaidDate] = useState(todayIso());
+  const suggested = pickBankPaymentInstalment(unpaid, paidDate);
+  const [instalmentNumber, setInstalmentNumber] = useState(
+    suggested ? String(suggested.instalment_number) : ""
+  );
+  const selected =
+    unpaid.find((row) => String(row.instalment_number) === instalmentNumber) ||
+    suggested;
+  const [amount, setAmount] = useState(selected ? String(selected.amount) : "");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
-  if (!nextDue) return null;
+  if (!unpaid.length) return null;
+
+  const applyInstalment = (row: (typeof unpaid)[0] | null | undefined) => {
+    if (!row) return;
+    setInstalmentNumber(String(row.instalment_number));
+    setAmount(String(row.amount));
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -882,13 +909,20 @@ function RecordInstalmentForm({
           agreement_number: agreementNumber,
           amount,
           paid_date: paidDate,
-          note: note || "Standing order / bank payment",
+          note:
+            note ||
+            (glacier ? "Standing order / bank payment" : "Bank payment after missed Direct Debit"),
           mode: "next",
+          instalment_number: selected?.instalment_number,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not save");
-      setMsg(`Recorded ${gbp(json.applied)} against instalment ${nextDue.instalment_number}.`);
+      setMsg(
+        `Recorded ${gbp(json.applied)} on ${formatDate(paidDate)} against instalment ${
+          json.instalment_number
+        }.`
+      );
       setNote("");
       setOpen(false);
       onDone();
@@ -906,14 +940,15 @@ function RecordInstalmentForm({
         className="lookup-manual-toggle"
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? "Cancel" : "Record a payment"}
+        {open ? "Cancel" : "Record a bank payment"}
       </button>
       {msg && <div className="lookup-ok">{msg}</div>}
       {open && (
         <form className="lookup-manual-form" onSubmit={submit}>
           <p className="lookup-manual-help">
-            Tick the next instalment as paid. Glacier Gem collections are
-            standing orders, not GoCardless.
+            {glacier
+              ? "Tick the next instalment as paid. Glacier Gem collections are standing orders, not GoCardless."
+              : "When a Direct Debit misses and they pay into the bank, record the amount and date. It ticks that month as paid — the miss still shows on the agreement."}
           </p>
           <div className="lookup-field">
             <label>Amount</label>
@@ -931,9 +966,36 @@ function RecordInstalmentForm({
             <input
               type="date"
               value={paidDate}
-              onChange={(e) => setPaidDate(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setPaidDate(next);
+                applyInstalment(pickBankPaymentInstalment(unpaid, next));
+              }}
               required
             />
+          </div>
+          <div className="lookup-field lookup-field-wide">
+            <label>Apply to</label>
+            <select
+              value={selected ? String(selected.instalment_number) : ""}
+              onChange={(e) => {
+                const row = unpaid.find(
+                  (item) => String(item.instalment_number) === e.target.value
+                );
+                applyInstalment(row);
+              }}
+              required
+            >
+              {unpaid.map((row) => (
+                <option key={row.instalment_number} value={row.instalment_number}>
+                  #{row.instalment_number} · {formatDate(row.due_date)} · {gbp(row.amount)}
+                  {row.status === "failed" ? " · missed DD" : ""}
+                  {missedMonths.includes(String(row.due_date).slice(0, 7))
+                    ? " · missed month"
+                    : ""}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="lookup-field lookup-field-wide">
             <label>Note (optional)</label>
@@ -941,13 +1003,17 @@ function RecordInstalmentForm({
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Standing order 21 Sep"
+              placeholder={
+                glacier ? "e.g. Standing order 21 Sep" : "e.g. Paid into bank 23 Sep"
+              }
             />
           </div>
-          <button type="submit" disabled={saving}>
+          <button type="submit" disabled={saving || !selected}>
             {saving
               ? "Saving…"
-              : `Mark instalment ${nextDue.instalment_number} paid`}
+              : selected
+              ? `Record ${gbp(Number(amount) || selected.amount)} on ${formatDate(paidDate)}`
+              : "Record bank payment"}
           </button>
           {error && <div className="lookup-error">{error}</div>}
         </form>
