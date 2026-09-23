@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     supabase
       .from("agreements")
       .select(
-        "id, customer_id, agreement_number, monthly_instalment, term_months, status, asset_description, gocardless_mandate_id, total_lend, total_repayable"
+        "id, customer_id, agreement_number, monthly_instalment, term_months, status, asset_description, gocardless_mandate_id, total_lend, total_repayable, commission"
       )
       .eq("book", book)
   );

@@ -75,7 +75,7 @@ export async function GET(request: Request) {
         supabase
           .from("agreements")
           .select(
-            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, written_date, gocardless_mandate_id, total_lend, total_repayable, status, book"
+            "id, agreement_number, agreement_type, customer_id, asset_description, monthly_instalment, term_months, start_date, written_date, gocardless_mandate_id, total_lend, total_repayable, commission, status, book"
           )
           .eq("book", book)
       ),

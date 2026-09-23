@@ -3,6 +3,8 @@ import {
   unpaidSum,
   paidSum,
   netBookValue,
+  amountFinanced,
+  openingOwing,
   settlementFigure,
   paidCount,
   liveOverdueSum,
@@ -52,13 +54,48 @@ assert(
   "cancelled DD with remaining dues stays live even if term_months is stale"
 );
 
-assert(paidSum([{ status: "paid", amount: 784.2 }, { status: "due", amount: 784.2 }]) === 784.2, "paid sum ignores dues");
+assert(
+  amountFinanced({ total_lend: 31500, commission: 945 }) === 32445,
+  "amount financed is net lend plus commission"
+);
+assert(
+  openingOwing({ total_lend: 31500, commission: 945 }) === 32445,
+  "day-one book includes commission when no repayable figure is set"
+);
+assert(
+  netBookValue({ total_lend: 31500, commission: 945 }, [
+    { status: "paid", amount: 850 },
+    { status: "paid", amount: 850 },
+    { status: "paid", amount: 850 },
+    { status: "paid", amount: 850 },
+    { status: "paid", amount: 850 },
+  ]) === 28195,
+  "HP133 net book value is lend plus commission minus the five GoCardless rents"
+);
+assert(
+  settlementFigure(
+    { monthly_instalment: 850, total_lend: 31500, commission: 945 },
+    [
+      { status: "due", amount: 850 },
+      { status: "paid", amount: 4250 },
+    ]
+  ) === 850,
+  "contracted settlement stays the unpaid rents"
+);
 assert(
   netBookValue({ total_lend: 24303.4 }, [
     { status: "paid", amount: 784.2 },
     { status: "paid", amount: 285 },
   ]) === 23234.2,
   "net book value is net lend minus collections"
+);
+assert(
+  openingOwing({
+    total_lend: 24303.4,
+    total_repayable: 28231.2,
+    commission: 945,
+  }) === 28231.2,
+  "including-interest repayable is not stacked with commission"
 );
 assert(
   netBookValue(

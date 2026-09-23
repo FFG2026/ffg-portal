@@ -101,14 +101,25 @@ export function paidSum(
   );
 }
 
+/** Amount we actually put on the book: net lend plus our commission. */
+export function amountFinanced(agreement: {
+  total_lend?: number | string | null;
+  commission?: number | string | null;
+}) {
+  return roundMoney(
+    Number(agreement.total_lend || 0) + Number(agreement.commission || 0)
+  );
+}
+
 /** Day-one owing for net book value: including-interest figure when set. */
 export function openingOwing(agreement: {
   total_lend?: number | string | null;
   total_repayable?: number | string | null;
+  commission?: number | string | null;
 }) {
   const repayable = Number(agreement.total_repayable || 0);
   if (repayable > 0) return roundMoney(repayable);
-  return roundMoney(Number(agreement.total_lend || 0));
+  return amountFinanced(agreement);
 }
 
 /** Still on the book: day-one owing minus collections received. */
@@ -116,6 +127,7 @@ export function netBookValue(
   agreement: {
     total_lend?: number | string | null;
     total_repayable?: number | string | null;
+    commission?: number | string | null;
   },
   rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
 ) {
@@ -140,6 +152,7 @@ export function settlementFigure(
     monthly_instalment?: number | string | null;
     total_lend?: number | string | null;
     total_repayable?: number | string | null;
+    commission?: number | string | null;
   },
   rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
 ) {

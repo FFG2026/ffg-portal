@@ -27,6 +27,7 @@ type LookupResult = {
     written_date?: string;
     term_months: number;
     total_lend: number;
+    amount_financed?: number;
     purchase_price: number | null;
     customer_deposit: number | null;
     commission: number | null;
@@ -506,7 +507,11 @@ function LookupInner() {
                   <div className="lookup-item">
                     <div className="lookup-label">Total lend</div>
                     <div className="lookup-value mono">
-                      {gbp(result.agreement.total_lend)}
+                      {gbp(
+                        result.agreement.amount_financed ??
+                          Number(result.agreement.total_lend || 0) +
+                            Number(result.agreement.commission || 0)
+                      )}
                     </div>
                   </div>
                   <div className="lookup-item lookup-item-wide">
