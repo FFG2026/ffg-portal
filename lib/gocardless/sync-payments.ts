@@ -15,8 +15,11 @@ import { parseAgreementRefFromPayment } from "./parse-ref";
 import { missRowsFromGcPayments, type DdMissRow } from "./dd-misses";
 import {
   addMonths,
+  dueDayFromRows,
   financeLeaseScheduleNeedsRepair,
+  hirePurchaseScheduleNeedsRepair,
   rebuildFinanceLeaseSchedule,
+  startDateFromWritten,
 } from "../schedule";
 import { createAdminClient } from "../supabase/admin";
 
@@ -152,7 +155,7 @@ async function applyMatches(
   const headerRes = await supabase
     .from("agreements")
     .select(
-      "term_months, monthly_instalment, start_date, status, gocardless_mandate_id, documentation_fee, agreement_type"
+      "term_months, monthly_instalment, start_date, written_date, status, gocardless_mandate_id, documentation_fee, agreement_type"
     )
     .eq("id", agreement.id)
     .maybeSingle();
@@ -173,8 +176,18 @@ async function applyMatches(
 
   const term = Number(header?.term_months || 0);
   const monthly = Number(header?.monthly_instalment || 0);
-  const start = String(header?.start_date || "").slice(0, 10);
+  const written = String(header?.written_date || "").slice(0, 10);
   const isFl = String(header?.agreement_type || "").toUpperCase() === "FL";
+  const storedStart = String(header?.start_date || "").slice(0, 10);
+  const dueDay = dueDayFromRows(paymentsRes.data || [], storedStart);
+  const firstDue = (paymentsRes.data || [])
+    .map((row) => String(row.due_date || "").slice(0, 10))
+    .filter((d) => d.length >= 10)
+    .sort()[0];
+  const start =
+    !isFl && written.length >= 10 && firstDue && firstDue < written
+      ? startDateFromWritten(written, dueDay)
+      : storedStart;
 
   let instalments = (paymentsRes.data || []) as Instalment[];
   const scheduleCollections = scheduleCollectionsOnly(
@@ -183,17 +196,22 @@ async function applyMatches(
     header?.monthly_instalment
   );
 
-  if (
-    isFl &&
-    term > 0 &&
-    monthly > 0 &&
-    start.length >= 10 &&
-    financeLeaseScheduleNeedsRepair(instalments, {
-      termMonths: term,
-      monthlyInstalment: monthly,
-      startDate: start,
-    })
-  ) {
+  const needsRebuild = term > 0 && monthly > 0 && start.length >= 10 && (
+    isFl
+      ? financeLeaseScheduleNeedsRepair(instalments, {
+          termMonths: term,
+          monthlyInstalment: monthly,
+          startDate: start,
+        })
+      : hirePurchaseScheduleNeedsRepair(instalments, {
+          termMonths: term,
+          monthlyInstalment: monthly,
+          startDate: start,
+          writtenDate: written,
+        })
+  );
+
+  if (needsRebuild) {
     const fromGc = scheduleCollections
       .filter((p) => p.charge_date && COLLECTED_STATUSES.has(p.status))
       .map((p) => ({
@@ -205,7 +223,21 @@ async function applyMatches(
         status: "paid" as const,
       }));
     const fromRows = instalments
-      .filter((row) => String(row.status) === "paid")
+      .filter((row) => {
+        if (String(row.status) !== "paid") return false;
+        const when = String(
+          (row as { paid_date?: string | null }).paid_date || row.due_date || ""
+        ).slice(0, 10);
+        if (
+          written.length >= 10 &&
+          when < written &&
+          !row.gocardless_payment_id &&
+          String((row as { source?: string | null }).source || "") !== "manual"
+        ) {
+          return false;
+        }
+        return true;
+      })
       .map((row) => ({
         chargeDate: String(
           (row as { paid_date?: string | null }).paid_date || row.due_date
@@ -231,13 +263,19 @@ async function applyMatches(
         .eq("agreement_id", agreement.id)
         .order("due_date", { ascending: true });
       if (!reload.error) instalments = (reload.data || []) as Instalment[];
+      if (start !== String(header?.start_date || "").slice(0, 10)) {
+        await supabase
+          .from("agreements")
+          .update({ start_date: start })
+          .eq("id", agreement.id);
+      }
     }
   }
 
   const matches = matchGcPaymentsToInstalments(
     instalments,
     scheduleCollections,
-    isFl ? { looseDateDays: 40 } : undefined
+    { looseDateDays: 40 }
   );
   await persistDirectDebitMisses(supabase, agreement.id, gcPayments);
   let markedPaid = 0;
