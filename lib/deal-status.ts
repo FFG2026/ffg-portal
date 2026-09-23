@@ -122,6 +122,31 @@ export function netBookValue(
   return Math.max(0, roundMoney(openingOwing(agreement) - paidSum(rows)));
 }
 
+export function isAsAndWhenDeal(agreement: {
+  monthly_instalment?: number | string | null;
+}) {
+  return (
+    agreement.monthly_instalment != null &&
+    Number(agreement.monthly_instalment) <= 0
+  );
+}
+
+/**
+ * What is still owing. Contracted monthly deals use unpaid instalments.
+ * As-and-when books use day-one owing minus receipts.
+ */
+export function settlementFigure(
+  agreement: {
+    monthly_instalment?: number | string | null;
+    total_lend?: number | string | null;
+    total_repayable?: number | string | null;
+  },
+  rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
+) {
+  if (isAsAndWhenDeal(agreement)) return netBookValue(agreement, rows);
+  return unpaidSum(rows);
+}
+
 /**
  * Live = still collecting. Finished only if marked settled, or every
  * schedule row is paid and we are not short of the contracted term.

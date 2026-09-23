@@ -4,7 +4,7 @@ import { createAdminClient } from "../../lib/supabase/admin";
 import { syncAgreementsPayments } from "../../lib/gocardless/sync-payments";
 import { isDirectDebitUpToDate } from "../../lib/gocardless/match-payments";
 import { fetchAllRows } from "../../lib/supabase/fetch-all";
-import { isLiveDeal, paidCount as countPaid, unpaidSum, netBookValue } from "../../lib/deal-status";
+import { isLiveDeal, paidCount as countPaid, settlementFigure as owingOn, netBookValue } from "../../lib/deal-status";
 import { startDateFromFirstPayment } from "../../lib/schedule";
 import PortalClient from "./PortalClient";
 
@@ -71,7 +71,7 @@ export default async function PortalPage() {
     const paidCount = countPaid(schedule);
     const lastPayment = paidPayments[paidPayments.length - 1];
 
-    const settlementFigure = unpaidSum(schedule);
+    const settlementFigure = owingOn(agreement, schedule);
 
     return {
       agreementNumber: agreement.agreement_number,

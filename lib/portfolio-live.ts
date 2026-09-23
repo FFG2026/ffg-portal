@@ -1,5 +1,5 @@
 import { parseAgreementRef } from "./gocardless/parse-ref";
-import { roundMoney, unpaidSum, isPaidRow } from "./deal-status";
+import { roundMoney, settlementFigure, isPaidRow } from "./deal-status";
 
 export type DealType = "HP" | "FL" | "L";
 
@@ -107,6 +107,7 @@ export type LiveDealInput = {
   total_lend?: number | string | null;
   commission?: number | string | null;
   monthly_instalment?: number | string | null;
+  total_repayable?: number | string | null;
   term_months?: number | null;
   payments?: { status?: string | null; amount?: number | string | null }[];
 };
@@ -209,7 +210,7 @@ export function buildLivePortfolio(
     const comm = Number(deal.commission || 0);
     const contracted = contractedOn(deal);
     const paid = paidOn(deal);
-    const outstanding = unpaidSum(deal.payments);
+    const outstanding = settlementFigure(deal, deal.payments);
     const profit = profitOn(deal);
     summary.total_deals += 1;
     summary.total_lent = roundMoney(summary.total_lent + lend);
