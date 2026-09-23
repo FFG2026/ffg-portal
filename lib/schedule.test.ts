@@ -9,6 +9,7 @@ import {
   startDateFromFirstPayment,
   startDateFromWritten,
   firstDueOnOrAfter,
+  hirePurchaseKeepFrom,
   hirePurchaseScheduleNeedsRepair,
   visibleScheduleNote,
 } from "./schedule";
@@ -188,20 +189,38 @@ assert(
   "HP133 March due before written needs a rebuild"
 );
 assert(
+  hirePurchaseKeepFrom({
+    writtenDate: "2026-03-30",
+    dueDay: 9,
+    firstDue: "2026-04-09",
+    firstGcDue: "2026-05-09",
+  }) === "2026-05-09",
+  "HP133 keeps from the first GoCardless rent in May"
+);
+assert(
   hirePurchaseScheduleNeedsRepair(
-    buildPaymentSchedule({
-      termMonths: 48,
-      monthlyInstalment: 850,
-      startDate: "2026-03-09",
-    }),
+    [
+      { instalment_number: 1, due_date: "2026-04-09", amount: 850, status: "due" },
+      { instalment_number: 2, due_date: "2026-05-09", amount: 850, status: "paid" },
+    ],
     {
       termMonths: 48,
       monthlyInstalment: 850,
       startDate: "2026-03-09",
       writtenDate: "2026-03-30",
+      firstGcDue: "2026-05-09",
     }
-  ) === false,
-  "rebuilt HP133 schedule starting April is clean"
+  ),
+  "HP133 April due before the first GoCardless rent needs a rebuild"
+);
+assert(
+  hirePurchaseKeepFrom({
+    writtenDate: "2026-05-12",
+    dueDay: 9,
+    firstDue: "2026-03-09",
+    firstGcDue: "2026-06-09",
+  }) === "2026-06-09",
+  "HP135 drops the March–May sheet ticks before GoCardless"
 );
 
 console.log("schedule tests ok");

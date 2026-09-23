@@ -60,6 +60,47 @@ export function startDateFromWritten(writtenDate: string, dueDay: number) {
   return addMonths(firstDueOnOrAfter(written, dueDay), -1);
 }
 
+export function laterIso(...dates: (string | null | undefined)[]) {
+  return (
+    dates
+      .map((d) => String(d || "").slice(0, 10))
+      .filter((d) => d.length >= 10)
+      .sort()
+      .at(-1) || ""
+  );
+}
+
+/** True when GoCardless starts within six months of the imported first due. */
+export function firstCollectionWithin(
+  firstDue: string | null | undefined,
+  firstGcDue: string | null | undefined,
+  months = 6
+) {
+  const due = String(firstDue || "").slice(0, 10);
+  const gc = String(firstGcDue || "").slice(0, 10);
+  if (due.length < 10 || gc.length < 10) return false;
+  return gc <= addMonths(due, months);
+}
+
+/**
+ * First instalment to keep: after the deal was written, and not before the
+ * first GoCardless rent when that collection sits near the start of the HP.
+ */
+export function hirePurchaseKeepFrom(opts: {
+  writtenDate?: string | null;
+  dueDay: number;
+  firstDue?: string | null;
+  firstGcDue?: string | null;
+}) {
+  const written = String(opts.writtenDate || "").slice(0, 10);
+  const writtenFirst =
+    written.length >= 10 ? firstDueOnOrAfter(written, opts.dueDay) : "";
+  const firstDue = String(opts.firstDue || writtenFirst || "").slice(0, 10);
+  const gc = String(opts.firstGcDue || "").slice(0, 10);
+  const gcUsable = firstCollectionWithin(firstDue, gc);
+  return laterIso(writtenFirst, gcUsable ? gc : "");
+}
+
 export function dueDayFromRows(
   rows: { due_date?: string | null }[] | null | undefined,
   fallbackIso?: string | null
@@ -292,13 +333,19 @@ export function hirePurchaseScheduleNeedsRepair(
     monthlyInstalment: number;
     startDate: string;
     writtenDate?: string | null;
+    firstGcDue?: string | null;
   }
 ) {
-  const written = String(opts.writtenDate || "").slice(0, 10);
   const first = (rows || [])
     .map((r) => String(r.due_date || "").slice(0, 10))
     .filter((d) => d.length >= 10)
     .sort()[0];
-  if (written.length >= 10 && first && first < written) return true;
-  return false;
+  if (!first) return false;
+  const keepFrom = hirePurchaseKeepFrom({
+    writtenDate: opts.writtenDate,
+    dueDay: dueDayFromRows(rows, opts.startDate),
+    firstDue: first,
+    firstGcDue: opts.firstGcDue,
+  });
+  return keepFrom.length >= 10 && first < keepFrom;
 }
