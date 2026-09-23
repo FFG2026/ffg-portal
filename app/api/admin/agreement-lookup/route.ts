@@ -4,7 +4,7 @@ import { fetchAllIn } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
-import { isLiveDeal, paidCount, netBookValue, openingOwing, settlementFigure } from "../../../../lib/deal-status";
+import { isLiveDeal, paidCount, netBookValue, openingOwing, settlementFigure, amountFinanced } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment, visibleScheduleNote } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
@@ -237,6 +237,7 @@ export async function GET(request: Request) {
         written_date: agreement.written_date,
         term_months: agreement.term_months,
         total_lend: agreement.total_lend,
+        amount_financed: amountFinanced(agreement),
         purchase_price: agreement.purchase_price,
         customer_deposit: agreement.customer_deposit,
         commission: agreement.commission,
