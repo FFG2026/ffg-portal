@@ -138,4 +138,34 @@ const unlabelledShared = paymentsForAgreement(
 assert(!unlabelledShared.some((p) => p.id === "PM_SHARE"), "unlabelled cash on a shared mandate is not guessed");
 assert(unlabelledShared.some((p) => p.id === "PM_HP21"), "HP21/4 on a shared mandate still ticks HP21");
 
+const hp104AsAndWhen = {
+  id: "hp104",
+  agreement_number: "HP104",
+  gocardless_mandate_id: "MD003VN1FAGP5Z",
+  monthly_instalment: 0,
+};
+const hp104Unlabelled = paymentsForAgreement(
+  [
+    {
+      id: "PM_150",
+      description: "Monthly collection",
+      charge_date: "2025-11-24",
+      status: "paid_out",
+      amount: 15000,
+      links: { mandate: "MD003VN1FAGP5Z" },
+    },
+    {
+      id: "PM_HP104",
+      description: "HP104/8",
+      charge_date: "2025-11-27",
+      status: "paid_out",
+      amount: 15000,
+      links: { mandate: "MD003VN1FAGP5Z" },
+    },
+  ],
+  hp104AsAndWhen
+);
+assert(!hp104Unlabelled.some((p) => p.id === "PM_150"), "as-and-when HP104 does not guess unlabelled mandate cash");
+assert(hp104Unlabelled.some((p) => p.id === "PM_HP104"), "HP104/8 still attaches when the ref is on the payment");
+
 console.log("payments-for-agreement tests ok");

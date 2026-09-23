@@ -1,6 +1,8 @@
 import {
   isLiveDeal,
   unpaidSum,
+  paidSum,
+  netBookValue,
   paidCount,
   liveOverdueSum,
   chaseOverdueSum,
@@ -47,6 +49,28 @@ assert(
     [{ status: "paid" }, { status: "due" }]
   ) === true,
   "cancelled DD with remaining dues stays live even if term_months is stale"
+);
+
+assert(paidSum([{ status: "paid", amount: 784.2 }, { status: "due", amount: 784.2 }]) === 784.2, "paid sum ignores dues");
+assert(
+  netBookValue(24303.4, [
+    { status: "paid", amount: 784.2 },
+    { status: "paid", amount: 285 },
+  ]) === 23234.2,
+  "net book value is net lend minus collections"
+);
+assert(
+  isLiveDeal({ status: "active", monthly_instalment: 0, term_months: 20 }, [
+    { status: "paid" },
+    { status: "paid" },
+  ]) === true,
+  "as-and-when HP stays live until settled"
+);
+assert(
+  isLiveDeal({ status: "settled", monthly_instalment: 0, term_months: 20 }, [
+    { status: "paid" },
+  ]) === false,
+  "settled as-and-when HP is finished"
 );
 
 assert(

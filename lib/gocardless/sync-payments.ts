@@ -79,8 +79,10 @@ export function paymentsForAgreement(
     }
     // Shared mandates (one customer, many HPs) only tick from HP41/3-style refs.
     if (agreement.mandateShared) return false;
+    // As-and-when books have no contracted monthly Direct Debit — only HP104/3-style refs.
+    if (!(monthly > 0)) return false;
     // Deposits / other lumps on this mandate are not monthly Direct Debits.
-    if (monthly > 0 && !amountsClose(monthly, p.amount)) return false;
+    if (!amountsClose(monthly, p.amount)) return false;
     return true;
   });
 }

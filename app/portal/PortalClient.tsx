@@ -20,6 +20,7 @@ type AgreementSummary = {
   termMonths: number;
   paidCount: number;
   settlementFigure: number;
+  netBookValue?: number;
   lastPaymentDate: string | null;
   directDebitUpToDate: boolean;
   schedule: PaymentRow[];
@@ -278,6 +279,10 @@ export default function PortalClient(props: Props) {
                 <div className="row">
                   <span>Outstanding balance</span>
                   <span>{gbp(active.settlementFigure)}</span>
+                </div>
+                <div className="row">
+                  <span>Net book value</span>
+                  <span>{gbp(active.netBookValue ?? 0)}</span>
                 </div>
                 <div className="row">
                   <span>Early settlement rebate</span>

@@ -47,6 +47,7 @@ type LookupResult = {
     live: boolean;
     settlement_figure: number;
     last_payment_date: string | null;
+    net_book_value?: number;
   };
   missed_months?: string[];
   schedule: {
@@ -458,6 +459,15 @@ function LookupInner() {
                   <div className="lookup-settlement-amt">
                     {gbp(result.status.settlement_figure)}
                   </div>
+                  <div className="lookup-nbv">
+                    <span>Net book value</span>
+                    <strong>
+                      {gbp(
+                        result.status.net_book_value ??
+                          result.agreement.total_lend
+                      )}
+                    </strong>
+                  </div>
                   {result.status.last_payment_date && (
                     <div className="lookup-settlement-note">
                       {result.status.live
@@ -476,7 +486,9 @@ function LookupInner() {
                   <div className="lookup-item">
                     <div className="lookup-label">Monthly</div>
                     <div className="lookup-value mono">
-                      {gbp(result.agreement.monthly_instalment)}
+                      {Number(result.agreement.monthly_instalment) > 0
+                        ? gbp(result.agreement.monthly_instalment)
+                        : "As and when"}
                     </div>
                   </div>
                   <div className="lookup-item">
@@ -522,11 +534,17 @@ function LookupInner() {
                 }}
               />
 
-              {result.status.live && result.status.settlement_figure > 0 && (
+              {result.status.live &&
+                (result.status.settlement_figure > 0 ||
+                  (result.status.net_book_value || 0) > 0) && (
                   <ManualPaymentsForm
                     key={`${result.agreement.agreement_number}-manual`}
                     agreementNumber={result.agreement.agreement_number}
-                    owing={result.status.settlement_figure}
+                    owing={
+                      result.status.settlement_figure > 0
+                        ? result.status.settlement_figure
+                        : result.status.net_book_value || 0
+                    }
                     onDone={() => {
                       runLookup("agreement", result.agreement.agreement_number);
                       notifyBookChanged();

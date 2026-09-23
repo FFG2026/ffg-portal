@@ -91,17 +91,46 @@ export function unpaidSum(
   );
 }
 
+export function paidSum(
+  rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
+) {
+  return roundMoney(
+    (rows || [])
+      .filter((r) => isPaidRow(r.status))
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+  );
+}
+
+/** Capital still on the book: net lend minus collections received. */
+export function netBookValue(
+  totalLend: number | string | null | undefined,
+  rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
+) {
+  return Math.max(0, roundMoney(Number(totalLend || 0) - paidSum(rows)));
+}
+
 /**
  * Live = still collecting. Finished only if marked settled, or every
  * schedule row is paid and we are not short of the contracted term.
  * A cancelled Direct Debit must not hide a deal that still has dues,
  * even if term_months was left at 1 from a stub import.
+ * As-and-when books (no monthly Direct Debit) stay live until settled.
  */
 export function isLiveDeal(
-  agreement: { status?: string | null; term_months?: number | null },
+  agreement: {
+    status?: string | null;
+    term_months?: number | null;
+    monthly_instalment?: number | string | null;
+  },
   rows: { status?: string | null }[] | null | undefined
 ) {
   if (isSettledAgreement(agreement.status)) return false;
+  if (
+    agreement.monthly_instalment != null &&
+    Number(agreement.monthly_instalment) <= 0
+  ) {
+    return String(agreement.status || "active").trim().toLowerCase() === "active";
+  }
   const list = rows || [];
   if (list.some((r) => !isPaidRow(r.status))) return true;
   if (list.length === 0) return Number(agreement.term_months || 0) > 0;

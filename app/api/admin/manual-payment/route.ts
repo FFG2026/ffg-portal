@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   const { data: agreement, error: agrErr } = await supabase
     .from("agreements")
-    .select("id, agreement_number, term_months, status")
+    .select("id, agreement_number, term_months, status, monthly_instalment")
     .ilike("agreement_number", agreementNumber)
     .maybeSingle();
   if (agrErr) {
@@ -65,11 +65,17 @@ export async function POST(request: Request) {
       status: p.status,
     }));
 
-  let plan;
-  try {
-    plan = planManualReceipt(unpaid, amount);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Could not apply" }, { status: 400 });
+  let plan = {
+    removeIds: [] as string[],
+    reduce: null as { id: string; amount: number } | null,
+    leftover: 0,
+  };
+  if (unpaid.length) {
+    try {
+      plan = planManualReceipt(unpaid, amount);
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message || "Could not apply" }, { status: 400 });
+    }
   }
 
   const applied = Math.round((Number(amount) - Number(plan.leftover || 0)) * 100) / 100;
@@ -123,10 +129,11 @@ export async function POST(request: Request) {
     .select("id, status")
     .eq("agreement_id", agreement.id);
   const stillDue = (remaining || []).some((p) => p.status !== "paid");
+  const asAndWhen = Number(agreement.monthly_instalment || 0) <= 0;
   const { error: agrUpd } = await supabase
     .from("agreements")
     .update({
-      status: stillDue ? "active" : "settled",
+      status: stillDue || asAndWhen ? "active" : "settled",
     })
     .eq("id", agreement.id);
   if (agrUpd) {

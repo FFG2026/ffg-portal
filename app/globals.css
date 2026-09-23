@@ -338,6 +338,9 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
 .lookup-settlement{background:var(--navy); border-radius:10px; padding:16px 18px; margin:0;}
 .lookup-settlement-label{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--blue-pale); margin-bottom:6px;}
 .lookup-settlement-amt{font-family:'Fraunces', serif; font-size:28px; font-weight:600; color:#fff; line-height:1.1;}
+.lookup-nbv{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.16);}
+.lookup-nbv span{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--blue-pale);}
+.lookup-nbv strong{font-family:'Fraunces', serif; font-size:18px; font-weight:600; color:#fff;}
 .lookup-settlement-note{font-size:12px; color:rgba(255,255,255,0.65); margin-top:6px;}
 .lookup-deal-actions{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;}
 .lookup-deal-actions > .lookup-manual{flex:0 1 auto; margin-bottom:0;}
