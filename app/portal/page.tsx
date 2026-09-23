@@ -84,7 +84,7 @@ export default async function PortalPage() {
       termMonths: agreement.term_months,
       paidCount,
       settlementFigure,
-      netBookValue: netBookValue(agreement.total_lend, schedule),
+      netBookValue: netBookValue(agreement, schedule),
       lastPaymentDate: lastPayment ? lastPayment.due_date : null,
       directDebitUpToDate: isDirectDebitUpToDate(schedule),
       schedule: schedule.slice(

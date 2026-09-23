@@ -101,12 +101,25 @@ export function paidSum(
   );
 }
 
-/** Capital still on the book: net lend minus collections received. */
+/** Day-one owing for net book value: including-interest figure when set. */
+export function openingOwing(agreement: {
+  total_lend?: number | string | null;
+  total_repayable?: number | string | null;
+}) {
+  const repayable = Number(agreement.total_repayable || 0);
+  if (repayable > 0) return roundMoney(repayable);
+  return roundMoney(Number(agreement.total_lend || 0));
+}
+
+/** Still on the book: day-one owing minus collections received. */
 export function netBookValue(
-  totalLend: number | string | null | undefined,
+  agreement: {
+    total_lend?: number | string | null;
+    total_repayable?: number | string | null;
+  },
   rows: { status?: string | null; amount?: number | string | null }[] | null | undefined
 ) {
-  return Math.max(0, roundMoney(Number(totalLend || 0) - paidSum(rows)));
+  return Math.max(0, roundMoney(openingOwing(agreement) - paidSum(rows)));
 }
 
 /**

@@ -4,7 +4,7 @@ import { fetchAllIn } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
 import { syncAgreementPayments, syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments";
 import { sortByDueDate, withRemainingBalance } from "../../../../lib/part-settlement";
-import { isLiveDeal, paidCount, unpaidSum, netBookValue } from "../../../../lib/deal-status";
+import { isLiveDeal, paidCount, unpaidSum, netBookValue, openingOwing } from "../../../../lib/deal-status";
 import { startDateFromFirstPayment, visibleScheduleNote } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { compareAgreementNumber } from "../../../../lib/gocardless/parse-ref";
@@ -128,7 +128,7 @@ export async function GET(request: Request) {
             term_months: a.term_months,
             live: isLiveDeal(a, rows),
             settlement_figure: unpaidSum(rows),
-            net_book_value: netBookValue(a.total_lend, rows),
+            net_book_value: netBookValue(a, rows),
             has_schedule: rows.length > 0,
             gocardless_mandate_id: a.gocardless_mandate_id,
             missed_months: missesByAgreement.get(a.id) || [],
@@ -210,7 +210,10 @@ export async function GET(request: Request) {
     )
   ).pop();
 
-  const scheduleWithBalance = withRemainingBalance(schedule);
+  const scheduleWithBalance = withRemainingBalance(
+    schedule,
+    openingOwing(agreement)
+  );
 
   let missed_months: string[] = [];
   if (book === "ffg") {
@@ -265,7 +268,7 @@ export async function GET(request: Request) {
             paid_count: paidCount(rows),
             term_months: a.term_months,
             settlement_figure: unpaidSum(rows),
-            net_book_value: netBookValue(a.total_lend, rows),
+            net_book_value: netBookValue(a, rows),
           };
         }),
       status: {
@@ -273,7 +276,7 @@ export async function GET(request: Request) {
         term_months: agreement.term_months,
         live: isLiveDeal(agreement, schedule),
         settlement_figure: unpaidSum(schedule),
-        net_book_value: netBookValue(agreement.total_lend, schedule),
+        net_book_value: netBookValue(agreement, schedule),
         last_payment_date: lastPaid
           ? lastPaid.paid_date || lastPaid.due_date
           : null,
