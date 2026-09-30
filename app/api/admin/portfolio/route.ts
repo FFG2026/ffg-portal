@@ -3,7 +3,6 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { fetchAllIn, fetchAllRows } from "../../../../lib/supabase/fetch-all";
 import { authorizeAdminRequest } from "../../../../lib/admin";
-import { isOwenBrunning } from "../../../../lib/owen";
 import { getSetting, setSetting } from "../../../../lib/google/settings";
 import {
   buildLivePortfolio,
@@ -37,24 +36,11 @@ const NO_CACHE = {
   "Vercel-CDN-Cache-Control": "no-store",
 };
 
-async function requireOwen(request: Request, body?: { secret?: string }) {
+async function requireAdmin(request: Request, body?: { secret?: string }) {
   const auth = await authorizeAdminRequest(request, body);
   if (!auth.ok) {
     return {
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-  if (
-    !isOwenBrunning({
-      email: auth.email,
-      name: "name" in auth ? auth.name : null,
-    })
-  ) {
-    return {
-      error: NextResponse.json(
-        { error: "This figures page is only for Owen Brunning." },
-        { status: 403 }
-      ),
     };
   }
   return { auth };
@@ -189,7 +175,7 @@ function monthFromRequest(request: Request, body?: { month?: unknown }) {
 }
 
 export async function GET(request: Request) {
-  const gate = await requireOwen(request);
+  const gate = await requireAdmin(request);
   if (gate.error) return gate.error;
   try {
     const book = bookFromRequest(request);
@@ -221,7 +207,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const gate = await requireOwen(request, body);
+  const gate = await requireAdmin(request, body);
   if (gate.error) return gate.error;
   const cash = parseCashAtBank(body.cash_at_bank);
   if (cash == null) {

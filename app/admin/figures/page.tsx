@@ -86,13 +86,6 @@ function FiguresInner() {
       body: JSON.stringify({ refresh: true }),
       cache: "no-store",
     });
-    if (res.status === 403) {
-      setError("This page is only for Owen Brunning.");
-      setFfg(null);
-      setGg(null);
-      setLoading(false);
-      return;
-    }
     if (!res.ok) {
       setError("Couldn't load the live figures.");
       setLoading(false);
