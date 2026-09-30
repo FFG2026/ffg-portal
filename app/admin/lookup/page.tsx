@@ -54,6 +54,7 @@ type LookupResult = {
   };
   missed_months?: string[];
   schedule: {
+    id?: string;
     instalment_number: number;
     due_date: string;
     amount: number;
@@ -591,6 +592,12 @@ function LookupInner() {
                   {result.schedule.length} instalments
                 </span>
               </div>
+              {currentAdminBook() === "gg" && (
+                <p className="lookup-schedule-help">
+                  Standing orders can be corrected after they are added —
+                  date, amount, paid or still due.
+                </p>
+              )}
               <div className="lookup-schedule-scroll">
                 <table className="lookup-table">
                   <thead>
@@ -600,58 +607,27 @@ function LookupInner() {
                       <th>Amount</th>
                       <th>Status</th>
                       <th>Balance</th>
+                      {currentAdminBook() === "gg" && <th></th>}
                     </tr>
                   </thead>
                   <tbody>
                     {result.schedule.map((row) => (
-                      <tr
-                        key={row.instalment_number}
-                        className={
-                          row.status === "paid"
-                            ? "lookup-row-paid"
-                            : row.status === "failed" ||
-                              (result.missed_months || []).includes(
-                                String(row.due_date || "").slice(0, 7)
-                              )
-                            ? "lookup-row-miss"
-                            : ""
-                        }
-                      >
-                        <td>{row.instalment_number}</td>
-                        <td>
-                          {formatDate(row.due_date)}
-                          {row.status === "paid" &&
-                            row.paid_date &&
-                            row.paid_date.slice(0, 10) !==
-                              String(row.due_date || "").slice(0, 10) && (
-                              <div className="lookup-row-note">
-                                Paid {formatDate(row.paid_date)}
-                              </div>
-                            )}
-                        </td>
-                        <td className="mono">{gbp(row.amount)}</td>
-                        <td>
-                          {row.status === "paid" ? (
-                            <span className="lookup-paid">
-                              {row.source === "manual" || row.source === "bank"
-                                ? "Manual payment"
-                                : (result.missed_months || []).includes(
-                                    String(row.due_date || "").slice(0, 7)
-                                  )
-                                ? "Paid after miss"
-                                : "Paid"}
-                            </span>
-                          ) : row.status === "failed" ? (
-                            <span className="lookup-failed">Failed</span>
-                          ) : (
-                            <span className="lookup-due">Due</span>
-                          )}
-                          {row.notes && (
-                            <div className="lookup-row-note">{row.notes}</div>
-                          )}
-                        </td>
-                        <td className="mono">{gbp(row.balance_after)}</td>
-                      </tr>
+                      <GgScheduleRow
+                        key={row.id || row.instalment_number}
+                        row={row}
+                        agreementNumber={result.agreement.agreement_number}
+                        canEdit={currentAdminBook() === "gg" && !!row.id}
+                        missedMonths={result.missed_months || []}
+                        gbp={gbp}
+                        formatDate={formatDate}
+                        onSaved={() => {
+                          runLookup(
+                            "agreement",
+                            result.agreement.agreement_number
+                          );
+                          notifyBookChanged();
+                        }}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -661,6 +637,237 @@ function LookupInner() {
         )}
       </div>
     </div>
+  );
+}
+
+function paymentStatusLabel(
+  row: LookupResult["schedule"][number],
+  missedMonths: string[]
+) {
+  if (row.status === "paid") {
+    if (row.source === "manual" || row.source === "bank") return "Manual payment";
+    if (missedMonths.includes(String(row.due_date || "").slice(0, 7))) {
+      return "Paid after miss";
+    }
+    return "Paid";
+  }
+  if (row.status === "failed") return "Failed";
+  return "Due";
+}
+
+function GgScheduleRow({
+  row,
+  agreementNumber,
+  canEdit,
+  missedMonths,
+  gbp,
+  formatDate,
+  onSaved,
+}: {
+  row: LookupResult["schedule"][number];
+  agreementNumber: string;
+  canEdit: boolean;
+  missedMonths: string[];
+  gbp: (n: number) => string;
+  formatDate: (d: string | null) => string;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [dueDate, setDueDate] = useState(String(row.due_date || "").slice(0, 10));
+  const [amount, setAmount] = useState(String(row.amount ?? ""));
+  const [status, setStatus] = useState(row.status === "paid" ? "paid" : "due");
+  const [paidDate, setPaidDate] = useState(
+    String(row.paid_date || row.due_date || "").slice(0, 10)
+  );
+  const [notes, setNotes] = useState(row.notes || "");
+
+  const startEdit = () => {
+    setDueDate(String(row.due_date || "").slice(0, 10));
+    setAmount(String(row.amount ?? ""));
+    setStatus(row.status === "paid" ? "paid" : "due");
+    setPaidDate(String(row.paid_date || row.due_date || "").slice(0, 10));
+    setNotes(row.notes || "");
+    setError("");
+    setOpen(true);
+  };
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!row.id) return;
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/manual-payment", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({
+          agreement_number: agreementNumber,
+          payment_id: row.id,
+          due_date: dueDate,
+          amount,
+          status,
+          paid_date: status === "paid" ? paidDate : null,
+          notes,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not save");
+      setOpen(false);
+      onSaved();
+    } catch (err: any) {
+      setError(err.message || "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!row.id) return;
+    if (!window.confirm("Remove this standing order from the schedule?")) return;
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/manual-payment", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({
+          agreement_number: agreementNumber,
+          payment_id: row.id,
+          remove: true,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not remove");
+      setOpen(false);
+      onSaved();
+    } catch (err: any) {
+      setError(err.message || "Could not remove");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const miss = missedMonths.includes(String(row.due_date || "").slice(0, 7));
+  const rowClass =
+    row.status === "paid"
+      ? "lookup-row-paid"
+      : row.status === "failed" || miss
+        ? "lookup-row-miss"
+        : "";
+  const label = paymentStatusLabel(row, missedMonths);
+
+  return (
+    <>
+      <tr className={rowClass}>
+        <td>{row.instalment_number}</td>
+        <td>
+          {formatDate(row.due_date)}
+          {row.status === "paid" &&
+            row.paid_date &&
+            row.paid_date.slice(0, 10) !==
+              String(row.due_date || "").slice(0, 10) && (
+              <div className="lookup-row-note">
+                Paid {formatDate(row.paid_date)}
+              </div>
+            )}
+        </td>
+        <td className="mono">{gbp(row.amount)}</td>
+        <td>
+          {row.status === "paid" ? (
+            <span className="lookup-paid">{label}</span>
+          ) : row.status === "failed" ? (
+            <span className="lookup-failed">{label}</span>
+          ) : (
+            <span className="lookup-due">{label}</span>
+          )}
+          {row.notes && <div className="lookup-row-note">{row.notes}</div>}
+        </td>
+        <td className="mono">{gbp(row.balance_after)}</td>
+        {canEdit && (
+          <td>
+            <button
+              type="button"
+              className="lookup-row-edit"
+              onClick={() => (open ? setOpen(false) : startEdit())}
+            >
+              {open ? "Close" : "Edit"}
+            </button>
+          </td>
+        )}
+      </tr>
+      {open && canEdit && (
+        <tr className="lookup-row-editor">
+          <td colSpan={6}>
+            <form className="lookup-manual-form" onSubmit={save}>
+              <div className="lookup-field">
+                <label>Due</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="lookup-field">
+                <label>Amount</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="lookup-field">
+                <label>Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="paid">Paid</option>
+                  <option value="due">Due</option>
+                </select>
+              </div>
+              {status === "paid" && (
+                <div className="lookup-field">
+                  <label>Date received</label>
+                  <input
+                    type="date"
+                    value={paidDate}
+                    onChange={(e) => setPaidDate(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+              <div className="lookup-field lookup-field-wide">
+                <label>Note</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="e.g. Standing order, banked late"
+                />
+              </div>
+              <button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save payment"}
+              </button>
+              <button
+                type="button"
+                className="lookup-row-remove"
+                disabled={saving}
+                onClick={remove}
+              >
+                Remove
+              </button>
+              {error && <div className="lookup-error">{error}</div>}
+            </form>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

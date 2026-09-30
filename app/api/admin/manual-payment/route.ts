@@ -150,3 +150,143 @@ export async function POST(request: Request) {
     settled: !stillDue,
   });
 }
+
+async function loadGgAgreement(
+  supabase: ReturnType<typeof createAdminClient>,
+  agreementNumber: string
+) {
+  const { data: agreement, error } = await supabase
+    .from("agreements")
+    .select(
+      "id, agreement_number, book, status, monthly_instalment, total_lend, total_repayable, commission"
+    )
+    .ilike("agreement_number", agreementNumber)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!agreement) throw new Error("Agreement not found.");
+  if (String(agreement.book || "") !== "gg") {
+    throw new Error("Standing-order edits are only for Glacier Gem deals.");
+  }
+  return agreement;
+}
+
+export async function PATCH(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const auth = await authorizeAdminRequest(request, body);
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const agreementNumber = String(body.agreement_number || "").trim();
+  const paymentId = String(body.payment_id || "").trim();
+  if (!agreementNumber || !paymentId) {
+    return NextResponse.json(
+      { error: "Pick the payment to change." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const { ggPaymentPatch, refreshGgSchedule } = await import(
+      "../../../../lib/gg-schedule"
+    );
+    const supabase = createAdminClient();
+    const agreement = await loadGgAgreement(supabase, agreementNumber);
+    if (body.remove) {
+      const { data: existing, error: existingErr } = await supabase
+        .from("payments")
+        .select("id")
+        .eq("id", paymentId)
+        .eq("agreement_id", agreement.id)
+        .maybeSingle();
+      if (existingErr) throw new Error(existingErr.message);
+      if (!existing) throw new Error("That payment is not on this agreement.");
+      const { error: delErr } = await supabase
+        .from("payments")
+        .delete()
+        .eq("id", existing.id);
+      if (delErr) throw new Error(delErr.message);
+      await refreshGgSchedule(supabase, agreement);
+      return NextResponse.json({
+        success: true,
+        agreement_number: agreement.agreement_number,
+        removed: true,
+      });
+    }
+    const { data: row, error: rowErr } = await supabase
+      .from("payments")
+      .select("id, due_date, amount, status, paid_date, notes")
+      .eq("id", paymentId)
+      .eq("agreement_id", agreement.id)
+      .maybeSingle();
+    if (rowErr) throw new Error(rowErr.message);
+    if (!row) throw new Error("That payment is not on this agreement.");
+
+    const patch = ggPaymentPatch(row, {
+      due_date: body.due_date,
+      amount: body.amount,
+      status: body.status,
+      paid_date: body.paid_date,
+      notes: body.notes,
+    });
+    const { error: updErr } = await supabase
+      .from("payments")
+      .update(patch)
+      .eq("id", row.id);
+    if (updErr) throw new Error(updErr.message);
+    await refreshGgSchedule(supabase, agreement);
+    return NextResponse.json({
+      success: true,
+      agreement_number: agreement.agreement_number,
+    });
+  } catch (err: any) {
+    const message = err.message || "Could not save the payment.";
+    const status = /not found/i.test(message) ? 404 : 400;
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const auth = await authorizeAdminRequest(request, body);
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const agreementNumber = String(body.agreement_number || "").trim();
+  const paymentId = String(body.payment_id || "").trim();
+  if (!agreementNumber || !paymentId) {
+    return NextResponse.json(
+      { error: "Pick the payment to remove." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const { refreshGgSchedule } = await import("../../../../lib/gg-schedule");
+    const supabase = createAdminClient();
+    const agreement = await loadGgAgreement(supabase, agreementNumber);
+    const { data: row, error: rowErr } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("id", paymentId)
+      .eq("agreement_id", agreement.id)
+      .maybeSingle();
+    if (rowErr) throw new Error(rowErr.message);
+    if (!row) throw new Error("That payment is not on this agreement.");
+    const { error: delErr } = await supabase
+      .from("payments")
+      .delete()
+      .eq("id", row.id);
+    if (delErr) throw new Error(delErr.message);
+    await refreshGgSchedule(supabase, agreement);
+    return NextResponse.json({
+      success: true,
+      agreement_number: agreement.agreement_number,
+    });
+  } catch (err: any) {
+    const message = err.message || "Could not remove the payment.";
+    const status = /not found/i.test(message) ? 404 : 400;
+    return NextResponse.json({ error: message }, { status });
+  }
+}
