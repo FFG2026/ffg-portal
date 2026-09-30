@@ -287,6 +287,7 @@ export async function GET(request: Request) {
       },
       missed_months,
       schedule: scheduleWithBalance.map((p) => ({
+        id: p.id,
         instalment_number: p.instalment_number,
         due_date: p.due_date,
         amount: p.amount,

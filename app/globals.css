@@ -404,6 +404,13 @@ footer{padding:64px 0 36px; margin-top:20px; border-top:1px solid var(--rule); b
 .lookup-paid{color:var(--green); font-weight:600; font-size:12px;}
 .lookup-due{color:var(--slate); font-size:12px;}
 .lookup-failed{color:#B4232C; font-weight:700; font-size:12px;}
+.lookup-schedule-help{font-size:12.5px; color:var(--slate); line-height:1.45; margin:0 16px 8px;}
+.lookup-row-edit{border:none; background:none; padding:0; font-size:12.5px; font-weight:600; color:var(--blue-deep); cursor:pointer;}
+.lookup-row-edit:hover{text-decoration:underline;}
+.lookup-row-editor td{background:var(--paper); padding:10px 8px 14px;}
+.lookup-row-editor .lookup-manual-form{margin-top:0;}
+.lookup-row-remove{padding:11px 18px; border-radius:8px; border:1px solid var(--rule); background:#fff; color:#B4232C; font-size:14px; font-weight:600; cursor:pointer;}
+.lookup-row-remove:disabled{color:var(--slate);}
 .lookup-modes{display:flex; gap:8px; margin-bottom:12px;}
 .lookup-mode{padding:8px 16px; border-radius:8px; border:1px solid var(--rule); background:#fff; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; transition:all .15s;}
 .lookup-mode:hover{border-color:var(--blue);}
