@@ -843,3 +843,12 @@
   .book-month-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:0 14px}
   .book-month-card{min-height:72px}
 }
+
+/* Webhook silence is invisible by nature — say it where the overdue total is. */
+.webhook-alert{display:flex; align-items:flex-start; gap:12px; background:var(--gold-pale);
+  border:1px solid var(--gold-border); border-radius:12px; padding:13px 15px; margin-top:10px;}
+.webhook-alert>span{display:flex; align-items:center; justify-content:center; width:22px;
+  height:22px; flex-shrink:0; border-radius:50%; background:#8A6A24; color:#fff;
+  font-weight:700; font-size:13px;}
+.webhook-alert p{margin:0; font-size:12.5px; line-height:1.5; color:#6F5415;}
+.webhook-alert strong{color:#5A4410;}

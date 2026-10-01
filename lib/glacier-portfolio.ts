@@ -127,7 +127,8 @@ export function buildGlacierPortfolio(
   contracted = roundMoney(contracted);
   paid = roundMoney(paid);
   outstanding = roundMoney(outstanding);
-  const profit = roundMoney(contracted - lent);
+  // Commission is paid out on payout day, so it is outlay, never earnings.
+  const profit = roundMoney(contracted - lent - commission);
   const avgTermMonths = lent > 0 ? termWeight / lent : 36;
   const blendedYield =
     lent > 0 ? Math.round((profit / lent) * 1000) / 10 : 0;

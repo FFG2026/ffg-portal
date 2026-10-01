@@ -18,6 +18,7 @@ import {
   missMonthsFrom,
   summariseDdMisses,
 } from "../../../../lib/gocardless/dd-misses";
+import { webhookHealth } from "../../../../lib/gocardless/webhook-health";
 import {
   missRowsForAgreements,
   persistDirectDebitMissRows,
@@ -387,9 +388,24 @@ export async function GET(request: Request) {
       source: String(payment.source || "Book"),
     }));
 
+  // Is GoCardless actually pushing to us, or is the book only moving when
+  // someone happens to open a page?
+  let lastWebhookAt: string | null = null;
+  try {
+    const latest = await supabase
+      .from("gocardless_events")
+      .select("received_at")
+      .order("received_at", { ascending: false })
+      .limit(1);
+    lastWebhookAt = latest.data?.[0]?.received_at ?? null;
+  } catch {
+    lastWebhookAt = null;
+  }
+
   return NextResponse.json(
     {
     generated_at: new Date().toISOString(),
+    webhook: webhookHealth(lastWebhookAt),
     totals: {
       live,
       finished,

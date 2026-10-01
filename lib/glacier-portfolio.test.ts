@@ -60,4 +60,30 @@ assert(
   "equal projections"
 );
 
+// Commission is paid out on payout day, so Glacier's profit deducts it too.
+const ggDeal = {
+  agreement_number: "GG09",
+  total_lend: 100000,
+  term_months: 36,
+  monthly_instalment: 4000,
+  payments: [
+    { status: "paid", amount: 4000 },
+    { status: "due", amount: 116000 },
+  ],
+};
+const ggNoComm = buildGlacierPortfolio([{ ...ggDeal, commission: 0 }], { cashAtBank: 0 });
+const ggWithComm = buildGlacierPortfolio([{ ...ggDeal, commission: 2500 }], { cashAtBank: 0 });
+assert(
+  ggNoComm.summary.total_profit === 120000 - 100000,
+  `no commission: contracted less lend, got ${ggNoComm.summary.total_profit}`
+);
+assert(
+  ggNoComm.summary.total_profit - ggWithComm.summary.total_profit === 2500,
+  "a 2500 commission reduces Glacier profit by exactly 2500"
+);
+assert(
+  ggNoComm.summary.total_outstanding === ggWithComm.summary.total_outstanding,
+  "commission does not change what is still due in"
+);
+
 console.log("glacier-portfolio tests ok");
