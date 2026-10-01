@@ -129,7 +129,11 @@ export function monthCollection(deals: DashboardDeal[], monthKey: string) {
   };
 }
 
-/** Arrears across the book, honouring the chase-list exclusions. */
+/**
+ * Arrears across the book: payments missed this calendar month and last,
+ * honouring the special-arrangement exclusions. Older unticked rows are
+ * holes in the imported book, not money being chased.
+ */
 export function arrearsTotal(deals: DashboardDeal[], today: string) {
   return roundMoney(
     deals.reduce(

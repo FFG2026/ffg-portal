@@ -1,4 +1,5 @@
 import {
+  liveArrearsBroughtForward,
   isLiveDeal,
   unpaidSum,
   paidSum,
@@ -10,7 +11,6 @@ import {
   liveOverdueSum,
   chaseOverdueSum,
   isSpecialOverdueArrangement,
-  receivedPaymentInLastMonth,
   lastReceivedPaymentDate,
   isMonthlyBookAmount,
   currentMonthInstalmentTotals,
@@ -206,8 +206,19 @@ assert(
       { status: "due", amount: 1933.07, due_date: "2025-03-30" },
     ],
     "2026-09-21"
+  ) === 0,
+  "a row eighteen months old is an import hole, not this month's arrears"
+);
+assert(
+  liveOverdueSum(
+    { status: "active", term_months: 36 },
+    [
+      { status: "paid", amount: 1933.07, due_date: "2026-07-30" },
+      { status: "due", amount: 1933.07, due_date: "2026-08-30" },
+    ],
+    "2026-09-21"
   ) === 1933.07,
-  "live HP with a past due still flags"
+  "last month's miss is overdue"
 );
 
 assert(
@@ -221,82 +232,72 @@ assert(
   ) === 0,
   "HP23 settlement lump is paid, not overdue"
 );
-assert(
-  liveOverdueSum(
-    { status: "settled", term_months: 16 },
-    [
-      { status: "paid", amount: 861.28, due_date: "2024-03-18" },
-      { status: "paid", amount: 18086.88, due_date: "2024-04-18" },
-    ],
-    "2026-09-21"
-  ) === 0,
-  "HP33 settlement lump is paid, not overdue"
-);
 
-const payingThisMonth = [
-  { status: "paid", amount: 500, due_date: "2026-08-21", paid_date: "2026-08-21" },
-  { status: "due", amount: 500, due_date: "2026-07-21" },
-  { status: "due", amount: 500, due_date: "2026-09-21" },
+// Howe Rentals missed August and paid September. The money never arrived,
+// so August is still owed — a later collection does not write it off.
+const missedThenPaid = [
+  { status: "paid", amount: 543.78, due_date: "2026-07-28", paid_date: "2026-07-28" },
+  { status: "due", amount: 543.78, due_date: "2026-08-28" },
+  { status: "paid", amount: 543.78, due_date: "2026-09-28", paid_date: "2026-09-28" },
 ];
 assert(
-  lastReceivedPaymentDate(payingThisMonth) === "2026-08-21",
-  "last payment uses paid_date"
-);
-assert(
-  receivedPaymentInLastMonth(payingThisMonth, "2026-09-21") === true,
-  "21 Aug is within one month of 21 Sep"
-);
-assert(
-  liveOverdueSum({ status: "active", term_months: 36 }, payingThisMonth, "2026-09-21") ===
-    0,
-  "live account that paid in the last month is not overdue"
+  liveOverdueSum({ status: "active", term_months: 48 }, missedThenPaid, "2026-09-30") ===
+    543.78,
+  "a miss followed by a later collection is still a miss"
 );
 
-const paidEarlyLastMonth = [
-  { status: "paid", amount: 844.84, due_date: "2026-08-11", paid_date: "2026-08-11" },
-  { status: "due", amount: 844.84, due_date: "2026-09-11" },
+// L3: September's £1,000 Direct Debit failed and £500 came in by bank.
+const failedCollection = [
+  { status: "failed", amount: 1000, due_date: "2026-09-01" },
+  { status: "paid", amount: 500, due_date: "2026-09-15", paid_date: "2026-09-15" },
 ];
 assert(
-  receivedPaymentInLastMonth(paidEarlyLastMonth, "2026-09-21") === true,
-  "11 Aug still counts as a payment last month on 21 Sep"
-);
-assert(
-  liveOverdueSum({ status: "active", term_months: 36 }, paidEarlyLastMonth, "2026-09-21") ===
-    0,
-  "FL9-style monthly payer is not overdue after an August collection"
+  liveOverdueSum({ status: "active", term_months: 36 }, failedCollection, "2026-10-01") ===
+    1000,
+  "a failed Direct Debit is money still owed"
 );
 
-const currentCycleUnpaid = [
-  { status: "paid", amount: 868.41, due_date: "2026-07-30", paid_date: "2026-07-30" },
-  { status: "due", amount: 868.41, due_date: "2026-08-30" },
+// On the 1st of the month, last month's misses are the arrears carried in.
+const septemberMiss = [
+  { status: "due", amount: 1604.25, due_date: "2026-09-23" },
+  { status: "due", amount: 1604.25, due_date: "2026-10-23" },
 ];
 assert(
-  liveOverdueSum({ status: "active", term_months: 48 }, currentCycleUnpaid, "2026-09-21") ===
-    0,
-  "instalment less than a month late is not overdue"
-);
-
-const missedMonth = [
-  { status: "paid", amount: 500, due_date: "2026-07-21", paid_date: "2026-07-21" },
-  { status: "due", amount: 500, due_date: "2026-08-21" },
-];
-assert(
-  receivedPaymentInLastMonth(missedMonth, "2026-09-21") === false,
-  "21 Jul is before the start of last month"
+  liveOverdueSum({ status: "active", term_months: 36 }, septemberMiss, "2026-10-01") ===
+    1604.25,
+  "September's miss is overdue on 1 October, not hidden until it is a month old"
 );
 assert(
-  liveOverdueSum({ status: "active", term_months: 36 }, missedMonth, "2026-09-21") ===
-    500,
-  "no payment in the last month still flags overdue"
+  liveArrearsBroughtForward(
+    { status: "active", term_months: 36 },
+    septemberMiss,
+    "2026-10-01"
+  ) === 1604.25,
+  "and it is the arrears brought into October"
+);
+assert(
+  liveOverdueSum({ status: "active", term_months: 36 }, septemberMiss, "2026-10-24") ===
+    3208.5,
+  "once October's own instalment passes unpaid it joins the arrears"
+);
+assert(
+  liveArrearsBroughtForward(
+    { status: "active", term_months: 36 },
+    septemberMiss,
+    "2026-10-24"
+  ) === 1604.25,
+  "but only September is brought forward — October's sits in October's instalments"
 );
 
+// FL1 carries an unticked row from January 2022 on an agreement that paid
+// for a year afterwards. That is a hole in the imported book.
 const sheetHole = [
   { status: "due", amount: 3765.7, due_date: "2022-01-10" },
   { status: "paid", amount: 3765.7, due_date: "2023-03-15", paid_date: "2023-03-15" },
 ];
 assert(
   liveOverdueSum({ status: "active", term_months: 15 }, sheetHole, "2026-09-21") === 0,
-  "unticked first row is not overdue after later instalments were paid"
+  "a row from four years ago is not this month's arrears"
 );
 
 assert(
@@ -312,6 +313,7 @@ const vantageArrears = [
   { status: "paid", amount: 1933.07, due_date: "2026-07-21", paid_date: "2026-07-21" },
   { status: "due", amount: 1933.07, due_date: "2026-08-21" },
 ];
+
 assert(
   liveOverdueSum({ status: "active", term_months: 48 }, vantageArrears, "2026-09-21") ===
     1933.07,

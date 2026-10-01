@@ -1,5 +1,6 @@
 import {
   gcListPaymentsPath,
+  GC_PAGE_LIMIT,
   paymentsChargedInRange,
 } from "./client";
 
@@ -25,5 +26,9 @@ const rows = [
 ];
 const sep = paymentsChargedInRange(rows, "2026-09-01", "2026-10-01", "paid_out");
 assert(sep.map((p) => p.id).join() === "csv", "September paid-out only, not Aug/Oct or confirmed");
+
+// Paging at the default 50 turned a list of 1,200 collections into 24
+// sequential round trips, which is most of why a full refresh ran out of time.
+assert(GC_PAGE_LIMIT === 500, "ask GoCardless for its maximum page size");
 
 console.log("gocardless client tests ok");

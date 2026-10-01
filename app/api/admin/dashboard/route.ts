@@ -6,13 +6,14 @@ import { authorizeAdminRequest } from "../../../../lib/admin";
 import {
   isLiveDeal,
   chaseOverdueSum,
+  chaseArrearsBroughtForward,
   isPaidRow,
   unpaidSum,
   settlementFigure,
   currentMonthInstalmentTotals,
 } from "../../../../lib/deal-status";
 import { fetchGoCardlessPaymentsChargedBetween, fetchGoCardlessFailedPaymentsChargedBetween } from "../../../../lib/gocardless/client";
-import { paidOutPoundsFromGoCardlessPayments, collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
+import { collectedPoundsFromGoCardlessPayments, collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
 import {
   DD_MISS_FROM,
   missMonthsFrom,
@@ -100,7 +101,7 @@ export async function GET(request: Request) {
           const charged = String(payment.charge_date || "").slice(0, 10);
           return charged >= monthStart && charged < nextMonth;
         });
-        gcCollectedThisMonth = paidOutPoundsFromGoCardlessPayments(gcMonth);
+        gcCollectedThisMonth = collectedPoundsFromGoCardlessPayments(gcMonth);
         gcMonthCount = gcMonth.length;
         gcMonthLoaded = true;
       } catch {
@@ -168,6 +169,7 @@ export async function GET(request: Request) {
   let paidTotal = 0;
   let outstanding = 0;
   let overdue = 0;
+  let arrearsBroughtIn = 0;
   let dueThisMonth = 0;
   let collectedThisMonth = 0;
   let manualThisMonth = 0;
@@ -230,15 +232,33 @@ export async function GET(request: Request) {
     const company = nameById.get(a.customer_id) || "";
     const od = chaseOverdueSum(company, a, rows, today);
     overdue += od;
+    arrearsBroughtIn += chaseArrearsBroughtForward(company, a, rows, today);
     outstanding += settlementFigure(a, rows) - od;
   }
 
+  // The book's own paid rows are bucketed by due month, GoCardless by charge
+  // month, so they cannot be added together. When GoCardless has loaded it is
+  // the authority on Direct Debit cash — but it only knows about Direct
+  // Debits, so bank and manual receipts are added back on top. Replacing the
+  // bar wholesale, as this used to, dropped them from the chart entirely.
   if (gcMonthLoaded) {
+    const manualByMonth = new Map<string, number>();
+    for (const p of payments || []) {
+      if (!isPaidRow(p.status)) continue;
+      const source = String((p as { source?: string }).source || "");
+      if (source !== "manual" && source !== "bank") continue;
+      const month = String(p.paid_date || p.due_date || "").slice(0, 7);
+      if (month.length !== 7) continue;
+      manualByMonth.set(month, (manualByMonth.get(month) || 0) + num(p.amount));
+    }
     for (const month of chartMonths) {
       const bucket = monthMap.get(month) || { paid: 0, unpaid: 0 };
-      bucket.paid = paidOutPoundsFromGoCardlessPayments(
-        gcHistory.filter((payment) => String(payment.charge_date || "").slice(0, 7) === month)
-      );
+      bucket.paid =
+        collectedPoundsFromGoCardlessPayments(
+          gcHistory.filter(
+            (payment) => String(payment.charge_date || "").slice(0, 7) === month
+          )
+        ) + (manualByMonth.get(month) || 0);
       monthMap.set(month, bucket);
     }
   }
@@ -372,7 +392,11 @@ export async function GET(request: Request) {
     );
     return {
       days,
-      amount: round2(upcoming.reduce((sum, payment) => sum + num(payment.amount), 0)),
+      // Arrears are owed now, so they sit in every forward window.
+      amount: round2(
+        upcoming.reduce((sum, payment) => sum + num(payment.amount), 0) +
+          arrearsBroughtIn
+      ),
       count: upcoming.length,
     };
   });
@@ -414,6 +438,13 @@ export async function GET(request: Request) {
       outstanding: round2(outstanding),
       overdue: round2(overdue),
       due_this_month: round2(dueThisMonth),
+      // What is still expected in this month: this month's own instalments
+      // plus last month's misses. This month's misses are already inside
+      // due_this_month, so only the brought-forward part is added.
+      arrears_brought_forward: round2(arrearsBroughtIn),
+      expected_this_month: round2(
+        collectedThisMonth + dueThisMonth + arrearsBroughtIn
+      ),
       collected_this_month: round2(collectedThisMonth),
       collected_count: gcMonthLoaded ? gcMonthCount : null,
       collected_from_gocardless: gcMonthLoaded,

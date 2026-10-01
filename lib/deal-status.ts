@@ -234,45 +234,54 @@ export function lastReceivedPaymentDate(
   return latest;
 }
 
-/** True if a collection landed in this calendar month or the previous one. */
-export function receivedPaymentInLastMonth(
-  rows: PaymentDateRow[] | null | undefined,
-  today: string
-) {
-  const last = lastReceivedPaymentDate(rows);
-  return !!last && last >= startOfLastCalendarMonth(today);
-}
-
-function lastPaidDueDate(rows: PaymentDateRow[] | null | undefined) {
-  let latest: string | null = null;
-  for (const r of rows || []) {
-    if (!isPaidRow(r.status)) continue;
-    const d = String(r.due_date || "").slice(0, 10);
-    if (d.length >= 10 && (!latest || d > latest)) latest = d;
-  }
-  return latest;
-}
-
 /**
- * Chase list: no collection since the start of last month, and at least one
- * unpaid instalment a full month late. Unticked rows that sit before later
- * paid instalments are sheet holes, not arrears.
+ * Missed payments: instalments whose due date has passed unpaid, in this
+ * calendar month and the one before it.
+ *
+ * The window is the whole rule. Older unticked rows are holes in the
+ * imported book — FL1 and HP3 carry rows from January 2022 on agreements
+ * that paid for years afterwards — and counting those as arrears would put
+ * £22k of bookkeeping noise on the dashboard. Two months is what is still
+ * collectable and worth chasing, and it is what the month's cash forecast
+ * needs to carry.
+ *
+ * Nothing else suppresses a row. An instalment that has gone unpaid this
+ * month counts even if a later one was collected, because the money did not
+ * arrive; if it did arrive and was never matched, that is worth seeing too.
  */
 export function overdueSum(
   rows: PaymentDateRow[] | null | undefined,
   today: string
 ) {
-  if (receivedPaymentInLastMonth(rows, today)) return 0;
-  const paidThrough = lastPaidDueDate(rows);
-  const monthLateBy = addCalendarMonths(today, -1);
+  const from = startOfLastCalendarMonth(today);
   return roundMoney(
     (rows || [])
       .filter((r) => {
         if (isPaidRow(r.status) || !r.due_date) return false;
         const due = String(r.due_date).slice(0, 10);
-        if (due.length < 10 || due >= today || due > monthLateBy) return false;
-        if (paidThrough && due <= paidThrough) return false;
-        return true;
+        return due.length === 10 && due >= from && due < today;
+      })
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+  );
+}
+
+/**
+ * The part of the arrears that fell due before this month. This month's own
+ * misses already sit inside the month's instalments, so only this is brought
+ * forward when working out what is still expected in.
+ */
+export function arrearsBroughtForward(
+  rows: PaymentDateRow[] | null | undefined,
+  today: string
+) {
+  const from = startOfLastCalendarMonth(today);
+  const monthStart = `${today.slice(0, 8)}01`;
+  return roundMoney(
+    (rows || [])
+      .filter((r) => {
+        if (isPaidRow(r.status) || !r.due_date) return false;
+        const due = String(r.due_date).slice(0, 10);
+        return due.length === 10 && due >= from && due < monthStart;
       })
       .reduce((sum, r) => sum + Number(r.amount || 0), 0)
   );
@@ -288,6 +297,16 @@ export function liveOverdueSum(
 ) {
   if (!isLiveDeal(agreement, rows)) return 0;
   return overdueSum(rows, today);
+}
+
+/** Arrears carried into this month, on live deals only. */
+export function liveArrearsBroughtForward(
+  agreement: { status?: string | null; term_months?: number | null },
+  rows: PaymentDateRow[] | null | undefined,
+  today: string
+) {
+  if (!isLiveDeal(agreement, rows)) return 0;
+  return arrearsBroughtForward(rows, today);
 }
 
 /**
@@ -312,4 +331,14 @@ export function chaseOverdueSum(
 ) {
   if (isSpecialOverdueArrangement(companyName)) return 0;
   return liveOverdueSum(agreement, rows, today);
+}
+
+export function chaseArrearsBroughtForward(
+  companyName: string | null | undefined,
+  agreement: { status?: string | null; term_months?: number | null },
+  rows: PaymentDateRow[] | null | undefined,
+  today: string
+) {
+  if (isSpecialOverdueArrangement(companyName)) return 0;
+  return liveArrearsBroughtForward(agreement, rows, today);
 }

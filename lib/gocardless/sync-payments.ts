@@ -30,6 +30,9 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 /** Never wide enough to reach an adjacent monthly instalment (>= 28 days). */
 export const LOOSE_MATCH_DAYS = 20;
 
+/** Balance rewrites sent at once, rather than one awaited round trip each. */
+const BALANCE_WRITE_CHUNK = 25;
+
 export type AgreementToSync = {
   id: string;
   agreement_number?: string;
@@ -386,20 +389,38 @@ async function applyMatches(
 
   const { data: allRows } = await supabase
     .from("payments")
-    .select("id, amount, due_date, instalment_number, status")
+    .select("id, amount, due_date, instalment_number, status, balance_after")
     .eq("agreement_id", agreement.id);
   const sorted = (allRows || []).sort(
     (a, b) =>
       String(a.due_date).localeCompare(String(b.due_date)) ||
       Number(a.instalment_number) - Number(b.instalment_number)
   );
+  // One update per row, awaited in turn, meant roughly 6,500 round trips
+  // across the book — far past the route's 60 second limit, so the refresh
+  // died partway through and left later agreements stale. Almost every row
+  // already holds the right balance, so only write the ones that moved.
   let remaining = sorted.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const balanceChanges: { id: string; balance_after: number }[] = [];
   for (const row of sorted) {
     remaining = Math.round((remaining - Number(row.amount || 0)) * 100) / 100;
-    await supabase
-      .from("payments")
-      .update({ balance_after: Math.max(0, remaining) })
-      .eq("id", row.id);
+    const next = Math.max(0, remaining);
+    const current = (row as { balance_after?: number | string | null })
+      .balance_after;
+    if (current != null && Math.abs(Number(current) - next) < 0.005) continue;
+    balanceChanges.push({ id: row.id, balance_after: next });
+  }
+  for (let i = 0; i < balanceChanges.length; i += BALANCE_WRITE_CHUNK) {
+    await Promise.all(
+      balanceChanges
+        .slice(i, i + BALANCE_WRITE_CHUNK)
+        .map((change) =>
+          supabase
+            .from("payments")
+            .update({ balance_after: change.balance_after })
+            .eq("id", change.id)
+        )
+    );
   }
 
   const hasUnpaid = sorted.some((row) => String(row.status) !== "paid");
