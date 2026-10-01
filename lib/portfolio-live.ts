@@ -184,6 +184,53 @@ export function parseCashAtBank(raw: unknown): number | null {
   return Number.isFinite(n) ? roundMoney(n) : null;
 }
 
+/**
+ * The 28 Aug book counted commission inside its profit. Commission is paid out
+ * on payout day, so the opening figures are restated the same way new deals
+ * are: profit less commission. The printed snapshot above is left untouched as
+ * the record of what the book said.
+ *
+ * The snapshot does not break commission down by deal type, so it is
+ * apportioned by each type's share of the lend, with the rounding remainder
+ * absorbed by the largest book. The parts always sum to total_commission.
+ */
+export function snapshotCommissionByType(): Record<DealType, number> {
+  const types: DealType[] = ["HP", "FL", "L"];
+  const totalLent = types.reduce(
+    (sum, t) => sum + PORTFOLIO_BASE.by_type[t].total_lent,
+    0
+  );
+  const split = {} as Record<DealType, number>;
+  if (totalLent <= 0) {
+    for (const t of types) split[t] = 0;
+    return split;
+  }
+  for (const t of types) {
+    split[t] = roundMoney(
+      (PORTFOLIO_BASE.total_commission * PORTFOLIO_BASE.by_type[t].total_lent) /
+        totalLent
+    );
+  }
+  const biggest = types.reduce((a, b) =>
+    PORTFOLIO_BASE.by_type[a].total_lent >= PORTFOLIO_BASE.by_type[b].total_lent
+      ? a
+      : b
+  );
+  split[biggest] = roundMoney(
+    split[biggest] +
+      (PORTFOLIO_BASE.total_commission -
+        types.reduce((sum, t) => sum + split[t], 0))
+  );
+  return split;
+}
+
+/** Opening profit on the corrected basis: the printed figure less commission. */
+export function snapshotProfitExCommission() {
+  return roundMoney(
+    PORTFOLIO_BASE.total_profit - PORTFOLIO_BASE.total_commission
+  );
+}
+
 export function buildLivePortfolio(
   deals: LiveDealInput[],
   opts?: { generatedAt?: string; cashAtBank?: number | null }
@@ -201,15 +248,31 @@ export function buildLivePortfolio(
     total_repayments_contracted: PORTFOLIO_BASE.total_repayments_contracted,
     total_paid: PORTFOLIO_BASE.total_paid,
     total_outstanding: PORTFOLIO_BASE.total_outstanding,
-    total_profit: PORTFOLIO_BASE.total_profit,
+    total_profit: snapshotProfitExCommission(),
     blended_yield: 0,
     cash_at_bank: cashAtBank,
     net_position: 0,
   };
+  const openingCommission = snapshotCommissionByType();
   const types: Record<DealType, { deals: number; total_lent: number; total_profit: number }> = {
-    HP: { ...PORTFOLIO_BASE.by_type.HP },
-    FL: { ...PORTFOLIO_BASE.by_type.FL },
-    L: { ...PORTFOLIO_BASE.by_type.L },
+    HP: {
+      ...PORTFOLIO_BASE.by_type.HP,
+      total_profit: roundMoney(
+        PORTFOLIO_BASE.by_type.HP.total_profit - openingCommission.HP
+      ),
+    },
+    FL: {
+      ...PORTFOLIO_BASE.by_type.FL,
+      total_profit: roundMoney(
+        PORTFOLIO_BASE.by_type.FL.total_profit - openingCommission.FL
+      ),
+    },
+    L: {
+      ...PORTFOLIO_BASE.by_type.L,
+      total_profit: roundMoney(
+        PORTFOLIO_BASE.by_type.L.total_profit - openingCommission.L
+      ),
+    },
   };
 
   const addedDeals: { agreement_number: string; type: DealType }[] = [];
