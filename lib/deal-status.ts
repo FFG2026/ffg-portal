@@ -41,6 +41,30 @@ export function isMonthlyBookAmount(
   return a <= monthly * 2 + 0.009;
 }
 
+/**
+ * A manual row is cash in only when it is a payment, not a transfer.
+ *
+ * Refinances are recorded as manual receipts — "Moved to HP134", "Refinanced
+ * on to HP121", "Settled off" — because the old agreement is settled, but no
+ * money arrives: the balance moves onto the new agreement, and the lend on
+ * that one is where it shows. They run to five figures against a few hundred
+ * a month, so the monthly band separates them from a real bank receipt like
+ * L3's £500 after a missed Direct Debit.
+ *
+ * The cost of this rule is a genuine settlement paid in by bank, which is a
+ * lump too and so is not counted. That errs towards understating cash, which
+ * is the right way round for a collections figure.
+ */
+export function isManualCashReceipt(row: {
+  source?: string | null;
+  amount?: number | string | null;
+  monthly_instalment?: number | string | null;
+}) {
+  const source = String(row.source || "").trim().toLowerCase();
+  if (source !== "manual" && source !== "bank") return false;
+  return isMonthlyBookAmount(row.amount, row.monthly_instalment);
+}
+
 export type MonthInstalmentRow = {
   live?: boolean;
   monthly_instalment?: number | string | null;

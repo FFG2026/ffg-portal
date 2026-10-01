@@ -7,6 +7,7 @@ import {
   isLiveDeal,
   chaseOverdueSum,
   chaseArrearsBroughtForward,
+  isManualCashReceipt,
   isPaidRow,
   unpaidSum,
   settlementFigure,
@@ -186,7 +187,6 @@ export async function GET(request: Request) {
   let arrearsBroughtIn = 0;
   let dueThisMonth = 0;
   let collectedThisMonth = 0;
-  let manualThisMonth = 0;
   const monthMap = new Map<string, { paid: number; unpaid: number }>();
 
   const monthlyByAgreement = new Map(
@@ -214,26 +214,21 @@ export async function GET(request: Request) {
     if (isPaidRow(p.status)) {
       paidTotal += amount;
       bucket.paid += amount;
-      const collectedOn = (p.paid_date || p.due_date || "").slice(0, 10);
-      if (collectedOn >= monthStart && collectedOn < nextMonth) {
-        if (
-          String((p as { source?: string }).source || "") === "manual" ||
-          String((p as { source?: string }).source || "") === "bank"
-        ) {
-          manualThisMonth += amount;
-        }
-      }
     } else if (liveById.get(p.agreement_id) !== false) {
       bucket.unpaid += amount;
     }
   }
+  const withMonthly = (payments || []).map((p) => ({
+    ...p,
+    monthly_instalment: monthlyByAgreement.get(p.agreement_id),
+  }));
   collectedThisMonth = round2(
     book === "gg"
-      ? collectedThisMonthFromLinkedRows(payments || [], monthStart, nextMonth)
+      ? collectedThisMonthFromLinkedRows(withMonthly, monthStart, nextMonth)
       : gcMonthLoaded
         ? gcCollectedThisMonth
         : collectedThisMonthFromLinkedRows(
-            (payments || []).filter(
+            withMonthly.filter(
               (p) => String((p as { source?: string }).source || "") !== "manual"
             ),
             monthStart,
@@ -260,8 +255,15 @@ export async function GET(request: Request) {
     const manualByMonth = new Map<string, number>();
     for (const p of payments || []) {
       if (!isPaidRow(p.status)) continue;
-      const source = String((p as { source?: string }).source || "");
-      if (source !== "manual" && source !== "bank") continue;
+      if (
+        !isManualCashReceipt({
+          source: (p as { source?: string }).source,
+          amount: p.amount,
+          monthly_instalment: monthlyByAgreement.get(p.agreement_id),
+        })
+      ) {
+        continue;
+      }
       const month = String(p.paid_date || p.due_date || "").slice(0, 7);
       if (month.length !== 7) continue;
       manualByMonth.set(month, (manualByMonth.get(month) || 0) + num(p.amount));

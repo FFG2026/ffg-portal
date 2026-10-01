@@ -14,6 +14,7 @@ import {
   lastReceivedPaymentDate,
   isMonthlyBookAmount,
   currentMonthInstalmentTotals,
+  isManualCashReceipt,
   collectionRateFromCashAndDue,
 } from "./deal-status";
 
@@ -412,3 +413,38 @@ assert(ring.rate === 55, `50935/92381 is 55%, got ${ring.rate}`);
 assert(collectionRateFromCashAndDue(0, 0).rate === 0, "empty month is 0%");
 
 console.log("deal-status tests ok");
+
+// Refinances are recorded as manual receipts — the old agreement is settled
+// off and the balance moves to the new one — but no money arrives. Adding
+// them to the collections chart put April £47k, June £37k and September £45k
+// over what GoCardless actually took.
+assert(
+  isManualCashReceipt({
+    source: "manual",
+    amount: 23999.56,
+    monthly_instalment: 600.09,
+  }) === false,
+  "a refinance lump is not cash in"
+);
+assert(
+  isManualCashReceipt({ source: "manual", amount: 500, monthly_instalment: 1000 }) === true,
+  "L3's £500 paid into the bank after a missed Direct Debit is cash in"
+);
+assert(
+  isManualCashReceipt({ source: "manual", amount: 200, monthly_instalment: 0 }) === true,
+  "an as-and-when receipt with no contracted monthly is cash in"
+);
+assert(
+  isManualCashReceipt({ source: "bank", amount: 1456, monthly_instalment: 1409 }) === true,
+  "a rent that changed mid-term is still cash in"
+);
+assert(
+  isManualCashReceipt({ source: null, amount: 500, monthly_instalment: 1000 }) === false,
+  "a book tick with no source is not cash in"
+);
+assert(
+  isManualCashReceipt({ source: "manual", amount: 2001, monthly_instalment: 1000 }) === false,
+  "more than twice the rent is a lump, not a monthly payment"
+);
+
+console.log("deal-status manual-receipt tests ok");

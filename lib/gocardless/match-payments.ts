@@ -1,3 +1,5 @@
+import { isManualCashReceipt } from "../deal-status";
+
 export const MATCH_WINDOW_DAYS = 10;
 
 export const COLLECTED_STATUSES = new Set(["confirmed", "paid_out"]);
@@ -207,6 +209,7 @@ export function collectedThisMonthFromLinkedRows(
     paid_date?: string | null;
     gocardless_payment_id?: string | null;
     source?: string | null;
+    monthly_instalment?: number | string | null;
   }[],
   monthStart: string,
   nextMonth: string
@@ -218,8 +221,7 @@ export function collectedThisMonthFromLinkedRows(
     const on = String(row.paid_date || "").slice(0, 10);
     if (on < monthStart || on >= nextMonth) continue;
     const gc = row.gocardless_payment_id || "";
-    const source = String(row.source || "");
-    const bank = source === "manual" || source === "bank";
+    const bank = isManualCashReceipt(row);
     if (!gc && !bank) continue;
     if (gc) {
       if (seen.has(gc)) continue;
