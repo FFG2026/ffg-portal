@@ -17,6 +17,8 @@ type Dashboard = {
     due_this_month: number;
     arrears_brought_forward: number;
     lumps_this_month: number;
+    in_flight_this_month: number;
+    in_flight_count: number | null;
     expected_this_month: number;
     collected_this_month: number;
     collected_count?: number | null;
@@ -251,7 +253,7 @@ function DashboardInner() {
                   <p><b>Collection rate</b><span>{gbp(collected)} collected<br />of {gbp(collectionTotal)} due</span></p>
                 </div>
                 <div className="health-metric"><span className="metric-icon blue">▤</span><p>Live agreements<strong>{data.totals.live}</strong><small>{data.totals.finished} finished</small></p></div>
-                <div className="health-metric"><span className="metric-icon green">▥</span><p>Collected this month<strong className="green-text">{gbp(collected)}</strong><small>{data.totals.collected_count ?? "—"} collections</small></p></div>
+                <div className="health-metric"><span className="metric-icon green">▥</span><p>Collected this month<strong className="green-text">{gbp(collected)}</strong><small>{data.totals.collected_count ?? "—"} collections{data.totals.in_flight_this_month > 0 ? ` · ${gbp(data.totals.in_flight_this_month)} on its way` : ""}</small></p></div>
                 <div className="health-metric"><span className="metric-icon gold">●</span><p>Still due this month<strong className="gold-text">{gbp(stillDue)}</strong><small>{[
                   broughtForward > 0 ? `${gbp(data.totals.due_this_month)} for ${monthName}, ${gbp(broughtForward)} owed from ${lastMonthName}` : `${monthName} instalments`,
                   data.totals.lumps_this_month > 0 ? `includes ${gbp(data.totals.lumps_this_month)} one-off` : "",

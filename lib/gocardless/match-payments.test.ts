@@ -12,6 +12,7 @@ import {
   collectedScheduleAmount,
   leftoverPaymentsToRecord,
   looksLikeMonthlyVariation,
+  inFlightPoundsFromGoCardlessPayments,
   paidDateForMatch,
   NUMBERED_MATCH_DAYS,
 } from "./match-payments";
@@ -352,3 +353,23 @@ assert(LOOSE_MATCH_DAYS < 28, "never wide enough to reach an adjacent monthly in
 
 
 console.log("match-payments tests ok");
+
+// A Direct Debit instructed today is neither collected nor missing: on the
+// 1st of a month the box reads £0 cash while four collections are already on
+// their way, and showing nothing at all looks like a broken dashboard.
+const octoberFirst = [
+  { status: "submitted", amount: 58905 },
+  { status: "pending_submission", amount: 62929 },
+  { status: "paid_out", amount: 100000 },
+  { status: "submitted", amount: 19500 },
+];
+assert(
+  inFlightPoundsFromGoCardlessPayments(octoberFirst) === 1218.34,
+  `in flight is the submitted and pending, less the documentation fee, got ${inFlightPoundsFromGoCardlessPayments(octoberFirst)}`
+);
+assert(
+  collectedPoundsFromGoCardlessPayments(octoberFirst) === 1000,
+  "and never counts towards cash collected"
+);
+
+console.log("match-payments in-flight tests ok");

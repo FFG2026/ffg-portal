@@ -140,6 +140,26 @@ export async function fetchGoCardlessPaymentsChargedBetween(
   return [...paidOut, ...confirmed];
 }
 
+/** Instructed but not yet collected, in [fromInclusive, toExclusive). */
+export async function fetchGoCardlessInFlightPaymentsChargedBetween(
+  fromInclusive: string,
+  toExclusive: string
+) {
+  const [pending, submitted] = await Promise.all([
+    fetchGoCardlessPaymentsByStatusChargedBetween(
+      fromInclusive,
+      toExclusive,
+      "pending_submission"
+    ),
+    fetchGoCardlessPaymentsByStatusChargedBetween(
+      fromInclusive,
+      toExclusive,
+      "submitted"
+    ),
+  ]);
+  return [...pending, ...submitted];
+}
+
 /** Failed / charged-back Direct Debits in [fromInclusive, toExclusive). */
 export async function fetchGoCardlessFailedPaymentsChargedBetween(
   fromInclusive: string,

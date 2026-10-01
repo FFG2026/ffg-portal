@@ -12,8 +12,16 @@ import {
   settlementFigure,
   currentMonthInstalmentTotals,
 } from "../../../../lib/deal-status";
-import { fetchGoCardlessPaymentsChargedBetween, fetchGoCardlessFailedPaymentsChargedBetween } from "../../../../lib/gocardless/client";
-import { collectedPoundsFromGoCardlessPayments, collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
+import {
+  fetchGoCardlessPaymentsChargedBetween,
+  fetchGoCardlessFailedPaymentsChargedBetween,
+  fetchGoCardlessInFlightPaymentsChargedBetween,
+} from "../../../../lib/gocardless/client";
+import {
+  collectedPoundsFromGoCardlessPayments,
+  inFlightPoundsFromGoCardlessPayments,
+  collectedThisMonthFromLinkedRows,
+} from "../../../../lib/gocardless/match-payments";
 import {
   DD_MISS_FROM,
   missMonthsFrom,
@@ -69,6 +77,8 @@ export async function GET(request: Request) {
   let gcCollectedThisMonth = 0;
   let gcMonthLoaded = false;
   let gcMonthCount = 0;
+  let gcInFlight = 0;
+  let gcInFlightCount = 0;
   let gcHistory: any[] = [];
   let gcFailed: any[] = [];
   try {
@@ -90,6 +100,7 @@ export async function GET(request: Request) {
           Promise.all([
             fetchGoCardlessPaymentsChargedBetween(chartStart, nextMonth),
             fetchGoCardlessFailedPaymentsChargedBetween(DD_MISS_FROM, nextMonth),
+            fetchGoCardlessInFlightPaymentsChargedBetween(monthStart, nextMonth),
           ]),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("GoCardless timed out")), 25000)
@@ -103,6 +114,9 @@ export async function GET(request: Request) {
         });
         gcCollectedThisMonth = collectedPoundsFromGoCardlessPayments(gcMonth);
         gcMonthCount = gcMonth.length;
+        const inFlight = loaded[2] || [];
+        gcInFlight = inFlightPoundsFromGoCardlessPayments(inFlight);
+        gcInFlightCount = inFlight.length;
         gcMonthLoaded = true;
       } catch {
         // Book figures still load if GoCardless is down or slow.
@@ -451,6 +465,10 @@ export async function GET(request: Request) {
       ),
       collected_this_month: round2(collectedThisMonth),
       collected_count: gcMonthLoaded ? gcMonthCount : null,
+      // Instructed to the bank but not yet collected. Shown beside the cash,
+      // never added to it — a submitted Direct Debit can still fail.
+      in_flight_this_month: round2(gcInFlight),
+      in_flight_count: gcMonthLoaded ? gcInFlightCount : null,
       collected_from_gocardless: gcMonthLoaded,
       no_mandate: noMandate,
     },

@@ -7,6 +7,12 @@ export const FAILED_STATUSES = new Set([
   "cancelled",
 ]);
 
+/** Instructed to the bank but not yet collected. Expected, never counted as cash. */
+export const IN_FLIGHT_STATUSES = new Set([
+  "pending_submission",
+  "submitted",
+]);
+
 export type Instalment = {
   id: string;
   due_date: string;
@@ -143,6 +149,27 @@ export function collectedPoundsFromGoCardlessPayments(
   let pence = 0;
   for (const payment of payments || []) {
     if (!COLLECTED_STATUSES.has(String(payment.status || ""))) continue;
+    const amount = Number(payment.amount) || 0;
+    if (isDocumentationFeeCollection(amount)) continue;
+    pence += amount;
+  }
+  return Math.round(pence) / 100;
+}
+
+/**
+ * Direct Debits instructed but not yet collected, in pounds.
+ *
+ * On the 1st of a month nothing has confirmed yet, so "collected this month"
+ * is honestly £0 while four collections are already on their way to the bank.
+ * This is what is in flight — shown beside the cash, never added to it,
+ * because a submitted payment can still fail.
+ */
+export function inFlightPoundsFromGoCardlessPayments(
+  payments: { status?: string; amount?: number | string | null }[]
+) {
+  let pence = 0;
+  for (const payment of payments || []) {
+    if (!IN_FLIGHT_STATUSES.has(String(payment.status || ""))) continue;
     const amount = Number(payment.amount) || 0;
     if (isDocumentationFeeCollection(amount)) continue;
     pence += amount;
