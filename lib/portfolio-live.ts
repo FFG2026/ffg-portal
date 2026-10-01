@@ -159,8 +159,19 @@ function paidOn(deal: LiveDealInput) {
   );
 }
 
+/**
+ * Commission is paid out to the introducer on the day the deal pays out, so
+ * it is money FFG puts out, not money it earns. Profit is therefore what the
+ * customer contracts to repay less everything we advanced — the lend and the
+ * commission both. It does not touch what is due in: that is the unpaid
+ * schedule alone.
+ */
 function profitOn(deal: LiveDealInput) {
-  return roundMoney(contractedOn(deal) - Number(deal.total_lend || 0));
+  return roundMoney(
+    contractedOn(deal) -
+      Number(deal.total_lend || 0) -
+      Number(deal.commission || 0)
+  );
 }
 
 export const CASH_AT_BANK_SETTING = "portfolio_cash_at_bank";

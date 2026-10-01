@@ -537,7 +537,7 @@ function FfgFigures({
               <dd>{gbp(data.summary.total_lent)}</dd>
             </div>
             <div>
-              <dt>Total commission earned</dt>
+              <dt>Total commission paid out</dt>
               <dd>{gbp(data.summary.total_commission)}</dd>
             </div>
             <div>

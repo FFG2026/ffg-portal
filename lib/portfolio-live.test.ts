@@ -69,6 +69,48 @@ assert(
 assert(withHp142.added_deals.map((d) => d.agreement_number).join() === "HP142", "HP5 is not listed as added");
 assert(PORTFOLIO_BASE.as_of === "2026-08-28", "snapshot date");
 
+// Commission is paid out to the introducer on payout day, so it is money FFG
+// puts out, not money it earns. Profit deducts it alongside the lend.
+const hp142Contracted = 410.81 * 2;
+assert(
+  withHp142.summary.total_profit ===
+    Math.round(
+      (PORTFOLIO_BASE.total_profit + hp142Contracted - 15000 - 600) * 100
+    ) / 100,
+  `profit deducts commission as well as the lend, got ${withHp142.summary.total_profit}`
+);
+
+const sameDealNoCommission = buildLivePortfolio([
+  {
+    agreement_number: "HP142",
+    total_lend: 15000,
+    commission: 0,
+    monthly_instalment: 410.81,
+    term_months: 48,
+    payments: [
+      { status: "paid", amount: 410.81 },
+      { status: "due", amount: 410.81 },
+    ],
+  },
+]);
+assert(
+  Math.round(
+    (sameDealNoCommission.summary.total_profit - withHp142.summary.total_profit) * 100
+  ) / 100 === 600,
+  "a 600 commission reduces profit by exactly 600"
+);
+// Commission is never part of what is still due in — that is the unpaid
+// schedule alone, so the same deal with and without commission owes the same.
+assert(
+  sameDealNoCommission.summary.total_outstanding ===
+    withHp142.summary.total_outstanding,
+  "outstanding ignores commission"
+);
+assert(
+  sameDealNoCommission.summary.total_lent === withHp142.summary.total_lent,
+  "total lent out is the lend alone, unchanged by commission"
+);
+
 assert(parseCashAtBank("£67,000.00") === 67000, "cash parses from printed sterling");
 assert(parseCashAtBank("77000") === 77000, "cash parses from a plain number");
 const moreCash = buildLivePortfolio([], { cashAtBank: 77000 });
