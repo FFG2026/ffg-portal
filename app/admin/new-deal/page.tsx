@@ -55,10 +55,18 @@ function NewDealInner() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not save");
+      const mandateNote =
+        json.mandate_source === "inherited"
+          ? ` It picked up this customer's existing mandate (${json.gocardless_mandate_id}).`
+          : json.mandate_source === "inherited-closed"
+          ? ` It picked up the mandate from their earlier agreement (${json.gocardless_mandate_id}) — worth checking that one is still active.`
+          : json.mandate_source === "ambiguous"
+          ? " This customer has more than one mandate, so none was attached — set it on the deal sheet."
+          : "";
       setMsg(
         currentAdminBook() === "gg"
           ? `${json.agreement_number} is on the Glacier Gem book with ${json.instalments} instalments. Open the deal sheet and use Record a payment when money lands.`
-          : `${json.agreement_number} is on the book with ${json.instalments} instalments. Collections will tick once GoCardless picks them up.`
+          : `${json.agreement_number} is on the book with ${json.instalments} instalments. Collections will tick once GoCardless picks them up.${mandateNote}`
       );
       setForm((prev) => ({
         ...prev,
@@ -346,7 +354,7 @@ function NewDealInner() {
           <input
             value={form.gocardless_mandate_id}
             onChange={(e) => set("gocardless_mandate_id", e.target.value)}
-            placeholder="MD… optional"
+            placeholder="MD… — left blank, an existing customer's mandate is picked up"
           />
         </div>
         )}

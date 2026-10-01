@@ -4,6 +4,7 @@ import { authorizeAdminRequest } from "../../../../lib/admin";
 import { buildPaymentSchedule } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
 import { glacierAgreementNumber } from "../../../../lib/glacier-gem-book";
+import { inheritedMandateId } from "../../../../lib/gocardless/inherit-mandate";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,27 @@ export async function POST(request: Request) {
     }
   }
 
+  // An existing customer collects every agreement on the mandate they already
+  // pay us by, so a new deal picks it up by itself. Two mandates to choose
+  // between is the one case that still needs a person.
+  //
+  // Only ever from the same book. Glacier Gem is collected by hand — Rocket
+  // Hire and Prior Construction both run FFG agreements on a mandate and GG
+  // agreements on none — so a GG deal must not quietly acquire the FFG
+  // mandate and start pulling GoCardless collections onto its schedule.
+  let mandateId = String(body.gocardless_mandate_id || "").trim() || null;
+  let mandateSource: string = mandateId ? "supplied" : "none";
+  if (!mandateId) {
+    const { data: siblings } = await supabase
+      .from("agreements")
+      .select("gocardless_mandate_id, status")
+      .eq("customer_id", customerId)
+      .eq("book", book);
+    const inherited = inheritedMandateId(siblings);
+    mandateId = inherited.mandateId;
+    mandateSource = inherited.reason;
+  }
+
   const { data: agreement, error: agrErr } = await supabase
     .from("agreements")
     .insert({
@@ -128,7 +150,7 @@ export async function POST(request: Request) {
       written_date: String(body.written_date || startDate).slice(0, 10),
       status: "active",
       book,
-      gocardless_mandate_id: body.gocardless_mandate_id || null,
+      gocardless_mandate_id: mandateId,
     })
     .select("id, agreement_number")
     .single();
@@ -162,6 +184,8 @@ export async function POST(request: Request) {
     agreement_number: agreement.agreement_number,
     customer_id: customerId,
     instalments: schedule.length,
+    gocardless_mandate_id: mandateId,
+    mandate_source: mandateSource,
   });
 }
 

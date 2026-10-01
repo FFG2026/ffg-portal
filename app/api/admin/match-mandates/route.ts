@@ -86,16 +86,26 @@ export async function GET(request: Request) {
 
   // Map: GC customer id -> mandate id. Prefer an active mandate, but keep
   // a cancelled/expired one so we can still pull the collections already made.
-  const customerToMandate = new Map<string, { id: string; status: string }>();
+  // activeCount is what decides whether the choice is safe: a customer with
+  // two live mandates must never be guessed between.
+  const customerToMandate = new Map<
+    string,
+    { id: string; status: string; activeCount: number }
+  >();
   for (const mandate of gcMandates) {
     const customerId = mandate.links?.customer;
     if (!customerId) continue;
     const existing = customerToMandate.get(customerId);
-    if (!existing || mandate.status === "active") {
+    const active = mandate.status === "active";
+    const activeCount = (existing?.activeCount || 0) + (active ? 1 : 0);
+    if (!existing || active) {
       customerToMandate.set(customerId, {
         id: mandate.id,
         status: mandate.status,
+        activeCount,
       });
+    } else {
+      existing.activeCount = activeCount;
     }
   }
 
@@ -136,6 +146,7 @@ export async function GET(request: Request) {
         gc_customer_name: gcName,
         gc_mandate_id: mandate.id,
         gc_mandate_status: mandate.status,
+        gc_active_mandates: mandate.activeCount,
         gc_email: gcCustomer.email || null,
       });
     } else {
@@ -147,12 +158,16 @@ export async function GET(request: Request) {
     }
   }
 
-  // 3.5 Count how many agreements each of our customers actually has —
-  // multi-agreement customers need manual mandate-to-agreement mapping,
-  // never an automatic blanket write.
+  // 3.5 List each of our customers' agreements. A customer with several
+  // agreements is not itself a problem — they collect them all on the one
+  // mandate — so the agreements are here to report, not to veto the write.
+  // Glacier Gem is collected by hand, so its agreements are left out of this
+  // entirely: a GG deal must never acquire a mandate off its customer's FFG
+  // ones and start pulling GoCardless collections onto its schedule.
   const { data: agreementRows, error: agreementsErr } = await supabase
     .from("agreements")
-    .select("id, customer_id, agreement_number, gocardless_mandate_id");
+    .select("id, customer_id, agreement_number, gocardless_mandate_id, book")
+    .neq("book", "gg");
 
   if (agreementsErr) {
     return NextResponse.json({ error: agreementsErr.message }, { status: 500 });
@@ -165,10 +180,12 @@ export async function GET(request: Request) {
     agreementsByCustomer.set(a.customer_id, list);
   }
 
-  // Split matches: safe to auto-apply (customer has exactly 1 agreement,
-  // and exactly 1 mandate match) vs needs manual review (2+ agreements,
-  // or 2+ mandate matches for the same customer — can't be sure which
-  // mandate belongs to which agreement without more info).
+  // Split matches: safe to auto-apply vs needs a person. What makes a mandate
+  // unsafe to assume is a choice between two of them — two GoCardless
+  // customer records matching the same name, or one record holding two live
+  // mandates. A customer with several agreements is not ambiguous: Rochester
+  // runs HP125, HP128 and HP143 off a single mandate, and leaving the newest
+  // blank is what stopped its collections ticking.
   const matchCountByCustomer = new Map<string, number>();
   for (const m of matched) {
     matchCountByCustomer.set(
@@ -184,8 +201,16 @@ export async function GET(request: Request) {
     const agreementCount = (agreementsByCustomer.get(m.our_customer_id) || []).length;
     const mandateMatchCount = matchCountByCustomer.get(m.our_customer_id) || 0;
 
-    if (agreementCount === 1 && mandateMatchCount === 1) {
-      safeMatches.push({ ...m, agreement_count: agreementCount });
+    const unset = (agreementsByCustomer.get(m.our_customer_id) || []).filter(
+      (a) => !a.gocardless_mandate_id
+    );
+
+    if (mandateMatchCount === 1 && (m.gc_active_mandates || 0) <= 1) {
+      safeMatches.push({
+        ...m,
+        agreement_count: agreementCount,
+        agreements_without_a_mandate: unset.map((a) => a.agreement_number),
+      });
     } else {
       needsReview.push({
         ...m,
@@ -194,9 +219,9 @@ export async function GET(request: Request) {
           (a) => a.agreement_number
         ),
         reason:
-          agreementCount > 1
-            ? "customer has multiple agreements — mandate not auto-assigned"
-            : "multiple GoCardless mandates matched to this customer — needs manual mapping",
+          mandateMatchCount > 1
+            ? "multiple GoCardless customers matched this name — needs manual mapping"
+            : "this GoCardless customer holds more than one active mandate — needs manual mapping",
       });
     }
   }
@@ -204,7 +229,8 @@ export async function GET(request: Request) {
   // 4. If applying: write emails for every matched customer (email
   // isn't agreement-specific, so this is safe even for customers
   // with multiple agreements/mandates), then write mandate ids only
-  // for the safe, unambiguous matches.
+  // for the safe, unambiguous matches — and only onto agreements that
+  // have none, so a mandate set by hand is never overwritten.
   let writeResults: any[] = [];
   let emailWriteResults: any[] = [];
 
@@ -231,6 +257,8 @@ export async function GET(request: Request) {
         .from("agreements")
         .update({ gocardless_mandate_id: m.gc_mandate_id })
         .eq("customer_id", m.our_customer_id)
+        .is("gocardless_mandate_id", null)
+        .neq("book", "gg")
         .select("agreement_number");
 
       writeResults.push({
