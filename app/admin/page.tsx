@@ -118,7 +118,17 @@ function DashboardInner() {
 
   const refreshCollections = async () => {
     setSyncing(true);
-    setSyncMsg("");
+    // A full pass over the book against every GoCardless payment takes a
+    // while, and a silent spinner reads as a hang. Say what it is doing and
+    // how long it has been going.
+    setSyncMsg("Checking every agreement against GoCardless. This takes a minute or two — leave the page open.");
+    const startedAt = Date.now();
+    const ticker = setInterval(() => {
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      setSyncMsg(
+        `Checking every agreement against GoCardless — ${seconds}s so far. This takes a minute or two; leave the page open.`
+      );
+    }, 5000);
     try {
       const res = await fetch("/api/admin/sync-payments", {
         headers: adminHeaders(),
@@ -132,6 +142,7 @@ function DashboardInner() {
     } catch (err: any) {
       setSyncMsg(err.message || "GoCardless refresh failed.");
     } finally {
+      clearInterval(ticker);
       setSyncing(false);
     }
   };
@@ -176,7 +187,7 @@ function DashboardInner() {
       </section>
 
       {syncMsg && (
-        <div className={syncMsg.startsWith("Updated") ? "admin-ok" : "admin-error"}>
+        <div className={syncMsg.startsWith("Updated") ? "admin-ok" : syncing ? "admin-ok" : "admin-error"}>
           {syncMsg}
         </div>
       )}
