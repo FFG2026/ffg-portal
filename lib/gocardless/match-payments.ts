@@ -282,6 +282,16 @@ function instalmentInChargeMonth(
   return matches[0];
 }
 
+/**
+ * How far a numbered reference may reach. "FFG HP41/2" names the instalment
+ * outright, so this is deliberately generous — three months covers a late
+ * re-presentation. Every collection in the book that is genuinely its
+ * numbered instalment lands within 32 days; the rows beyond that (FL15 at
+ * 240 days, HP95 456, HP88 518, HP67 651) are a reused reference or a
+ * renumbered schedule, and the number must not be trusted over the calendar.
+ */
+export const NUMBERED_MATCH_DAYS = 90;
+
 function instalmentByNumber(
   instalments: Instalment[],
   gcPayment: GoCardlessPayment,
@@ -290,11 +300,19 @@ function instalmentByNumber(
 ): Instalment | null {
   const n = gcPayment.instalment_number;
   if (n == null) return null;
+  const chargeDate = gcPayment.charge_date;
   const matches = instalments.filter((instalment) => {
     if (usedInstalmentIds.has(instalment.id)) return false;
     if (instalment.gocardless_payment_id) return false;
     if (instalment.instalment_number !== n) return false;
     if (mode === "failed" && instalment.status === "paid") return false;
+    if (
+      chargeDate &&
+      Math.abs(daysBetween(instalment.due_date, chargeDate)) >
+        NUMBERED_MATCH_DAYS
+    ) {
+      return false;
+    }
     return true;
   });
   if (matches.length === 0) return null;
@@ -303,6 +321,25 @@ function instalmentByNumber(
     amountsClose(row.amount, gcPayment.amount)
   );
   return exactAmount || matches[0];
+}
+
+/**
+ * Backfilling a GoCardless id onto a row that is already paid must not move
+ * its paid date. That date is the cash date already on the books; the charge
+ * date belongs to the collection being linked, which may be a different
+ * month's. FL15 lost a correct 2 Feb paid date to a 30 Sept collection this
+ * way. Only a row that was not already paid takes the charge date.
+ */
+export function paidDateForMatch(
+  existing: { status?: string | null; paid_date?: string | null } | undefined,
+  match: PaymentMatch
+): string | null {
+  if (match.status !== "paid") return null;
+  const already = String(existing?.paid_date || "").slice(0, 10);
+  if (String(existing?.status || "") === "paid" && already.length === 10) {
+    return already;
+  }
+  return match.chargeDate;
 }
 
 export function matchGcPaymentsToInstalments(
