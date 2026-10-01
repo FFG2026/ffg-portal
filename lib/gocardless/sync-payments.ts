@@ -31,7 +31,41 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 export const LOOSE_MATCH_DAYS = 20;
 
 /** Balance rewrites sent at once, rather than one awaited round trip each. */
-const BALANCE_WRITE_CHUNK = 25;
+export const BALANCE_WRITE_CHUNK = 25;
+
+export type BalanceRow = {
+  id: string;
+  amount?: number | string | null;
+  balance_after?: number | string | null;
+};
+
+/**
+ * The running balance left after each instalment, for the rows whose stored
+ * value is wrong.
+ *
+ * Rewriting every row with one awaited round trip each came to roughly 6,500
+ * across the book — far past the refresh route's time limit, so it died
+ * partway through and left the agreements it had not reached stale. Almost
+ * every row already holds the right figure, so a settled schedule writes
+ * nothing at all.
+ */
+export function balanceWritesNeeded(rowsInOrder: BalanceRow[]) {
+  const rows = rowsInOrder || [];
+  let remaining = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const changes: { id: string; balance_after: number }[] = [];
+  for (const row of rows) {
+    remaining = Math.round((remaining - Number(row.amount || 0)) * 100) / 100;
+    const next = Math.max(0, remaining);
+    if (
+      row.balance_after != null &&
+      Math.abs(Number(row.balance_after) - next) < 0.005
+    ) {
+      continue;
+    }
+    changes.push({ id: row.id, balance_after: next });
+  }
+  return changes;
+}
 
 export type AgreementToSync = {
   id: string;
@@ -396,20 +430,7 @@ async function applyMatches(
       String(a.due_date).localeCompare(String(b.due_date)) ||
       Number(a.instalment_number) - Number(b.instalment_number)
   );
-  // One update per row, awaited in turn, meant roughly 6,500 round trips
-  // across the book — far past the route's 60 second limit, so the refresh
-  // died partway through and left later agreements stale. Almost every row
-  // already holds the right balance, so only write the ones that moved.
-  let remaining = sorted.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  const balanceChanges: { id: string; balance_after: number }[] = [];
-  for (const row of sorted) {
-    remaining = Math.round((remaining - Number(row.amount || 0)) * 100) / 100;
-    const next = Math.max(0, remaining);
-    const current = (row as { balance_after?: number | string | null })
-      .balance_after;
-    if (current != null && Math.abs(Number(current) - next) < 0.005) continue;
-    balanceChanges.push({ id: row.id, balance_after: next });
-  }
+  const balanceChanges = balanceWritesNeeded(sorted);
   for (let i = 0; i < balanceChanges.length; i += BALANCE_WRITE_CHUNK) {
     await Promise.all(
       balanceChanges
