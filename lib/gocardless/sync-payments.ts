@@ -26,6 +26,9 @@ import { createAdminClient } from "../supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
+/** Never wide enough to reach an adjacent monthly instalment (>= 28 days). */
+export const LOOSE_MATCH_DAYS = 20;
+
 export type AgreementToSync = {
   id: string;
   agreement_number?: string;
@@ -313,10 +316,17 @@ async function applyMatches(
     }
   }
 
+  // 40 days was wide enough to reach the NEXT month's instalment, so one
+  // blocked row (a VAT lump, a part settlement) sent every later collection
+  // one period down the schedule — silently, because each row is used once.
+  // Monthly instalments are at least 28 days apart, so 20 keeps generous
+  // drift while making that jump impossible. A collection that finds no row
+  // is left unmatched, which shows as an unpaid instalment someone can see,
+  // rather than quietly landing on the wrong month.
   const matches = matchGcPaymentsToInstalments(
     instalments,
     scheduleCollections,
-    { looseDateDays: 40 }
+    { looseDateDays: LOOSE_MATCH_DAYS }
   );
   await persistDirectDebitMisses(supabase, agreement.id, gcPayments);
   let markedPaid = 0;

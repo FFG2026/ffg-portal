@@ -13,6 +13,7 @@ import {
   leftoverPaymentsToRecord,
   looksLikeMonthlyVariation,
 } from "./match-payments";
+import { LOOSE_MATCH_DAYS } from "./sync-payments";
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
@@ -235,5 +236,55 @@ assert(
   "May GoCardless collection ticks May"
 );
 assert(!hp133Gc.find((m) => m.instalmentId === "mar"), "March stays unticked when GoCardless has no March collection");
+
+
+// --- a blocked row must not push collections down the schedule -------------
+// HP125's shape: a VAT lump sits on the April row, so April's Direct Debit
+// cannot match it on amount. With a wide loose window it reached May's row
+// instead and every later collection shifted a month, silently.
+const vatSchedule = [
+  { id: "i1", due_date: "2026-02-26", status: "due", amount: 1630.63, gocardless_payment_id: null, instalment_number: 1 },
+  { id: "i2", due_date: "2026-03-26", status: "due", amount: 1630.63, gocardless_payment_id: null, instalment_number: 2 },
+  { id: "i3", due_date: "2026-04-26", status: "due", amount: 14828.63, gocardless_payment_id: null, instalment_number: 3 },
+  { id: "i4", due_date: "2026-05-26", status: "due", amount: 1630.63, gocardless_payment_id: null, instalment_number: 4 },
+  { id: "i5", due_date: "2026-06-26", status: "due", amount: 1630.63, gocardless_payment_id: null, instalment_number: 5 },
+  { id: "i6", due_date: "2026-07-26", status: "due", amount: 1630.63, gocardless_payment_id: null, instalment_number: 6 },
+];
+const vatCollections = [
+  { id: "p1", charge_date: "2026-02-26", status: "paid_out", amount: 163063 },
+  { id: "p2", charge_date: "2026-03-26", status: "paid_out", amount: 163063 },
+  { id: "p3", charge_date: "2026-04-27", status: "paid_out", amount: 163063 },
+  { id: "p4", charge_date: "2026-05-26", status: "paid_out", amount: 163063 },
+  { id: "p5", charge_date: "2026-06-26", status: "paid_out", amount: 163063 },
+  { id: "p6", charge_date: "2026-07-27", status: "paid_out", amount: 163063 },
+];
+
+const placed = new Map(
+  matchGcPaymentsToInstalments(vatSchedule, vatCollections as any, {
+    looseDateDays: LOOSE_MATCH_DAYS,
+  }).map((m) => [m.gcPaymentId, m.instalmentId])
+);
+
+assert(placed.get("p1") === "i1", "February lands on February");
+assert(placed.get("p2") === "i2", "March lands on March");
+// April's collection cannot match the VAT row's amount, so it stays off the
+// schedule rather than stealing May's row.
+assert(placed.get("p3") === undefined, "April's DD is left for the VAT row, not moved on");
+assert(placed.get("p4") === "i4", "May still lands on May");
+assert(placed.get("p5") === "i5", "June still lands on June");
+assert(placed.get("p6") === "i6", "July still lands on July");
+
+// The old 40-day window is what let it cascade — kept here so the reason the
+// number was narrowed cannot be lost.
+const cascaded = new Map(
+  matchGcPaymentsToInstalments(vatSchedule, vatCollections as any, {
+    looseDateDays: 40,
+  }).map((m) => [m.gcPaymentId, m.instalmentId])
+);
+assert(cascaded.get("p3") === "i4", "at 40 days April's DD took May's row");
+assert(cascaded.get("p4") === "i5", "and every later collection shifted with it");
+
+assert(LOOSE_MATCH_DAYS < 28, "never wide enough to reach an adjacent monthly instalment");
+
 
 console.log("match-payments tests ok");
