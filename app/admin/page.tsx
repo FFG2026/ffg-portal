@@ -15,6 +15,8 @@ type Dashboard = {
     outstanding: number;
     overdue: number;
     due_this_month: number;
+    arrears_brought_forward: number;
+    expected_this_month: number;
     collected_this_month: number;
     collected_count?: number | null;
     collected_from_gocardless?: boolean;
@@ -134,9 +136,16 @@ function DashboardInner() {
   };
 
   const collected = data?.totals.collected_this_month || 0;
-  const stillDue = data?.totals.due_this_month || 0;
+  // What is still expected in this month: this month's own instalments plus
+  // last month's misses, which are still owed and still have to be collected.
+  const broughtForward = data?.totals.arrears_brought_forward || 0;
+  const stillDue = (data?.totals.due_this_month || 0) + broughtForward;
   const collectionTotal = collected + stillDue;
   const collectionRate = collectionTotal > 0 ? Math.round((collected / collectionTotal) * 100) : 0;
+  const monthName = new Date().toLocaleDateString("en-GB", { month: "long" });
+  const lastMonthName = new Date(
+    Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 1)
+  ).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
   const updatedTime = data?.generated_at
     ? new Date(data.generated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
     : "—";
@@ -230,14 +239,14 @@ function DashboardInner() {
                   <p><b>Collection rate</b><span>{gbp(collected)} collected<br />of {gbp(collectionTotal)} due</span></p>
                 </div>
                 <div className="health-metric"><span className="metric-icon blue">▤</span><p>Live agreements<strong>{data.totals.live}</strong><small>{data.totals.finished} finished</small></p></div>
-                <div className="health-metric"><span className="metric-icon green">▥</span><p>Collected this month<strong className="green-text">{gbp(collected)}</strong><small>{data.totals.collected_count ?? "—"} paid-out collections</small></p></div>
-                <div className="health-metric"><span className="metric-icon gold">●</span><p>Still due this month<strong className="gold-text">{gbp(stillDue)}</strong><small>Current month instalments</small></p></div>
+                <div className="health-metric"><span className="metric-icon green">▥</span><p>Collected this month<strong className="green-text">{gbp(collected)}</strong><small>{data.totals.collected_count ?? "—"} collections</small></p></div>
+                <div className="health-metric"><span className="metric-icon gold">●</span><p>Still due this month<strong className="gold-text">{gbp(stillDue)}</strong><small>{broughtForward > 0 ? `${gbp(data.totals.due_this_month)} for ${monthName}, ${gbp(broughtForward)} owed from ${lastMonthName}` : `${monthName} instalments`}</small></p></div>
               </div>
             </section>
 
             <section className="dashboard-panel action-centre">
               <div className="panel-heading"><div><h2>Action centre</h2><p>Agreements that need your attention.</p></div><button onClick={() => router.push(`${base}/agreements`)}>View all agreements →</button></div>
-              <div className="overdue-alert"><span>!</span><div><small>Total overdue</small><strong>{gbp(data.totals.overdue)}</strong></div><p>No payment in the last month</p></div>
+              <div className="overdue-alert"><span>!</span><div><small>Total overdue</small><strong>{gbp(data.totals.overdue)}</strong></div><p>Missed in {lastMonthName} and {monthName}</p></div>
               {data.webhook && data.webhook.state !== "ok" && (
                 <div className="webhook-alert">
                   <span aria-hidden="true">!</span>

@@ -77,15 +77,18 @@ export async function fetchGoCardlessPayment(paymentId: string) {
   return data.payments;
 }
 
+/** GoCardless pages at 50 by default; 500 is its maximum. */
+export const GC_PAGE_LIMIT = 500;
+
 export async function fetchPaymentsForMandate(mandateId: string) {
   return fetchGoCardlessPages(
-    `/payments?mandate=${encodeURIComponent(mandateId)}`,
+    `/payments?mandate=${encodeURIComponent(mandateId)}&limit=${GC_PAGE_LIMIT}`,
     "payments"
   );
 }
 
 export async function fetchAllGoCardlessPayments() {
-  return fetchGoCardlessPages("/payments", "payments");
+  return fetchGoCardlessPages(`/payments?limit=${GC_PAGE_LIMIT}`, "payments");
 }
 
 function shiftDate(isoDate: string, days: number) {
@@ -110,16 +113,31 @@ async function fetchGoCardlessPaymentsByStatusChargedBetween(
   return paymentsChargedInRange(items, fromInclusive, toExclusive, status);
 }
 
-/** Payments with a charge date in [fromInclusive, toExclusive). */
+/**
+ * Collections with a charge date in [fromInclusive, toExclusive).
+ *
+ * Both confirmed and paid_out. A Direct Debit taken today is confirmed and
+ * does not become paid_out until the payout lands a few working days later,
+ * so counting only paid_out meant the current month always read short and
+ * anything collected in the last days of a month missed that month entirely.
+ */
 export async function fetchGoCardlessPaymentsChargedBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  return fetchGoCardlessPaymentsByStatusChargedBetween(
-    fromInclusive,
-    toExclusive,
-    "paid_out"
-  );
+  const [paidOut, confirmed] = await Promise.all([
+    fetchGoCardlessPaymentsByStatusChargedBetween(
+      fromInclusive,
+      toExclusive,
+      "paid_out"
+    ),
+    fetchGoCardlessPaymentsByStatusChargedBetween(
+      fromInclusive,
+      toExclusive,
+      "confirmed"
+    ),
+  ]);
+  return [...paidOut, ...confirmed];
 }
 
 /** Failed / charged-back Direct Debits in [fromInclusive, toExclusive). */

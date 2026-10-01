@@ -4,7 +4,11 @@ import { syncAgreementsPayments } from "../../../../lib/gocardless/sync-payments
 import { authorizeAdminRequest } from "../../../../lib/admin";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// A full refresh walks every agreement against every GoCardless payment.
+// 60 seconds was not enough and the route died partway through, leaving the
+// agreements it had not reached stale — which is why September collections
+// sat unmatched. Vercel clamps this to whatever the plan allows.
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const auth = await authorizeAdminRequest(request);

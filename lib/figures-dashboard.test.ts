@@ -77,12 +77,16 @@ const lateDeal: DashboardDeal[] = [
     term_months: 3,
     payments: [
       { amount: 400, status: "due", due_date: "2026-06-05" },
-      { amount: 400, status: "due", due_date: "2026-07-05" },
+      { amount: 400, status: "due", due_date: "2026-08-05" },
+      { amount: 400, status: "due", due_date: "2026-09-05" },
       { amount: 400, status: "due", due_date: "2026-11-05" },
     ],
   },
 ];
-assert(arrearsTotal(lateDeal, "2026-09-22") === 800, "two instalments a month late");
+assert(
+  arrearsTotal(lateDeal, "2026-09-22") === 800,
+  "August and September misses are in arrears; June's import hole is not"
+);
 // The Vantage Vehicles arrangement keeps those agreements out of arrears.
 const vantage = lateDeal.map((d) => ({ ...d, company_name: "Vantage Vehicles Ltd" }));
 assert(arrearsTotal(vantage, "2026-09-22") === 0, "special arrangement is excluded");
