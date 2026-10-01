@@ -48,6 +48,17 @@ type Dashboard = {
   }[];
   dd_miss_months?: string[];
   cashflow: { days: number; amount: number; count: number }[];
+  turnover?: {
+    months: { month: string; existing: number; written: number; turnover: number; lent: number; agreements: number }[];
+    uplift: number | null;
+    term_months: number | null;
+    opening: number;
+    runoff_end: number;
+    modelled_end: number;
+    collected_total: number;
+    runoff_total: number;
+    lent_total: number;
+  };
   recent_activity: {
     date: string;
     description: string;
@@ -352,6 +363,24 @@ function DashboardInner() {
             </section>
           </div>
 
+          {data.turnover && data.turnover.months.length > 0 && (
+            <section className="dashboard-panel turnover-panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>Turnover outlook</h2>
+                  <p>
+                    What the book is contracted to pay in over 24 months, and what it
+                    becomes if every collection is written away again
+                    {data.turnover.term_months
+                      ? ` at the ${data.turnover.uplift ? `${Math.round((data.turnover.uplift - 1) * 1000) / 10}%` : ""} uplift over ${data.turnover.term_months} months you have been writing.`
+                      : "."}
+                  </p>
+                </div>
+              </div>
+              <TurnoverChart data={data.turnover} />
+            </section>
+          )}
+
           <div className="dashboard-bottom-grid">
             <section className="dashboard-panel cashflow-panel">
               <div className="panel-heading"><div><h2>New lending</h2><p>Deals written and capital lent in the last 12 months.</p></div></div>
@@ -394,6 +423,136 @@ function DashboardInner() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * The run-off and the modelled turnover on one scale. The gap between the two
+ * lines is the lending, so the chart answers the question it is there for:
+ * how much writing it takes to stand still.
+ */
+function TurnoverChart({
+  data,
+}: {
+  data: NonNullable<Dashboard["turnover"]>;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const rows: NonNullable<Dashboard["turnover"]>["months"] = data.months;
+  const W = 900;
+  const H = 230;
+  const L = 50;
+  const R = 74;
+  const T = 16;
+  const B = 28;
+  const pw = W - L - R;
+  const ph = H - T - B;
+  const peak = Math.max(...rows.map((r) => r.turnover), 1);
+  const top = Math.ceil(peak / 20000) * 20000 || 20000;
+  const x = (i: number) => L + (pw * i) / Math.max(1, rows.length - 1);
+  const y = (v: number) => T + ph - (ph * v) / top;
+  const path = (pick: (r: (typeof rows)[number]) => number) =>
+    "M" + rows.map((r, i) => `${x(i).toFixed(1)},${y(pick(r)).toFixed(1)}`).join(" L");
+  const band =
+    "M" +
+    rows.map((r, i) => `${x(i).toFixed(1)},${y(r.turnover).toFixed(1)}`).join(" L") +
+    " L" +
+    rows
+      .map((r, i) => `${x(i).toFixed(1)},${y(r.existing).toFixed(1)}`)
+      .reverse()
+      .join(" L") +
+    " Z";
+  const last = rows.length - 1;
+  const ticks: number[] = [];
+  for (let v = 0; v <= top; v += 20000) ticks.push(v);
+  const colW = pw / Math.max(1, rows.length - 1);
+  const shown = hover != null ? rows[hover] : null;
+
+  return (
+    <div className="turnover-body">
+      <div className="turnover-figures">
+        <div>
+          <span>Paying in today</span>
+          <strong>{gbp(data.opening)}</strong>
+          <small>{rows[0]?.agreements ?? 0} live agreements</small>
+        </div>
+        <div>
+          <span>Contracted by {monthLabel(rows[last].month)} {rows[last].month.slice(2, 4)}</span>
+          <strong className="gold-text">{gbp(data.runoff_end)}</strong>
+          <small>{rows[last]?.agreements ?? 0} still paying, writing nothing new</small>
+        </div>
+        <div>
+          <span>With collections relent</span>
+          <strong className="green-text">{gbp(data.modelled_end)}</strong>
+          <small>{gbp(data.lent_total)} written over the 24 months</small>
+        </div>
+      </div>
+      <div className="turnover-chart">
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Monthly turnover over 24 months: the book falls from ${gbp(data.opening)} to ${gbp(data.runoff_end)} on its own, or holds at ${gbp(data.modelled_end)} if collections are relent.`}>
+          {ticks.map((v) => (
+            <g key={v}>
+              <line className="t-grid" x1={L} y1={y(v)} x2={L + pw} y2={y(v)} />
+              <text className="t-axis" x={L - 8} y={y(v) + 3.5} textAnchor="end">
+                {v ? `£${Math.round(v / 1000)}k` : "0"}
+              </text>
+            </g>
+          ))}
+          <path d={band} className="t-band" />
+          <path d={path((r) => r.turnover)} className="t-line t-model" />
+          <path d={path((r) => r.existing)} className="t-line t-runoff" />
+          <circle cx={x(last)} cy={y(rows[last].turnover)} r="3.5" className="t-dot t-model-dot" />
+          <circle cx={x(last)} cy={y(rows[last].existing)} r="3.5" className="t-dot t-runoff-dot" />
+          <text className="t-end t-model-dot" x={x(last) + 8} y={y(rows[last].turnover) + 4}>
+            £{Math.round(rows[last].turnover / 1000)}k
+          </text>
+          <text className="t-end t-runoff-dot" x={x(last) + 8} y={y(rows[last].existing) + 4}>
+            £{Math.round(rows[last].existing / 1000)}k
+          </text>
+          {rows.map((r, i) =>
+            i % 3 === 0 || i === last ? (
+              <text className="t-axis" key={r.month} x={x(i)} y={T + ph + 18} textAnchor="middle">
+                {monthLabel(r.month)} {r.month.slice(2, 4)}
+              </text>
+            ) : null
+          )}
+          {rows.map((r, i) => (
+            <rect
+              key={r.month}
+              className="t-hit"
+              x={x(i) - colW / 2}
+              y={T}
+              width={colW}
+              height={ph}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover((h) => (h === i ? null : h))}
+            />
+          ))}
+          {shown && (
+            <line className="t-cursor" x1={x(hover!)} y1={T} x2={x(hover!)} y2={T + ph} />
+          )}
+        </svg>
+        <div className="turnover-readout">
+          {shown ? (
+            <>
+              <b>{monthLabel(shown.month)} {shown.month.slice(2, 4)}</b>
+              <i><em>On the book today</em>{gbp(shown.existing)}</i>
+              <i><em>Written from here</em>{gbp(shown.written)}</i>
+              <i><em>Turnover</em>{gbp(shown.turnover)}</i>
+            </>
+          ) : (
+            <>
+              <b>Over the 24 months</b>
+              <i><em>Collected as it stands</em>{gbp(data.runoff_total)}</i>
+              <i><em>Collected if relent</em>{gbp(data.collected_total)}</i>
+              <i><em>Difference</em>{gbp(data.collected_total - data.runoff_total)}</i>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="admin-legend">
+        <span><i className="admin-swatch" style={{ background: "var(--blue)" }} />Contracted on today&rsquo;s book</span>
+        <span><i className="admin-swatch" style={{ background: "var(--green)" }} />With collections relent</span>
+      </div>
     </div>
   );
 }

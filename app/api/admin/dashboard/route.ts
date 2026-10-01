@@ -30,6 +30,12 @@ import {
 } from "../../../../lib/gocardless/dd-misses";
 import { webhookHealth } from "../../../../lib/gocardless/webhook-health";
 import {
+  runOffByMonth,
+  writingShape,
+  modelTurnover,
+  agreementsLiveInMonth,
+} from "../../../../lib/turnover-model";
+import {
   missRowsForAgreements,
   persistDirectDebitMissRows,
 } from "../../../../lib/gocardless/sync-payments";
@@ -170,6 +176,10 @@ export async function GET(request: Request) {
     list.push(p);
     paymentsByAgreement.set(p.agreement_id, list);
   }
+
+  const statusById = new Map(
+    (agreements || []).map((agreement) => [agreement.id, agreement.status as string])
+  );
 
   const agreementNumberById = new Map(
     (agreements || []).map((agreement) => [agreement.id, agreement.agreement_number as string])
@@ -418,6 +428,48 @@ export async function GET(request: Request) {
     };
   });
 
+  // Turnover over the next two years: what today's book is contracted to pay
+  // in, and what it becomes if collections are written away again at the
+  // uplift and term the book is actually being written at. The schedule is
+  // fact; only the relending is a model.
+  const TURNOVER_MONTHS = 24;
+  const scheduleRows = (payments || []).map((p) => ({
+    due_date: p.due_date,
+    amount: p.amount,
+    agreement_status: statusById.get(p.agreement_id),
+    agreement_id: p.agreement_id,
+  }));
+  const runOff = runOffByMonth(scheduleRows, monthStart.slice(0, 7), TURNOVER_MONTHS);
+  const writtenSince = addMonthsKey(monthStart.slice(0, 7), -12);
+  const shape = writingShape(
+    (agreements || []).filter(
+      (a) =>
+        String(a.written_date || a.start_date || "").slice(0, 7) >= writtenSince
+    )
+  );
+  const turnover = shape
+    ? modelTurnover(runOff, {
+        uplift: shape.uplift,
+        termMonths: shape.termMonths,
+        relendPct: 100,
+      })
+    : [];
+  const turnoverOutlook = {
+    months: turnover.map((point, i) => ({
+      ...point,
+      agreements: agreementsLiveInMonth(scheduleRows, point.month),
+      index: i,
+    })),
+    uplift: shape?.uplift ?? null,
+    term_months: shape?.termMonths ?? null,
+    opening: turnover[0]?.turnover ?? 0,
+    runoff_end: runOff[runOff.length - 1]?.amount ?? 0,
+    modelled_end: turnover[turnover.length - 1]?.turnover ?? 0,
+    collected_total: round2(turnover.reduce((sum, p) => sum + p.turnover, 0)),
+    runoff_total: round2(runOff.reduce((sum, p) => sum + p.amount, 0)),
+    lent_total: round2(turnover.reduce((sum, p) => sum + p.lent, 0)),
+  };
+
   const recentActivity = (payments || [])
     .filter((payment) => isPaidRow(payment.status) && payment.paid_date)
     .sort((a, b) => String(b.paid_date).localeCompare(String(a.paid_date)))
@@ -480,6 +532,7 @@ export async function GET(request: Request) {
     dd_misses,
     dd_miss_months,
     cashflow,
+    turnover: turnoverOutlook,
     recent_activity: recentActivity,
     },
     { headers: NO_CACHE }
@@ -488,6 +541,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return GET(request);
+}
+
+function addMonthsKey(key: string, months: number) {
+  const year = Number(key.slice(0, 4));
+  const month = Number(key.slice(5, 7)) - 1 + months;
+  return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 7);
 }
 
 function round2(n: number) {
