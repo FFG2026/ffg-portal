@@ -30,10 +30,27 @@ export async function POST(request: Request) {
   const signature = request.headers.get("Webhook-Signature");
 
   if (!verifySignature(rawBody, signature)) {
+    // A rejected delivery used to leave no trace anywhere, which made a wrong
+    // secret look identical to no webhook at all. Say so in the logs.
+    console.warn(
+      "[gocardless-webhook] rejected delivery:",
+      !process.env.GOCARDLESS_WEBHOOK_SECRET
+        ? "GOCARDLESS_WEBHOOK_SECRET is not set"
+        : !signature
+          ? "no Webhook-Signature header — is this really GoCardless?"
+          : "signature did not match GOCARDLESS_WEBHOOK_SECRET"
+    );
     return NextResponse.json({ error: "Invalid signature" }, { status: 498 });
   }
 
-  const body = JSON.parse(rawBody);
+  let body: { events?: any[] };
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    // Signed but unreadable. 400 so GoCardless stops retrying it forever.
+    console.error("[gocardless-webhook] signed body was not valid JSON");
+    return NextResponse.json({ error: "Malformed body" }, { status: 400 });
+  }
   const events = body.events || [];
   const supabase = createAdminClient();
 
@@ -69,12 +86,17 @@ export async function POST(request: Request) {
             agreement = found.data;
           }
           if (!agreement && gcMandateId) {
+            // One customer can run several agreements off one mandate, so this
+            // can return more than one row. maybeSingle() treats that as an
+            // error; take the rows and only act when the mandate is
+            // unambiguous. An unlabelled payment on a shared mandate is left
+            // unmatched on purpose — the same rule the pull sync applies.
             const found = await supabase
               .from("agreements")
               .select("id, agreement_number, gocardless_mandate_id")
               .eq("gocardless_mandate_id", gcMandateId)
-              .maybeSingle();
-            agreement = found.data;
+              .limit(2);
+            agreement = found.data?.length === 1 ? found.data[0] : null;
           }
 
           if (agreement && gcPayment) {

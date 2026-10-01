@@ -22,6 +22,12 @@ type Dashboard = {
   };
   chart: { month: string; paid: number; unpaid: number }[];
   lending: { month: string; deals: number; total_lent: number }[];
+  webhook?: {
+    state: "never" | "stale" | "ok";
+    last_event_at: string | null;
+    days_since: number | null;
+    message: string;
+  };
   attention: {
     agreement_number: string;
     company_name: string;
@@ -232,6 +238,15 @@ function DashboardInner() {
             <section className="dashboard-panel action-centre">
               <div className="panel-heading"><div><h2>Action centre</h2><p>Agreements that need your attention.</p></div><button onClick={() => router.push(`${base}/agreements`)}>View all agreements →</button></div>
               <div className="overdue-alert"><span>!</span><div><small>Total overdue</small><strong>{gbp(data.totals.overdue)}</strong></div><p>No payment in the last month</p></div>
+              {data.webhook && data.webhook.state !== "ok" && (
+                <div className="webhook-alert">
+                  <span aria-hidden="true">!</span>
+                  <p>
+                    <strong>Payments are not updating on their own.</strong>{" "}
+                    {data.webhook.message}
+                  </p>
+                </div>
+              )}
               <h3>Priority agreements</h3>
               {data.attention.filter((row) => row.reason === "Overdue collections").length === 0 ? (
                 <p className="admin-lead">Nothing overdue.</p>
