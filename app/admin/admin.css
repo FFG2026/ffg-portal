@@ -38,10 +38,20 @@
 .admin-card{background:#fff; border:1px solid var(--rule); border-radius:14px; padding:22px;}
 .admin-card h2{font-size:18px; color:var(--navy); margin-bottom:16px;}
 .admin-chart{display:flex; align-items:flex-end; gap:8px; height:180px;}
-.admin-col{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;}
-.admin-bars{width:100%; display:flex; flex-direction:column; justify-content:flex-end; height:150px; border-radius:6px 6px 0 0; overflow:hidden;}
-.admin-bar-unpaid{background:#EBD9AE; width:100%;}
-.admin-bar-paid{background:var(--blue); width:100%;}
+/* min-width:0 so the no-wrap value caps cannot push the columns past the panel. */
+.admin-col{position:relative; flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;}
+.admin-bars{width:100%; max-width:24px; display:flex; flex-direction:column; justify-content:flex-end; height:150px;}
+/* 2px of surface between the two segments, so they read apart without a stroke. */
+.admin-bar-unpaid{background:#EBD9AE; width:100%; border-radius:4px 4px 0 0;}
+.admin-bar-paid{background:var(--blue); width:100%; border-radius:4px 4px 0 0; margin-top:2px;}
+.admin-bar-value{font-family:'IBM Plex Mono',monospace; font-size:8.5px; letter-spacing:-.03em; font-weight:600; color:var(--navy); line-height:1; white-space:nowrap;}
+.admin-bar-tip{position:absolute; bottom:calc(100% - 18px); left:50%; transform:translateX(-50%); z-index:20;
+  display:none; width:max-content; padding:8px 10px; border-radius:8px; background:var(--navy); color:#fff;
+  font-size:11px; line-height:1.5; box-shadow:0 8px 22px rgba(8,26,44,.28); pointer-events:none;}
+.admin-bar-tip b{display:block; font-weight:600; margin-bottom:3px;}
+.admin-bar-tip i{display:flex; gap:14px; justify-content:space-between; font-style:normal; font-variant-numeric:tabular-nums;}
+.admin-bar-tip em{font-style:normal; opacity:.72;}
+.admin-col:hover .admin-bar-tip,.admin-col:focus-within .admin-bar-tip{display:block;}
 .admin-col span{font-family:'IBM Plex Mono', monospace; font-size:9.5px; color:var(--slate);}
 .admin-legend{display:flex; gap:16px; font-size:12px; color:var(--slate); margin-top:12px;}
 .admin-swatch{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px;}
@@ -223,15 +233,25 @@
 .panel-heading h2{font-size:21px; color:var(--navy); line-height:1.15; margin-bottom:3px;}
 .panel-heading p{font-size:11.5px; color:var(--slate);}
 .panel-heading button{border:0; background:transparent; color:var(--blue-deep); font-size:11px; cursor:pointer; white-space:nowrap;}
-.book-health-chart{display:grid; grid-template-columns:205px minmax(0,1fr); gap:14px; align-items:center;}
-.book-health-chart .book-total{display:flex; flex-direction:column;}
-.book-health-chart .book-total>span{font-family:'IBM Plex Mono',monospace; color:var(--slate); text-transform:uppercase; letter-spacing:.09em; font-size:9px;}
-.book-health-chart .book-total>strong{font-family:'Fraunces',serif; color:var(--navy); font-size:30px; margin:7px 0; white-space:nowrap;}
-.book-health-chart .book-total>small{font-size:11px; color:var(--green); font-weight:600;}
-.book-health .admin-chart{height:150px; gap:5px;}
+/* The total sits above the chart rather than beside it: twelve labelled
+   columns need the whole panel, and at 1440 the side-by-side layout left
+   them 18px each. */
+.book-health-chart{display:grid; grid-template-columns:minmax(0,1fr); gap:14px;}
+.book-health-chart .book-total{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px;}
+.book-health-chart .book-total>span{order:1; width:100%; font-family:'IBM Plex Mono',monospace; color:var(--slate); text-transform:uppercase; letter-spacing:.09em; font-size:9px;}
+.book-health-chart .book-total>strong{order:2; font-family:'Fraunces',serif; color:var(--navy); font-size:30px; white-space:nowrap;}
+.book-health-chart .book-total>small{order:3; font-size:11px; color:var(--green); font-weight:600;}
+.book-health .admin-chart{height:168px; gap:5px; overflow:visible;}
 .book-health .admin-bars{height:118px;}
 .book-health .admin-legend{margin-top:6px;}
-.book-health-summary{display:grid; grid-template-columns:1.15fr 1fr 1.15fr 1.15fr; align-items:stretch; margin-top:11px; border:1px solid #E8ECF1; border-radius:9px; background:#FBFCFE;}
+.book-health-summary{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; margin-top:11px; border:1px solid #E8ECF1; border-radius:9px; background:#FBFCFE;}
+.book-health-summary>div:nth-child(3),.book-health-summary>div:nth-child(4){border-top:1px solid #E8ECF1;}
+.book-health-summary>div:nth-child(odd){border-left:0;}
+@media (min-width:1700px){
+  .book-health-summary{grid-template-columns:1.15fr 1fr 1.15fr 1.15fr;}
+  .book-health-summary>div:nth-child(3),.book-health-summary>div:nth-child(4){border-top:0;}
+  .book-health-summary>div:nth-child(3),.book-health-summary>div:nth-child(4){border-left:1px solid #E8ECF1;}
+}
 .book-health-summary>div{min-width:0; padding:12px 13px; border-left:1px solid #E8ECF1;}
 .book-health-summary>div:first-child{border-left:0;}
 .collection-rate{display:flex; align-items:center; gap:10px;}
@@ -239,12 +259,12 @@
 .collection-rate>div::after{content:""; position:absolute; inset:7px; border-radius:50%; background:#fff;}
 .collection-rate>div strong{position:relative; z-index:1; font-family:'Fraunces',serif; font-size:16px;}
 .collection-rate p,.health-metric p{display:flex; flex-direction:column; gap:3px; min-width:0; font-size:9px; color:var(--slate); text-transform:uppercase; letter-spacing:.04em;}
-.collection-rate p b{font-size:11px; color:var(--ink); text-transform:none; letter-spacing:0;}
+.collection-rate p b{font-size:11px; color:var(--ink); text-transform:none; letter-spacing:0; white-space:nowrap;}
 .collection-rate p span{font-size:9.5px; line-height:1.4; text-transform:none; letter-spacing:0;}
 .health-metric{display:flex; align-items:center; gap:9px;}
 .metric-icon{display:grid; place-items:center; width:34px; height:34px; flex:0 0 34px; border-radius:7px; font-size:16px;}
 .metric-icon.blue{background:#E8F4FE;color:var(--blue);}.metric-icon.green{background:var(--green-pale);color:var(--green)}.metric-icon.gold{background:var(--gold-pale);color:var(--gold)}
-.health-metric strong{font-family:'Fraunces',serif; color:var(--navy); font-size:20px; letter-spacing:0; text-transform:none; white-space:nowrap;}
+.health-metric strong{font-family:'Fraunces',serif; color:var(--navy); font-size:19px; letter-spacing:0; text-transform:none; white-space:nowrap;}
 .health-metric small{font-size:9px; color:var(--slate); text-transform:none; letter-spacing:0;}
 .green-text{color:var(--green)!important}.gold-text{color:#9A711D!important}
 .overdue-alert{display:grid; grid-template-columns:50px 1fr auto; align-items:center; gap:12px; min-height:82px; margin:8px 0 14px; padding:11px; border-radius:9px; background:#FFF1F1;}

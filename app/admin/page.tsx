@@ -62,6 +62,22 @@ const gbp = (n: number) =>
 const monthLabel = (m: string) =>
   new Date(m + "-01").toLocaleDateString("en-GB", { month: "short" });
 
+const fullMonthLabel = (m: string) =>
+  new Date(m + "-01").toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+
+/**
+ * A column is about 30px wide, so the cap carries a rounded figure — enough to
+ * read the shape of the year at a glance. The exact pounds are on hover.
+ */
+const compactGbp = (n: number) => {
+  const value = Math.round(Number(n) || 0);
+  if (value >= 1000) return `£${Math.round(value / 1000)}k`;
+  return `£${value.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
+};
+
 export default function AdminDashboardPage() {
   return (
     <AdminShell>
@@ -218,6 +234,7 @@ function DashboardInner() {
                   );
                   return data.chart.map((c) => (
                     <div className="admin-col" key={c.month}>
+                      <b className="admin-bar-value">{compactGbp(c.paid + c.unpaid)}</b>
                       <div className="admin-bars">
                         <div
                           className="admin-bar-unpaid"
@@ -229,6 +246,12 @@ function DashboardInner() {
                         />
                       </div>
                       <span>{monthLabel(c.month)}</span>
+                      <div className="admin-bar-tip" role="tooltip">
+                        <b>{fullMonthLabel(c.month)}</b>
+                        <i><em>Paid</em>{gbp(c.paid)}</i>
+                        <i><em>Still due</em>{gbp(c.unpaid)}</i>
+                        <i><em>Total</em>{gbp(c.paid + c.unpaid)}</i>
+                      </div>
                     </div>
                   ));
                 })()}
