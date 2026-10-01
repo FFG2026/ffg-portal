@@ -190,6 +190,7 @@ export async function GET(request: Request) {
     nextMonth
   );
   dueThisMonth = monthSchedule.still_due;
+  const lumpsThisMonth = monthSchedule.lumps_still_due;
 
   for (const p of payments || []) {
     const amount = num(p.amount);
@@ -442,6 +443,9 @@ export async function GET(request: Request) {
       // plus last month's misses. This month's misses are already inside
       // due_this_month, so only the brought-forward part is added.
       arrears_brought_forward: round2(arrearsBroughtIn),
+      // One-off payments inside due_this_month — a deferred VAT settlement,
+      // a balloon — so a month carrying one can say so.
+      lumps_this_month: round2(lumpsThisMonth),
       expected_this_month: round2(
         collectedThisMonth + dueThisMonth + arrearsBroughtIn
       ),

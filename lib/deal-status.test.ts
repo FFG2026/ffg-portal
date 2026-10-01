@@ -385,8 +385,24 @@ const sept = currentMonthInstalmentTotals(
   "2026-10-01"
 );
 assert(sept.collected === 500, `schedule collected, got ${sept.collected}`);
-assert(sept.still_due === 500, `schedule still due, got ${sept.still_due}`);
-assert(sept.due === 1000, `this month due is paid+unpaid rents, got ${sept.due}`);
+assert(
+  sept.still_due === 9677.95,
+  `the deferred-VAT lump is money due this month too, got ${sept.still_due}`
+);
+assert(
+  sept.lumps_still_due === 9177.95,
+  `and is reported on its own, got ${sept.lumps_still_due}`
+);
+assert(sept.due === 10177.95, `this month due is paid plus unpaid, got ${sept.due}`);
+// The refinanced agreement is not live, and August is not this month.
+assert(
+  currentMonthInstalmentTotals(
+    [{ live: true, monthly_instalment: 500, amount: 500, status: "due", due_date: "2026-09-28" }],
+    "2026-09-01",
+    "2026-10-01"
+  ).lumps_still_due === 0,
+  "an ordinary month carries no lumps"
+);
 
 const ring = collectionRateFromCashAndDue(50935, 41446.47);
 assert(ring.collected === 50935, "ring collected is GoCardless cash");

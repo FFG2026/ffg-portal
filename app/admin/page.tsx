@@ -16,6 +16,7 @@ type Dashboard = {
     overdue: number;
     due_this_month: number;
     arrears_brought_forward: number;
+    lumps_this_month: number;
     expected_this_month: number;
     collected_this_month: number;
     collected_count?: number | null;
@@ -240,7 +241,10 @@ function DashboardInner() {
                 </div>
                 <div className="health-metric"><span className="metric-icon blue">▤</span><p>Live agreements<strong>{data.totals.live}</strong><small>{data.totals.finished} finished</small></p></div>
                 <div className="health-metric"><span className="metric-icon green">▥</span><p>Collected this month<strong className="green-text">{gbp(collected)}</strong><small>{data.totals.collected_count ?? "—"} collections</small></p></div>
-                <div className="health-metric"><span className="metric-icon gold">●</span><p>Still due this month<strong className="gold-text">{gbp(stillDue)}</strong><small>{broughtForward > 0 ? `${gbp(data.totals.due_this_month)} for ${monthName}, ${gbp(broughtForward)} owed from ${lastMonthName}` : `${monthName} instalments`}</small></p></div>
+                <div className="health-metric"><span className="metric-icon gold">●</span><p>Still due this month<strong className="gold-text">{gbp(stillDue)}</strong><small>{[
+                  broughtForward > 0 ? `${gbp(data.totals.due_this_month)} for ${monthName}, ${gbp(broughtForward)} owed from ${lastMonthName}` : `${monthName} instalments`,
+                  data.totals.lumps_this_month > 0 ? `includes ${gbp(data.totals.lumps_this_month)} one-off` : "",
+                ].filter(Boolean).join(" · ")}</small></p></div>
               </div>
             </section>
 

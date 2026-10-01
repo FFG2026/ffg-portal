@@ -50,8 +50,13 @@ export type MonthInstalmentRow = {
 };
 
 /**
- * Unpaid monthly rents this month on live deals. Used with GoCardless
- * cash-in for the collection-rate ring.
+ * Everything falling due this month on live deals.
+ *
+ * One-off payments count. HP140's customer deferred £7,350 of VAT to the
+ * beginning of November, and a month's total that leaves it out is not what
+ * is due in that month. They are reported separately as `lumps_still_due`
+ * so a month carrying one can say so, rather than looking like a month of
+ * unusually large rents.
  */
 export function currentMonthInstalmentTotals(
   rows: MonthInstalmentRow[] | null | undefined,
@@ -60,20 +65,25 @@ export function currentMonthInstalmentTotals(
 ) {
   let paid = 0;
   let unpaid = 0;
+  let lumps = 0;
   for (const row of rows || []) {
     if (row.live === false) continue;
     const due = String(row.due_date || "").slice(0, 10);
     if (due.length < 10 || due < monthStart || due >= nextMonth) continue;
-    if (!isMonthlyBookAmount(row.amount, row.monthly_instalment)) continue;
     const amount = Number(row.amount || 0);
-    if (isPaidRow(row.status)) paid += amount;
-    else unpaid += amount;
+    if (isPaidRow(row.status)) {
+      paid += amount;
+      continue;
+    }
+    unpaid += amount;
+    if (!isMonthlyBookAmount(row.amount, row.monthly_instalment)) lumps += amount;
   }
   const collected = roundMoney(paid);
   const stillDue = roundMoney(unpaid);
   return {
     collected,
     still_due: stillDue,
+    lumps_still_due: roundMoney(lumps),
     due: roundMoney(collected + stillDue),
   };
 }
