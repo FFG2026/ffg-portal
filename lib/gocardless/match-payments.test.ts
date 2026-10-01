@@ -12,6 +12,8 @@ import {
   collectedScheduleAmount,
   leftoverPaymentsToRecord,
   looksLikeMonthlyVariation,
+  paidDateForMatch,
+  NUMBERED_MATCH_DAYS,
 } from "./match-payments";
 import { LOOSE_MATCH_DAYS } from "./sync-payments";
 
@@ -53,10 +55,72 @@ const numbered = [
   { id: "a", due_date: "2023-06-27", status: "due", amount: "6303.76", gocardless_payment_id: null, instalment_number: 1 },
   { id: "b", due_date: "2023-07-27", status: "due", amount: "6303.76", gocardless_payment_id: null, instalment_number: 2 },
 ];
+// HP41 collected instalment 2 a month early, on instalment 1's due date. The
+// reference still decides which row it is — the calendar would say the wrong one.
 const byRef = matchGcPaymentsToInstalments(numbered, [
-  { id: "PM_HP41_2", charge_date: "2025-01-10", status: "paid_out", amount: 630376, instalment_number: 2 },
+  { id: "PM_HP41_2", charge_date: "2023-06-27", status: "paid_out", amount: 630376, instalment_number: 2 },
 ]);
-assert(byRef.length === 1 && byRef[0].instalmentId === "b", "HP41/2 attaches to instalment 2 even if the date is off");
+assert(byRef.length === 1 && byRef[0].instalmentId === "b", "HP41/2 attaches to instalment 2, not to the nearer date");
+
+// ...but a reference is not a licence to reach across years. A collection in
+// 2025 carrying "/2" is a reused reference or a renumbered schedule, not the
+// instalment that fell due in July 2023. FL15 lost a correct paid date this way.
+const staleRef = matchGcPaymentsToInstalments(numbered, [
+  { id: "PM_STALE", charge_date: "2025-01-10", status: "paid_out", amount: 630376, instalment_number: 2 },
+]);
+assert(staleRef.length === 0, "a numbered reference 533 days from its due date is not trusted");
+
+// The bound has to clear the furthest honest collection in the book (32 days)
+// by a wide margin, and stay well under the misattachments it exists to stop.
+assert(NUMBERED_MATCH_DAYS >= 60, "leaves room for a late re-presentation");
+assert(NUMBERED_MATCH_DAYS < 240, "narrower than FL15's 240-day misattachment");
+
+const edge = [
+  { id: "n1", due_date: "2026-02-02", status: "due", amount: "1162.73", gocardless_payment_id: null, instalment_number: 2 },
+];
+assert(
+  matchGcPaymentsToInstalments(edge, [
+    { id: "PM_EDGE_IN", charge_date: "2026-02-02", status: "paid_out", amount: 116273, instalment_number: 2 },
+  ]).length === 1,
+  "an on-time numbered collection still matches"
+);
+assert(
+  matchGcPaymentsToInstalments(edge, [
+    { id: "PM_FL15", charge_date: "2026-09-30", status: "paid_out", amount: 116273, instalment_number: 2 },
+  ]).length === 0,
+  "FL15's 30 Sept collection no longer lands on the February instalment"
+);
+
+// Backfilling a GoCardless id onto a row that is already paid must leave its
+// paid date alone: 2 Feb is the cash date on the books, 30 Sept is not.
+const already = { status: "paid", paid_date: "2026-02-02" };
+assert(
+  paidDateForMatch(already, {
+    instalmentId: "n1",
+    gcPaymentId: "PM_FL15",
+    chargeDate: "2026-09-30",
+    status: "paid",
+  }) === "2026-02-02",
+  "an existing paid date survives a GoCardless backfill"
+);
+assert(
+  paidDateForMatch({ status: "due", paid_date: null }, {
+    instalmentId: "n1",
+    gcPaymentId: "PM_FL15",
+    chargeDate: "2026-09-30",
+    status: "paid",
+  }) === "2026-09-30",
+  "a row that was not paid takes the charge date"
+);
+assert(
+  paidDateForMatch(already, {
+    instalmentId: "n1",
+    gcPaymentId: "PM_FL15",
+    chargeDate: "2026-09-30",
+    status: "failed",
+  }) === null,
+  "a failed collection clears the paid date"
+);
 
 const stub = [
   {

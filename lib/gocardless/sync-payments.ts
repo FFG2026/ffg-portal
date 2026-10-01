@@ -7,6 +7,7 @@ import {
   scheduleCollectionsOnly,
   amountsClose,
   collectedScheduleAmount,
+  paidDateForMatch,
   COLLECTED_STATUSES,
   type GoCardlessPayment,
   type Instalment,
@@ -343,7 +344,7 @@ async function applyMatches(
       .from("payments")
       .update({
         status: match.status,
-        paid_date: match.status === "paid" ? match.chargeDate : null,
+        paid_date: paidDateForMatch(row, match),
         gocardless_payment_id: match.gcPaymentId,
         ...(amount != null ? { amount } : {}),
         updated_at: new Date().toISOString(),
