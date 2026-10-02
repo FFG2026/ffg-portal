@@ -33,7 +33,7 @@ export function adminBasePath(pathname?: string) {
 
 const NAV = [
   { href: "", label: "Dashboard", icon: "home" },
-  { href: "/figures", label: "Live figures", icon: "chart", owenOnly: true },
+  { href: "/figures", label: "Live figures", icon: "chart" },
   { href: "/customers", label: "Customers", icon: "users" },
   { href: "/agreements", label: "Agreements", icon: "file" },
   { href: "/new-deal", label: "New deal", icon: "plus" },
@@ -66,7 +66,6 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [who, setWho] = useState("");
-  const [ownerDash, setOwnerDash] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -94,10 +93,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   };
 
   useEffect(() => {
-    if (!unlocked) {
-      setOwnerDash(false);
-      return;
-    }
+    if (!unlocked) return;
     fetch("/api/admin/me", { headers: adminHeaders() })
       .then((res) => {
         if (res.status === 401) {
@@ -109,10 +105,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         return res.ok ? res.json() : null;
       })
       .then((json) => {
-        setOwnerDash(!!json?.owner_dashboard);
         if (json?.name) setWho(json.name);
       })
-      .catch(() => setOwnerDash(false));
+      .catch(() => {});
   }, [unlocked]);
 
   const unlock = async (e: React.FormEvent) => {
@@ -194,11 +189,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           <Image className="admin-logo-icon" src="/logo-icon.png" alt="Future Finance Group Limited" width={42} height={52} priority />
         </Link>
         <nav aria-label="Admin navigation">
-          {NAV.filter(
-            (item) =>
-              (!item.owenOnly || ownerDash) &&
-              (!item.ffgOnly || !isGg)
-          ).map((item) => {
+          {NAV.filter((item) => !item.ffgOnly || !isGg).map((item) => {
             const href = `${base}${item.href}` || base;
             const path = href || base;
             return (
