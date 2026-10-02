@@ -907,3 +907,19 @@
 @media (max-width:1180px){
   .turnover-chart{grid-template-columns:minmax(0,1fr);}
 }
+
+/* --- Turnover outlook, Live figures ------------------------------------ */
+.fig-card-wide{grid-column:1 / -1;}
+.fig-turnover{display:grid; grid-template-columns:minmax(0,1fr) 238px; gap:18px; align-items:center;}
+.fig-turnover .fig-chart{width:100%; height:auto; overflow:visible;}
+.fig-end{font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600;}
+.fig-cursor{stroke:var(--navy); stroke-width:1; stroke-dasharray:3 3; opacity:.3; pointer-events:none;}
+.fig-hit{fill:transparent; cursor:crosshair;}
+.fig-hit:hover{fill:var(--navy); fill-opacity:.035;}
+.fig-turnover-readout{border:1px solid var(--rule); border-radius:10px; background:#FBFCFE;
+  padding:13px 14px; display:flex; flex-direction:column; gap:5px; font-size:12px; min-width:0;}
+.fig-turnover-readout b{font-size:12.5px; color:var(--navy); margin-bottom:3px;}
+.fig-turnover-readout i{display:flex; justify-content:space-between; gap:12px; font-style:normal;
+  font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; color:var(--navy);}
+.fig-turnover-readout em{font-style:normal; font-family:inherit; color:var(--slate); white-space:nowrap;}
+@media (max-width:1180px){ .fig-turnover{grid-template-columns:minmax(0,1fr);} }

@@ -397,3 +397,117 @@ export function MixDonut({ slices, total }: { slices: MixSlice[]; total: number 
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Turnover outlook                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The contracted run-off and the relent turnover on one scale. The gap
+ * between the two lines is the writing it takes to stand still, which is the
+ * question the panel exists to answer.
+ */
+export function TurnoverChart({
+  turnover,
+}: {
+  turnover: FiguresDashboard["turnover"];
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const rows = turnover.months;
+  if (rows.length < 2) return null;
+
+  const W = 760;
+  const H = 250;
+  const PAD = { top: 18, right: 78, bottom: 30, left: 56 };
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top - PAD.bottom;
+  const ticks = niceTicks(0, Math.max(...rows.map((r) => r.turnover)));
+  const yMax = Math.max(...ticks);
+  const x = (i: number) => PAD.left + (i / (rows.length - 1)) * plotW;
+  const y = (v: number) => PAD.top + plotH - (v / yMax) * plotH;
+
+  const line = (pick: (r: (typeof rows)[number]) => number) =>
+    rows
+      .map((r, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(pick(r)).toFixed(1)}`)
+      .join(" ");
+  const band =
+    rows.map((r, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(r.turnover).toFixed(1)}`).join(" ") +
+    " " +
+    rows
+      .map((r, i) => `L${x(i).toFixed(1)},${y(r.existing).toFixed(1)}`)
+      .reverse()
+      .join(" ") +
+    " Z";
+
+  const last = rows.length - 1;
+  const shown = hover != null ? rows[hover] : null;
+  const colW = plotW / (rows.length - 1);
+
+  return (
+    <div className="fig-turnover">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="fig-chart"
+        role="img"
+        aria-label={`Monthly turnover over the next ${rows.length} months. The agreements on the book today fall from ${gbp0(turnover.opening)} to ${gbp0(turnover.runoff_end)}; with collections relent, turnover reaches ${gbp0(turnover.modelled_end)}.`}
+      >
+        {ticks.map((t) => (
+          <g key={t}>
+            <line className="fig-grid" x1={PAD.left} y1={y(t)} x2={PAD.left + plotW} y2={y(t)} />
+            <text className="fig-axis" x={PAD.left - 9} y={y(t) + 4} textAnchor="end">
+              {gbpCompact(t)}
+            </text>
+          </g>
+        ))}
+        <path d={band} fill={SERIES_NET_CASH} fillOpacity={0.13} />
+        <path d={line((r) => r.turnover)} fill="none" stroke={SERIES_NET_CASH} strokeWidth="2.5" strokeLinejoin="round" />
+        <path d={line((r) => r.existing)} fill="none" stroke={SERIES_COLLECTIONS} strokeWidth="2.5" strokeLinejoin="round" />
+        <circle cx={x(last)} cy={y(rows[last].turnover)} r="4" fill={SERIES_NET_CASH} stroke="#fff" strokeWidth="2" />
+        <circle cx={x(last)} cy={y(rows[last].existing)} r="4" fill={SERIES_COLLECTIONS} stroke="#fff" strokeWidth="2" />
+        <text className="fig-end" x={x(last) + 9} y={y(rows[last].turnover) + 4} fill={SERIES_NET_CASH}>
+          {gbpCompact(rows[last].turnover)}
+        </text>
+        <text className="fig-end" x={x(last) + 9} y={y(rows[last].existing) + 4} fill={SERIES_COLLECTIONS}>
+          {gbpCompact(rows[last].existing)}
+        </text>
+        {rows.map((r, i) =>
+          i % 4 === 0 || i === last ? (
+            <text className="fig-axis" key={r.month} x={x(i)} y={PAD.top + plotH + 20} textAnchor="middle">
+              {r.label}
+            </text>
+          ) : null
+        )}
+        {shown && <line className="fig-cursor" x1={x(hover!)} y1={PAD.top} x2={x(hover!)} y2={PAD.top + plotH} />}
+        {rows.map((r, i) => (
+          <rect
+            key={r.month}
+            className="fig-hit"
+            x={x(i) - colW / 2}
+            y={PAD.top}
+            width={colW}
+            height={plotH}
+            onMouseEnter={() => setHover(i)}
+            onMouseLeave={() => setHover((h) => (h === i ? null : h))}
+          />
+        ))}
+      </svg>
+      <div className="fig-turnover-readout">
+        {shown ? (
+          <>
+            <b>{shown.label}</b>
+            <i><em>On the book today</em>{gbp0(shown.existing)}</i>
+            <i><em>Written from here</em>{gbp0(shown.written)}</i>
+            <i><em>Turnover</em>{gbp0(shown.turnover)}</i>
+          </>
+        ) : (
+          <>
+            <b>Over {rows.length} months</b>
+            <i><em>Collected as it stands</em>{gbp0(turnover.runoff_total)}</i>
+            <i><em>Collected if relent</em>{gbp0(turnover.collected_total)}</i>
+            <i><em>Difference</em>{gbp0(turnover.collected_total - turnover.runoff_total)}</i>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

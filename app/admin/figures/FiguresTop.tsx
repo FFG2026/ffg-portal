@@ -2,7 +2,7 @@
 
 import type { FiguresDashboard, Kpi } from "../../../lib/figures-dashboard";
 import { adminBasePath } from "../AdminShell";
-import { ForecastChart, IncomeChart, MixDonut, gbp0 } from "./charts";
+import { ForecastChart, IncomeChart, MixDonut, TurnoverChart, gbp0 } from "./charts";
 
 function KpiIcon({ name }: { name: string }) {
   const paths: Record<string, React.ReactNode> = {
@@ -144,6 +144,34 @@ export default function FiguresTop({
           </div>
         </section>
       </div>
+
+      <section className="fig-card fig-card-wide">
+        <header className="fig-card-head">
+          <div>
+            <h2>Turnover outlook</h2>
+            <p>
+              What the book is contracted to pay in over the next{" "}
+              {dashboard.turnover.months.length} months, and what it becomes if
+              every collection is written away again
+              {dashboard.turnover.term_months && dashboard.turnover.uplift
+                ? ` at the ${Math.round((dashboard.turnover.uplift - 1) * 1000) / 10}% uplift over ${dashboard.turnover.term_months} months this book is written at.`
+                : "."}
+            </p>
+          </div>
+          <span className="fig-growth">
+            <b>{gbp0(dashboard.turnover.modelled_end)}</b>
+            <em>
+              a month by {dashboard.turnover.months[dashboard.turnover.months.length - 1]?.label},
+              against {gbp0(dashboard.turnover.runoff_end)} writing nothing new
+            </em>
+          </span>
+        </header>
+        <TurnoverChart turnover={dashboard.turnover} />
+        <div className="fig-legend">
+          <span><i style={{ background: "#0E8CF5" }} />Contracted on today&rsquo;s book</span>
+          <span><i style={{ background: "#1F9254" }} />With collections relent</span>
+        </div>
+      </section>
 
       <div className={`fig-row ${mix.slices.length ? "fig-row-three" : "fig-row-two"}`}>
         <section className="fig-card">

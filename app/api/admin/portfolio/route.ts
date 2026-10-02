@@ -72,7 +72,7 @@ async function liveFigures(
       supabase
         .from("agreements")
         .select(
-          "id, agreement_number, agreement_type, customer_id, total_lend, commission, monthly_instalment, term_months, start_date, status"
+          "id, agreement_number, agreement_type, customer_id, total_lend, commission, monthly_instalment, term_months, start_date, written_date, status"
         )
         .eq("book", book)
     ),
@@ -110,6 +110,8 @@ async function liveFigures(
     status: a.status,
     term_months: a.term_months,
     start_date: a.start_date,
+    written_date: a.written_date,
+    monthly_instalment: a.monthly_instalment,
     total_lend: a.total_lend,
     payments: rowsByAgreement.get(a.id) || [],
   }));

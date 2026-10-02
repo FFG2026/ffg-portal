@@ -8,8 +8,15 @@ export type MonthlyFiguresRow = {
 };
 
 /**
- * Owen's last-12-months book (Sep 2025–Sep 2026 MTD).
- * Live figures steps through these one month at a time.
+ * Owen's last-12-months book. Live figures steps through these one month at
+ * a time.
+ *
+ * Collections are counted the way GoCardless pays them out, not the day they
+ * were charged, so a collection taken on 29 September that pays out on
+ * 1 October belongs to October. The dashboard's Book health chart counts by
+ * charge date instead, because that is what has to line up with instalments
+ * falling due — so the two will differ by a few hundred pounds in any month,
+ * and agree over any longer run.
  */
 export const MONTHLY_FIGURES: MonthlyFiguresRow[] = [
   { key: "2025-09", label: "Sep 2025", mtd: false, payments_received: 88231.72, new_deals: 2, amount_lent: 98000 },
@@ -24,7 +31,8 @@ export const MONTHLY_FIGURES: MonthlyFiguresRow[] = [
   { key: "2026-06", label: "Jun 2026", mtd: false, payments_received: 87298.27, new_deals: 1, amount_lent: 44760 },
   { key: "2026-07", label: "Jul 2026", mtd: false, payments_received: 96542.96, new_deals: 3, amount_lent: 160820 },
   { key: "2026-08", label: "Aug 2026", mtd: false, payments_received: 80119.32, new_deals: 1, amount_lent: 8000 },
-  { key: "2026-09", label: "Sep 2026", mtd: true, payments_received: 51503.12, new_deals: 2, amount_lent: 79369.12 },
+  { key: "2026-09", label: "Sep 2026", mtd: false, payments_received: 79210.75, new_deals: 2, amount_lent: 79369.12 },
+  { key: "2026-10", label: "Oct 2026", mtd: true, payments_received: 2990.68, new_deals: 0, amount_lent: 0 },
 ];
 
 export const LATEST_MONTH_KEY =

@@ -1,4 +1,11 @@
 import { roundMoney, isPaidRow, isLiveDeal, chaseOverdueSum } from "./deal-status";
+import {
+  addMonthKey,
+  runOffByMonth,
+  writingShape,
+  modelTurnover,
+  type TurnoverPoint,
+} from "./turnover-model";
 import type { MonthlyFiguresRow } from "./monthly-figures";
 
 /** Series colours are validated for colour-vision deficiency — see README. */
@@ -29,6 +36,8 @@ export type DashboardDeal = {
   status?: string | null;
   term_months?: number | null;
   start_date?: string | null;
+  written_date?: string | null;
+  monthly_instalment?: number | string | null;
   total_lend?: number | string | null;
   payments?: DashboardPaymentRow[];
 };
@@ -91,8 +100,22 @@ export type FiguresDashboard = {
     assumed_yield: number;
     monthly_collections: number;
   };
+  turnover: TurnoverOutlook;
   mix: { slices: MixSlice[]; total: number };
   next_receipts: ReceiptRow[];
+};
+
+export type TurnoverOutlook = {
+  months: (TurnoverPoint & { label: string })[];
+  /** Contracted back per £1 lent, and the term, taken from the last year's writing. */
+  uplift: number | null;
+  term_months: number | null;
+  opening: number;
+  runoff_end: number;
+  modelled_end: number;
+  runoff_total: number;
+  collected_total: number;
+  lent_total: number;
 };
 
 /** Fixed so labels do not shift with the runtime's ICU data. */
@@ -126,6 +149,67 @@ export function monthCollection(deals: DashboardDeal[], monthKey: string) {
     collected: roundMoney(collected),
     due: roundMoney(due),
     still_due: roundMoney(due - collected),
+  };
+}
+
+const TURNOVER_MONTHS = 24;
+
+/**
+ * Turnover over the next two years: what the live book is contracted to pay
+ * in each month, and what that becomes if collections are written away again
+ * at the uplift and term the book is actually being written at.
+ *
+ * Only the relending is a model. The falling line is the schedule itself.
+ */
+export function buildTurnoverOutlook(
+  deals: DashboardDeal[],
+  today: string
+): TurnoverOutlook {
+  const fromMonth = today.slice(0, 7);
+  const rows = deals.flatMap((deal) =>
+    (deal.payments || []).map((row) => ({
+      due_date: row.due_date,
+      amount: row.amount,
+      agreement_status: deal.status,
+    }))
+  );
+  const runOff = runOffByMonth(rows, fromMonth, TURNOVER_MONTHS);
+  // A year of writing describes the shape without one unusual month setting
+  // the rate for the next two years.
+  const writtenSince = addMonthKey(fromMonth, -12);
+  const shape = writingShape(
+    deals.filter(
+      (deal) =>
+        String(deal.written_date || deal.start_date || "").slice(0, 7) >=
+        writtenSince
+    )
+  );
+  const points = shape
+    ? modelTurnover(runOff, {
+        uplift: shape.uplift,
+        termMonths: shape.termMonths,
+        relendPct: 100,
+      })
+    : runOff.map((entry) => ({
+        month: entry.month,
+        existing: entry.amount,
+        written: 0,
+        turnover: entry.amount,
+        lent: 0,
+      }));
+  return {
+    months: points.map((point) => ({
+      ...point,
+      label: `${MONTH_NAMES[Number(point.month.slice(5, 7)) - 1]} ${point.month.slice(2, 4)}`,
+    })),
+    uplift: shape?.uplift ?? null,
+    term_months: shape?.termMonths ?? null,
+    opening: points[0]?.turnover ?? 0,
+    runoff_end: runOff[runOff.length - 1]?.amount ?? 0,
+    modelled_end: points[points.length - 1]?.turnover ?? 0,
+    runoff_total: roundMoney(runOff.reduce((sum, e) => sum + e.amount, 0)),
+    collected_total: roundMoney(points.reduce((sum, p) => sum + p.turnover, 0)),
+    lent_total: roundMoney(points.reduce((sum, p) => sum + p.lent, 0)),
   };
 }
 
@@ -381,6 +465,7 @@ export function buildFiguresDashboard(opts: {
           : 0,
     },
     forecast: buildForecast(totalBook, avgCollections, blendedYield, 48, 36, row.key),
+    turnover: buildTurnoverOutlook(deals, today),
     mix: { slices, total: mixTotal },
     next_receipts: nextReceipts(deals, today),
   };
