@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
   FiguresDashboard,
   IncomePoint,
@@ -414,11 +414,30 @@ export function TurnoverChart({
   turnover: FiguresDashboard["turnover"];
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  // The chart is drawn at its real pixel size rather than scaled from a fixed
+  // viewBox. On this full-width card a 760-wide viewBox was being blown up
+  // about twice over, which takes every font and stroke inside the SVG with
+  // it: 10px axis labels rendered near 20px and the chart stood 480px tall
+  // with its data squashed into the top half. Measuring keeps one SVG unit at
+  // one CSS pixel, so the type stays the size it was designed at and the
+  // height is chosen rather than inherited from the width.
+  const wrap = useRef<HTMLDivElement | null>(null);
+  const [W, setW] = useState(760);
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => {
+      const next = Math.round(entry.contentRect.width);
+      if (next > 0) setW(next);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const rows = turnover.months;
   if (rows.length < 2) return null;
 
-  const W = 760;
-  const H = 250;
+  const H = Math.round(Math.min(330, Math.max(230, W * 0.3)));
   const PAD = { top: 18, right: 78, bottom: 30, left: 56 };
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
@@ -446,8 +465,11 @@ export function TurnoverChart({
 
   return (
     <div className="fig-turnover">
+      <div className="fig-turnover-plot" ref={wrap}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
+        width={W}
+        height={H}
         className="fig-chart"
         role="img"
         aria-label={`Monthly turnover over the next ${rows.length} months. The agreements on the book today fall from ${gbp0(turnover.opening)} to ${gbp0(turnover.runoff_end)}; with collections relent, turnover reaches ${gbp0(turnover.modelled_end)}.`}
@@ -492,6 +514,7 @@ export function TurnoverChart({
           />
         ))}
       </svg>
+      </div>
       <div className="fig-turnover-readout">
         {shown ? (
           <>

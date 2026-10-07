@@ -913,8 +913,13 @@
 
 /* --- Turnover outlook, Live figures ------------------------------------ */
 .fig-card-wide{grid-column:1 / -1;}
-.fig-turnover{display:grid; grid-template-columns:minmax(0,1fr) 238px; gap:18px; align-items:center;}
-.fig-turnover .fig-chart{width:100%; height:auto; overflow:visible;}
+/* 238px clipped the longest row — "Collected as it stands  £1,765,120" — by
+   about 35px, so the figures ran under the card edge. */
+.fig-turnover{display:grid; grid-template-columns:minmax(0,1fr) 278px; gap:18px; align-items:start;}
+.fig-turnover-plot{min-width:0;}
+/* The SVG is sized in real pixels by the component, so it must not be rescaled
+   here: stretching it to the column would take every label and stroke with it. */
+.fig-turnover .fig-chart{display:block; max-width:100%; overflow:visible;}
 .fig-end{font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600;}
 .fig-cursor{stroke:var(--navy); stroke-width:1; stroke-dasharray:3 3; opacity:.3; pointer-events:none;}
 .fig-hit{fill:transparent; cursor:crosshair;}
