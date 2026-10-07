@@ -338,17 +338,35 @@ export function buildLivePortfolio(
       ? roundMoney(opts.cashAtBank)
       : PORTFOLIO_BASE.cash_at_bank;
   const added = deals.filter((d) => isDealAddedAfterSnapshot(d.agreement_number));
-  // The 28 Aug profit was struck on gross rentals. The VAT inside the deals it
-  // covers is read off their live schedules and taken back out per type.
+  // VAT inside the deals the snapshot covers, read off their live schedules.
   const snapshotVat: Record<DealType, number> = { HP: 0, FL: 0, L: 0 };
+  const liveFlOpening: LiveDealInput[] = [];
   for (const deal of opts?.allDeals || []) {
     const type = dealTypeOf(deal.agreement_number);
     if (!type || isDealAddedAfterSnapshot(deal.agreement_number)) continue;
     snapshotVat[type] = roundMoney(snapshotVat[type] + vatOnDeal(deal));
+    if (type === "FL") liveFlOpening.push(deal);
   }
   const snapshotVatTotal = roundMoney(
     snapshotVat.HP + snapshotVat.FL + snapshotVat.L
   );
+  // The printed FL profit is not struck on the rentals the portal now holds,
+  // so taking VAT off it is a guess that overshoots (it went negative against
+  // a live book that sums to a profit). Where the live finance leases are
+  // available, their own profit — net of VAT, less commission — replaces the
+  // printed figure outright. HP and L keep the printed base less their VAT.
+  const openingCommissionFl = snapshotCommissionByType().FL;
+  const flOpeningProfit = liveFlOpening.length
+    ? roundMoney(liveFlOpening.reduce((sum, d) => sum + profitOn(d), 0))
+    : null;
+  const flReplacesPrinted =
+    flOpeningProfit == null
+      ? 0
+      : roundMoney(
+          flOpeningProfit -
+            (PORTFOLIO_BASE.by_type.FL.total_profit - openingCommissionFl)
+        );
+  const flVatAdjust = flOpeningProfit == null ? snapshotVat.FL : 0;
   const summary = {
     total_deals: PORTFOLIO_BASE.total_deals,
     total_lent: PORTFOLIO_BASE.total_lent,
@@ -357,7 +375,12 @@ export function buildLivePortfolio(
     total_paid: PORTFOLIO_BASE.total_paid,
     total_outstanding: PORTFOLIO_BASE.total_outstanding,
     total_profit: roundMoney(
-      snapshotProfitExCommission() + totalOverRecovery() - snapshotVatTotal
+      snapshotProfitExCommission() +
+        totalOverRecovery() -
+        snapshotVat.HP -
+        snapshotVat.L -
+        flVatAdjust +
+        flReplacesPrinted
     ),
     over_recovery: totalOverRecovery(),
     vat_excluded: snapshotVatTotal,
@@ -385,12 +408,15 @@ export function buildLivePortfolio(
     },
     FL: {
       ...PORTFOLIO_BASE.by_type.FL,
-      total_profit: roundMoney(
-        PORTFOLIO_BASE.by_type.FL.total_profit -
-          openingCommission.FL +
-          recovered.FL -
-          snapshotVat.FL
-      ),
+      total_profit:
+        flOpeningProfit != null
+          ? roundMoney(flOpeningProfit + recovered.FL)
+          : roundMoney(
+              PORTFOLIO_BASE.by_type.FL.total_profit -
+                openingCommission.FL +
+                recovered.FL -
+                snapshotVat.FL
+            ),
     },
     L: {
       ...PORTFOLIO_BASE.by_type.L,

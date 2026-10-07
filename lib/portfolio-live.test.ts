@@ -239,3 +239,24 @@ console.log("portfolio-live tests ok");
     "deferred VAT is excluded from profit and reported"
   );
 }
+
+// The printed FL profit is not struck on the live rentals, so with the live
+// finance leases to hand they replace it rather than being netted off it.
+{
+  const flDeal = (n: number, lend: number, gross: number) => ({
+    agreement_number: `FL${n}`,
+    agreement_type: "FL",
+    total_lend: lend,
+    commission: 0,
+    payments: [{ status: "paid", amount: gross, due_date: "2024-01-01" }],
+  });
+  const book = [flDeal(2, 10000, 12000), flDeal(3, 10000, 9000)];
+  const live = buildLivePortfolio([], { allDeals: book });
+  // 12,000 gross = 10,000 net, no margin; 9,000 gross = 7,500 net, a 2,500 loss.
+  const fl = live.by_type.find((t) => t.type === "FL")!;
+  assert(fl.total_profit === -2500, `FL profit is the live deals' net profit, got ${fl.total_profit}`);
+  assert(
+    live.by_type.reduce((sum, t) => sum + t.total_profit, 0) === live.summary.total_profit,
+    "types still sum to the headline profit"
+  );
+}
