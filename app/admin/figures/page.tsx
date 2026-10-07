@@ -671,6 +671,14 @@ function FfgFigures({
                     <span><small>Projected 2030</small><strong>{gbp(projectedTotal)}</strong></span>
                   </div>
                 </div>
+                <p className="fig-note">
+                  Projected from the book&apos;s own run-off with every
+                  collection written away again at{" "}
+                  {pct(Math.round(data.projection_relend_rate * 1000) / 10)} a
+                  year — {data.projected_multiple}x today&apos;s value by the
+                  end of 2030. A modelled assumption before funding costs and
+                  any losses, not a contracted figure.
+                </p>
                 <div className="projection-labels"><span>Shareholder</span><span>Value today</span><span /><span>Projected 2030</span></div>
                 {data.shareholders.map((row) => (
                   <div className="projection-row" key={row.name}>

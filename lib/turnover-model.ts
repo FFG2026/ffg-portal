@@ -95,6 +95,51 @@ export function writingShape(
  * instalment — and its own instalments then feed later months, so the model
  * compounds. Relending nothing just returns the run-off.
  */
+/**
+ * Where the book gets to if every pound collected is written away again.
+ *
+ * Returns the multiple on today's contracted book: collections are relent each
+ * month at a stated yearly rate over the book's own term, and what is left
+ * running at the horizon is compared with what is running now. A rate is used
+ * rather than an uplift so the assumption can be stated the way the business
+ * states it — "we lend at 12%" — and the uplift that implies over the term is
+ * derived rather than typed in.
+ *
+ * This replaces a fixed multiple that could not move when the book did.
+ */
+export function relendMultiple(opts: {
+  runoff: { amount: number }[];
+  annualRate: number;
+  termMonths: number;
+  months: number;
+}): number | null {
+  const term = Math.max(1, Math.round(opts.termMonths));
+  const months = Math.max(1, Math.round(opts.months));
+  const opening = (opts.runoff || []).reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  if (!(opening > 0)) return null;
+
+  // The total repaid per pound lent, at this yearly rate over this term.
+  const monthly = Math.pow(1 + opts.annualRate, 1 / 12) - 1;
+  const annuity =
+    monthly > 0 ? (1 - Math.pow(1 + monthly, -term)) / monthly : term;
+  const uplift = (term / annuity);
+
+  const horizon = months + term + 2;
+  const collections = new Array<number>(horizon).fill(0);
+  (opts.runoff || []).forEach((r, i) => {
+    if (i < horizon) collections[i] += Number(r.amount || 0);
+  });
+  for (let m = 0; m < months; m += 1) {
+    const instalment = (collections[m] * uplift) / term;
+    if (!(instalment > 0)) continue;
+    for (let k = m + 1; k <= m + term && k < horizon; k += 1) {
+      collections[k] += instalment;
+    }
+  }
+  const still = collections.slice(months).reduce((sum, v) => sum + v, 0);
+  return Math.round((still / opening) * 10000) / 10000;
+}
+
 export function modelTurnover(
   runOff: { month: string; amount: number }[],
   opts: { uplift: number; termMonths: number; relendPct?: number }

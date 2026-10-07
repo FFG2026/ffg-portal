@@ -67,3 +67,36 @@ assert(
 );
 
 console.log("turnover-model tests ok");
+
+// --- relendMultiple -------------------------------------------------------
+import { relendMultiple } from "./turnover-model";
+
+function assertRelend(cond: unknown, msg: string) {
+  if (!cond) throw new Error(msg);
+}
+
+// Relending nothing cannot grow the book: with no collections there is no cash
+// to write away, so the multiple is undefined rather than 1.
+assertRelend(
+  relendMultiple({ runoff: [], annualRate: 0.12, termMonths: 40, months: 48 }) === null,
+  "an empty run-off has no multiple"
+);
+
+// A book that runs off over 4 months and is fully relent at 12% a year over a
+// 40-month term ends up far larger than it started.
+const rlFlat = Array.from({ length: 4 }, () => ({ amount: 1000 }));
+const m12 = relendMultiple({ runoff: rlFlat, annualRate: 0.12, termMonths: 40, months: 48 })!;
+const m17 = relendMultiple({ runoff: rlFlat, annualRate: 0.17, termMonths: 40, months: 48 })!;
+assertRelend(m12 > 1, `relending grows the book, got ${m12}`);
+assertRelend(m17 > m12, `a higher rate grows it faster, got ${m17} vs ${m12}`);
+
+// A zero rate still recycles the capital but earns nothing on it, so the book
+// is rebuilt rather than grown.
+const m0 = relendMultiple({ runoff: rlFlat, annualRate: 0, termMonths: 40, months: 48 })!;
+assertRelend(m0 < m12, `a zero rate grows least, got ${m0}`);
+
+// The rate is annual and compounding, so a longer horizon compounds further.
+const short = relendMultiple({ runoff: rlFlat, annualRate: 0.12, termMonths: 40, months: 24 })!;
+assertRelend(m12 > short, `a longer horizon compounds further, got ${m12} vs ${short}`);
+
+console.log("relendMultiple tests ok");

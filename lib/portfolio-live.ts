@@ -113,7 +113,21 @@ export function overRecoveryByType(): Record<DealType, number> {
   return split;
 }
 
-const PROJECTED_2030_RATIO =
+/**
+ * The yearly rate the book is assumed to relend at when projecting forward.
+ * Stated the way the business states it rather than derived, so the number
+ * investors are shown rests on a declared assumption they can argue with.
+ * The measured book yield is higher; this is deliberately the conservative
+ * figure.
+ */
+export const PROJECTION_RELEND_RATE = 0.12;
+
+/**
+ * Fallback multiple, used only when no run-off schedule is supplied. It is the
+ * ratio the printed August book carried, and it cannot move when the book
+ * does — which is why the live projection is modelled instead.
+ */
+const FALLBACK_2030_RATIO =
   2682087.33 / PORTFOLIO_BASE.total_outstanding;
 
 const TYPE_LABEL: Record<DealType, string> = {
@@ -193,6 +207,9 @@ export type LivePortfolio = {
   }[];
   shares_issued: number;
   repayment_per_share: number;
+  /** Multiple applied to today's value to reach the projection horizon. */
+  projected_multiple: number;
+  projection_relend_rate: number;
 };
 
 function contractedOn(deal: LiveDealInput) {
@@ -298,6 +315,12 @@ export function buildLivePortfolio(
      * the snapshot.
      */
      allDeals?: (LiveDealInput & YieldDeal)[];
+    /**
+     * The multiple on today's book at the projection horizon, modelled from the
+     * live run-off with collections written away again. Left out, the frozen
+     * ratio from the printed book is used.
+     */
+    projectedMultiple?: number | null;
   }
 ): LivePortfolio {
   const generatedAt = opts?.generatedAt || new Date().toISOString();
@@ -418,6 +441,10 @@ export function buildLivePortfolio(
     })
   );
 
+  const projectedMultiple =
+    opts?.projectedMultiple != null && Number.isFinite(opts.projectedMultiple)
+      ? opts.projectedMultiple
+      : FALLBACK_2030_RATIO;
   const repaidTotal = PORTFOLIO_BASE.shareholders.reduce(
     (sum, s) => sum + s.amount_repaid,
     0
@@ -431,7 +458,7 @@ export function buildLivePortfolio(
       amount_repaid: s.amount_repaid,
       pct_owned: Math.round(pct * 1000) / 10,
       value,
-      projected_2030: roundMoney(value * PROJECTED_2030_RATIO),
+      projected_2030: roundMoney(value * projectedMultiple),
     };
   });
 
@@ -446,5 +473,7 @@ export function buildLivePortfolio(
     shareholders,
     shares_issued: PORTFOLIO_BASE.shares_issued,
     repayment_per_share: roundMoney(repaidTotal / PORTFOLIO_BASE.shares_issued),
+    projected_multiple: Math.round(projectedMultiple * 10000) / 10000,
+    projection_relend_rate: PROJECTION_RELEND_RATE,
   };
 }

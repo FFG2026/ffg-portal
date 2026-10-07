@@ -11,7 +11,13 @@ import {
   parseCashAtBank,
   CASH_AT_BANK_SETTING,
   PORTFOLIO_BASE,
+  PROJECTION_RELEND_RATE,
 } from "../../../../lib/portfolio-live";
+import {
+  relendMultiple,
+  runOffByMonth,
+  writingShape,
+} from "../../../../lib/turnover-model";
 import {
   buildGlacierPortfolio,
   GLACIER_CASH_SETTING,
@@ -175,7 +181,39 @@ async function liveFigures(
     term_months: a.term_months,
     payments: rowsByAgreement.get(a.id) || [],
   }));
-  const portfolio = buildLivePortfolio(deals, { cashAtBank, allDeals });
+  // The shareholder projection is modelled from the live run-off rather than
+  // carrying a fixed multiple: collections are written away again each month at
+  // the stated relend rate over the book's own term, out to the end of 2030.
+  const horizonMonths = Math.max(
+    1,
+    (2030 - Number(today.slice(0, 4))) * 12 + (12 - Number(today.slice(5, 7)))
+  );
+  const shape = writingShape(agreements || []);
+  const runoff = runOffByMonth(
+    (agreements || []).flatMap((a) =>
+      (rowsByAgreement.get(a.id) || [])
+        .filter((p) => p.status !== "paid")
+        .map((p) => ({
+          due_date: p.due_date,
+          amount: p.amount,
+          agreement_status: a.status,
+        }))
+    ),
+    today.slice(0, 7),
+    horizonMonths
+  );
+  const projectedMultiple = relendMultiple({
+    runoff,
+    annualRate: PROJECTION_RELEND_RATE,
+    termMonths: shape?.termMonths || 40,
+    months: horizonMonths,
+  });
+
+  const portfolio = buildLivePortfolio(deals, {
+    cashAtBank,
+    allDeals,
+    projectedMultiple,
+  });
   return {
     ...portfolio,
     dashboard: buildFiguresDashboard({
