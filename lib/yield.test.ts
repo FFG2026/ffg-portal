@@ -51,19 +51,73 @@ assert(
   `a single bullet repayment solves to its own rate, got ${annualYield(1000, [...Array(11).fill(0), 1120])}`
 );
 
-// The contracted header is the input, not the collected rows. A part
-// settlement changes what was collected, not the rate the deal was written at,
-// and the rows carry split collections and settlement lumps that would misplace
-// money in time.
+// The stored schedule wins over the header, because several agreements carry
+// a schedule their header no longer matches.
 const recut = {
   total_lend: 1000,
   monthly_instalment: 500,
   term_months: 3,
-  payments: [{ amount: 400 }, { amount: 400 }, { amount: 400 }],
-} as never;
+  payments: [
+    { amount: 400, due_date: "2025-01-10" },
+    { amount: 400, due_date: "2025-02-10" },
+    { amount: 400, due_date: "2025-03-10" },
+  ],
+};
 assert(
-  instalmentsOf(recut).reduce((s, n) => s + n, 0) === 1500,
-  "the contracted header is used, not the collected rows"
+  instalmentsOf(recut).reduce((s, n) => s + n, 0) === 1200,
+  "the schedule is used ahead of monthly x term"
+);
+
+// Two collections in one month are one month's money, not two. HP41 is split
+// in two every month to stay under the 5,000 Direct Debit cap.
+const split = {
+  total_lend: 1000,
+  payments: [
+    { amount: 300, due_date: "2025-01-05" },
+    { amount: 300, due_date: "2025-01-27" },
+    { amount: 300, due_date: "2025-02-05" },
+    { amount: 300, due_date: "2025-02-27" },
+  ],
+};
+assert(
+  JSON.stringify(instalmentsOf(split)) === JSON.stringify([600, 600]),
+  `split collections fold into their month, got ${JSON.stringify(instalmentsOf(split))}`
+);
+
+// A month with nothing stays a zero rather than being closed up, so later
+// money is not pulled forward and the rate not overstated.
+const gap = {
+  total_lend: 1000,
+  payments: [
+    { amount: 500, due_date: "2025-01-10" },
+    { amount: 500, due_date: "2025-04-10" },
+  ],
+};
+assert(
+  JSON.stringify(instalmentsOf(gap)) === JSON.stringify([500, 0, 0, 500]),
+  `a missed month stays in place, got ${JSON.stringify(instalmentsOf(gap))}`
+);
+
+// Rows are not guaranteed to arrive in date order, so the result must not
+// depend on it.
+const shuffled = {
+  total_lend: 1000,
+  payments: [
+    { amount: 500, due_date: "2025-04-10" },
+    { amount: 500, due_date: "2025-01-10" },
+  ],
+};
+assert(
+  JSON.stringify(instalmentsOf(shuffled)) === JSON.stringify([500, 0, 0, 500]),
+  "row order does not matter"
+);
+
+// A row with no usable date falls back to the header rather than anchoring
+// the schedule somewhere wrong.
+const undated = { total_lend: 1000, monthly_instalment: 500, term_months: 3, payments: [{ amount: 400 }] };
+assert(
+  instalmentsOf(undated).length === 3,
+  "an undated schedule falls back to the header"
 );
 
 // A schedule that never repays the advance has no rate to find. HP18 is a real

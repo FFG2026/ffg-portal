@@ -570,10 +570,11 @@ function FfgFigures({
                 outstanding. {data.summary.yield_excluded_deals > 0 ? (
                   <>
                     Based on {data.summary.yield_deals} deals and{" "}
-                    {gbp(data.summary.yield_lent)} lent;{" "}
-                    {data.summary.yield_excluded_deals} older deals
-                    ({gbp(data.summary.yield_excluded_lent)}) are left out, their
-                    schedules being only part recorded.
+                    {gbp(data.summary.yield_lent)} lent.{" "}
+                    {data.summary.yield_excluded_deals} deals
+                    ({gbp(data.summary.yield_excluded_lent)}) are left out: their
+                    schedules do not repay what went out, being settled early or
+                    in arrears, so they carry no rate.
                   </>
                 ) : (
                   <>

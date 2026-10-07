@@ -20,6 +20,7 @@ export type YieldDeal = {
   commission?: number | string | null;
   monthly_instalment?: number | string | null;
   term_months?: number | null;
+  payments?: { amount?: number | string | null; due_date?: string | null }[];
 };
 
 /** Money out of the door on payout day: the lend plus the introducer's commission. */
@@ -30,18 +31,52 @@ export function advanceOf(deal: YieldDeal) {
 }
 
 /**
- * The contracted instalments: the monthly payment repeated over the term.
+ * The deal's cash flow, month by month from its first instalment.
  *
- * This deliberately uses the agreement header rather than the stored schedule.
- * Yield here means the rate the deal was written at, so the contracted price
- * is the right input — a part settlement or a re-cut instalment changes what
- * was collected, not what was agreed. The stored rows are also a poor source
- * for a cash flow: they carry settlement lumps and split collections that put
- * two rows in one month, and they are not guaranteed to arrive in date order,
- * so reading them as one payment per month in sequence would misplace money
- * in time and quietly bend the rate.
+ * The stored schedule is used when there is one, because it is what the deal
+ * actually runs on: a re-cut instalment, a part settlement or a lump all sit
+ * in it, and several agreements carry a schedule their header no longer
+ * matches. Rows are bucketed by how many months each falls after the first,
+ * which is what makes them safe to use — two collections in one month (a
+ * payment split to stay under the 5,000 Direct Debit cap) add together
+ * instead of being read as two months, a month with nothing is a zero rather
+ * than being closed up, and the order rows arrive in does not matter.
+ *
+ * The header is the fallback for a deal with no schedule yet.
  */
+function monthsBetween(from: string, to: string) {
+  const a = String(from).slice(0, 10);
+  const b = String(to).slice(0, 10);
+  return (
+    (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 +
+    (Number(b.slice(5, 7)) - Number(a.slice(5, 7)))
+  );
+}
+
+/** A schedule reaching further out than this is a bad date, not a term. */
+const MAX_SCHEDULE_MONTHS = 600;
+
 export function instalmentsOf(deal: YieldDeal): number[] {
+  const dated = (deal.payments || [])
+    .filter((r) => /^\d{4}-\d{2}-\d{2}/.test(String(r.due_date || "")))
+    .map((r) => ({
+      due: String(r.due_date).slice(0, 10),
+      amount: Number(r.amount || 0),
+    }));
+  if (dated.length) {
+    const first = dated.reduce(
+      (min, r) => (r.due < min ? r.due : min),
+      dated[0].due
+    );
+    const months: number[] = [];
+    for (const row of dated) {
+      const offset = monthsBetween(first, row.due);
+      if (offset < 0 || offset >= MAX_SCHEDULE_MONTHS) continue;
+      while (months.length <= offset) months.push(0);
+      months[offset] += row.amount;
+    }
+    if (months.length) return months;
+  }
   const monthly = Number(deal.monthly_instalment || 0);
   const term = Number(deal.term_months || 0);
   if (!(monthly > 0) || !(term > 0)) return [];
@@ -96,7 +131,12 @@ export type BookYield = {
   /** Deals the rate is based on, and what they lent. */
   deals: number;
   lent: number;
-  /** Deals left out because their schedule never repays the advance. */
+  /**
+   * Deals whose schedule never repays what went out, so there is no rate to
+   * find: early settlements where the remaining instalments were removed, and
+   * agreements in arrears. They are a credit question, not a rounding one, so
+   * they are counted out loud rather than averaged in at zero.
+   */
   excluded_deals: number;
   excluded_lent: number;
 };

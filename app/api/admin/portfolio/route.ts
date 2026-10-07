@@ -173,6 +173,7 @@ async function liveFigures(
     commission: a.commission,
     monthly_instalment: a.monthly_instalment,
     term_months: a.term_months,
+    payments: rowsByAgreement.get(a.id) || [],
   }));
   const portfolio = buildLivePortfolio(deals, { cashAtBank, allDeals });
   return {
