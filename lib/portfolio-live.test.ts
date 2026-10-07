@@ -5,6 +5,9 @@ import {
   parseCashAtBank,
   snapshotCommissionByType,
   snapshotProfitExCommission,
+  totalOverRecovery,
+  overRecoveryByType,
+  OVER_RECOVERIES,
 } from "./portfolio-live";
 
 function assert(cond: unknown, msg: string) {
@@ -82,8 +85,36 @@ assert(
   `opening profit less commission, got ${snapshotProfitExCommission()}`
 );
 assert(
-  base.summary.total_profit === 892951.63,
-  `empty book opens at the restated profit, got ${base.summary.total_profit}`
+  base.summary.total_profit === Math.round((892951.63 + totalOverRecovery()) * 100) / 100,
+  `empty book opens at the restated profit plus over-recovery, got ${base.summary.total_profit}`
+);
+
+// HP41 ran to August 2026 and took 1,684.14 more than it contracted to repay.
+// The printed book values profit as contracted repayments less the lend and
+// the commission, so money taken above the contract never reaches it.
+assert(totalOverRecovery() === 1684.14, `over-recovery, got ${totalOverRecovery()}`);
+assert(
+  OVER_RECOVERIES.length === 1 && OVER_RECOVERIES[0].agreement_number === "HP41",
+  "HP41 is the recorded over-recovery"
+);
+const recoveredSplit = overRecoveryByType();
+assert(
+  recoveredSplit.HP === 1684.14 && recoveredSplit.FL === 0 && recoveredSplit.L === 0,
+  `over-recovery lands on the HP book, got ${JSON.stringify(recoveredSplit)}`
+);
+assert(
+  Math.round((base.summary.total_profit - snapshotProfitExCommission()) * 100) / 100 ===
+    totalOverRecovery(),
+  "the live profit is the restated snapshot plus the over-recovery, nothing else"
+);
+// It is profit only. The lend, the contracted repayments and the cash the
+// printed book recorded are left exactly as printed.
+assert(
+  base.summary.total_lent === PORTFOLIO_BASE.total_lent &&
+    base.summary.total_paid === PORTFOLIO_BASE.total_paid &&
+    base.summary.total_repayments_contracted ===
+      PORTFOLIO_BASE.total_repayments_contracted,
+  "an over-recovery moves profit alone"
 );
 assert(
   PORTFOLIO_BASE.total_profit === 1095957.09,
@@ -116,7 +147,12 @@ const hp142Contracted = 410.81 * 2;
 assert(
   withHp142.summary.total_profit ===
     Math.round(
-      (snapshotProfitExCommission() + hp142Contracted - 15000 - 600) * 100
+      (snapshotProfitExCommission() +
+        totalOverRecovery() +
+        hp142Contracted -
+        15000 -
+        600) *
+        100
     ) / 100,
   `profit deducts commission as well as the lend, got ${withHp142.summary.total_profit}`
 );

@@ -923,3 +923,6 @@
   font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; color:var(--navy);}
 .fig-turnover-readout em{font-style:normal; font-family:inherit; color:var(--slate); white-space:nowrap;}
 @media (max-width:1180px){ .fig-turnover{grid-template-columns:minmax(0,1fr);} }
+
+/* Footnote under a figure, e.g. what is folded into the profit total. */
+.fig-note{margin:4px 0 0; font-size:12px; line-height:1.45; color:var(--slate); font-weight:500; max-width:34ch;}

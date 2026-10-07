@@ -555,6 +555,12 @@ function FfgFigures({
             <div className="lead">
               <dt>Total profit</dt>
               <dd>{gbp(data.summary.total_profit)}</dd>
+              {data.summary.over_recovery > 0 ? (
+                <p className="fig-note">
+                  Includes {gbp(data.summary.over_recovery)} recovered above
+                  contract on settled agreements.
+                </p>
+              ) : null}
             </div>
             <div>
               <dt>Blended yield</dt>

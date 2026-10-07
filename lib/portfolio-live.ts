@@ -68,6 +68,48 @@ export const PORTFOLIO_BASE: PortfolioSnapshot = {
   ],
 };
 
+export type OverRecovery = {
+  agreement_number: string;
+  type: DealType;
+  amount: number;
+  note: string;
+};
+
+/**
+ * An agreement that collected more than it contracted to repay. The printed
+ * book values profit as contracted repayments less the lend and the
+ * commission, so anything taken above the contract never reaches it. These
+ * are added to profit on top of the snapshot.
+ *
+ * Only closed agreements belong here. While a deal is still running, an
+ * over-collection is as likely to be a timing difference as a real gain.
+ */
+export const OVER_RECOVERIES: OverRecovery[] = [
+  {
+    agreement_number: "HP41",
+    type: "HP",
+    amount: 1684.14,
+    note:
+      "Settled Aug 2026. 228,619.50 received against 226,935.36 contracted: " +
+      "the RX14TLU part settlement was taken without re-cutting the Direct " +
+      "Debit, net of the rebate given back on EK71GRU.",
+  },
+];
+
+export function totalOverRecovery() {
+  return roundMoney(
+    OVER_RECOVERIES.reduce((sum, r) => sum + Number(r.amount || 0), 0)
+  );
+}
+
+export function overRecoveryByType(): Record<DealType, number> {
+  const split: Record<DealType, number> = { HP: 0, FL: 0, L: 0 };
+  for (const r of OVER_RECOVERIES) {
+    split[r.type] = roundMoney(split[r.type] + Number(r.amount || 0));
+  }
+  return split;
+}
+
 const PROJECTED_2030_RATIO =
   2682087.33 / PORTFOLIO_BASE.total_outstanding;
 
@@ -124,6 +166,7 @@ export type LivePortfolio = {
     total_paid: number;
     total_outstanding: number;
     total_profit: number;
+    over_recovery: number;
     blended_yield: number;
     cash_at_bank: number;
     net_position: number;
@@ -248,29 +291,39 @@ export function buildLivePortfolio(
     total_repayments_contracted: PORTFOLIO_BASE.total_repayments_contracted,
     total_paid: PORTFOLIO_BASE.total_paid,
     total_outstanding: PORTFOLIO_BASE.total_outstanding,
-    total_profit: snapshotProfitExCommission(),
+    total_profit: roundMoney(
+      snapshotProfitExCommission() + totalOverRecovery()
+    ),
+    over_recovery: totalOverRecovery(),
     blended_yield: 0,
     cash_at_bank: cashAtBank,
     net_position: 0,
   };
   const openingCommission = snapshotCommissionByType();
+  const recovered = overRecoveryByType();
   const types: Record<DealType, { deals: number; total_lent: number; total_profit: number }> = {
     HP: {
       ...PORTFOLIO_BASE.by_type.HP,
       total_profit: roundMoney(
-        PORTFOLIO_BASE.by_type.HP.total_profit - openingCommission.HP
+        PORTFOLIO_BASE.by_type.HP.total_profit -
+          openingCommission.HP +
+          recovered.HP
       ),
     },
     FL: {
       ...PORTFOLIO_BASE.by_type.FL,
       total_profit: roundMoney(
-        PORTFOLIO_BASE.by_type.FL.total_profit - openingCommission.FL
+        PORTFOLIO_BASE.by_type.FL.total_profit -
+          openingCommission.FL +
+          recovered.FL
       ),
     },
     L: {
       ...PORTFOLIO_BASE.by_type.L,
       total_profit: roundMoney(
-        PORTFOLIO_BASE.by_type.L.total_profit - openingCommission.L
+        PORTFOLIO_BASE.by_type.L.total_profit -
+          openingCommission.L +
+          recovered.L
       ),
     },
   };
