@@ -924,5 +924,14 @@
 .fig-turnover-readout em{font-style:normal; font-family:inherit; color:var(--slate); white-space:nowrap;}
 @media (max-width:1180px){ .fig-turnover{grid-template-columns:minmax(0,1fr);} }
 
-/* Footnote under a figure, e.g. what is folded into the profit total. */
+/* Footnote under a figure, e.g. what is folded into the profit total.
+   .book-kv dissolves each row with display:contents so dt and dd sit
+   directly in a two-column grid. A note is therefore a grid item too, and
+   must span the whole row or it takes a cell and shifts every figure after
+   it across by one column. The row's rule moves down on to the note so the
+   note stays visually attached to the figure it explains. */
 .fig-note{margin:4px 0 0; font-size:12px; line-height:1.45; color:var(--slate); font-weight:500; max-width:34ch;}
+.book-kv .fig-note{grid-column:1 / -1; max-width:62ch; margin:-4px 0 0;
+  padding:0 0 10px; border-bottom:1px solid var(--rule);}
+.book-kv .has-note dt,.book-kv .has-note dd{border-bottom:none; padding-bottom:2px;}
+.book-kv div:last-child .fig-note{border-bottom:none; padding-bottom:0;}

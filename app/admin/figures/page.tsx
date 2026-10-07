@@ -552,7 +552,11 @@ function FfgFigures({
               <dt>Total remaining outstanding</dt>
               <dd>{gbp(data.summary.total_outstanding)}</dd>
             </div>
-            <div className="lead">
+            <div
+              className={
+                data.summary.over_recovery > 0 ? "lead has-note" : "lead"
+              }
+            >
               <dt>Total profit</dt>
               <dd>{gbp(data.summary.total_profit)}</dd>
               {data.summary.over_recovery > 0 ? (
@@ -562,29 +566,29 @@ function FfgFigures({
                 </p>
               ) : null}
             </div>
-            <div className="lead">
+            <div className="lead has-note">
               <dt>Yield on money lent</dt>
               <dd>{pct(data.summary.annual_yield)} a year</dd>
               <p className="fig-note">
-                The rate the instalments actually earn on the balance
-                outstanding. {data.summary.yield_excluded_deals > 0 ? (
+                The rate the instalments earn on the balance outstanding, not
+                on the opening lend.{" "}
+                {data.summary.yield_excluded_deals > 0 ? (
                   <>
-                    Based on {data.summary.yield_deals} deals and{" "}
-                    {gbp(data.summary.yield_lent)} lent.{" "}
-                    {data.summary.yield_excluded_deals} deals
-                    ({gbp(data.summary.yield_excluded_lent)}) are left out: their
-                    schedules do not repay what went out, being settled early or
-                    in arrears, so they carry no rate.
+                    Across {data.summary.yield_deals} deals and{" "}
+                    {gbp(data.summary.yield_lent)} lent;{" "}
+                    {data.summary.yield_excluded_deals} settled early or in
+                    arrears ({gbp(data.summary.yield_excluded_lent)}) carry no
+                    rate and are excluded.
                   </>
                 ) : (
                   <>
-                    Based on all {data.summary.yield_deals} deals and{" "}
+                    Across all {data.summary.yield_deals} deals and{" "}
                     {gbp(data.summary.yield_lent)} lent.
                   </>
                 )}
               </p>
             </div>
-            <div>
+            <div className="has-note">
               <dt>Margin over term</dt>
               <dd>{pct(data.summary.margin_over_term)}</dd>
               <p className="fig-note">
