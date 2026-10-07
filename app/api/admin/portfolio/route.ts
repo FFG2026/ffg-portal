@@ -95,7 +95,7 @@ async function liveFigures(
     (chunk) =>
       supabase
         .from("payments")
-        .select("agreement_id, amount, status, due_date, paid_date, gocardless_payment_id, source")
+        .select("agreement_id, amount, status, due_date, paid_date, gocardless_payment_id, source, notes")
         .in("agreement_id", chunk),
     ids
   );

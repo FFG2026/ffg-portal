@@ -1,6 +1,7 @@
 import { parseAgreementRef } from "./gocardless/parse-ref";
 import { bookYield, marginOverTerm, type YieldDeal } from "./yield";
 import { roundMoney, settlementFigure, isPaidRow } from "./deal-status";
+import { vatOnDeal } from "./income";
 
 export type DealType = "HP" | "FL" | "L";
 
@@ -168,7 +169,12 @@ export type LiveDealInput = {
   monthly_instalment?: number | string | null;
   total_repayable?: number | string | null;
   term_months?: number | null;
-  payments?: { status?: string | null; amount?: number | string | null }[];
+  payments?: {
+    status?: string | null;
+    amount?: number | string | null;
+    due_date?: string | null;
+    notes?: string | null;
+  }[];
 };
 
 export type LivePortfolio = {
@@ -184,6 +190,8 @@ export type LivePortfolio = {
     total_outstanding: number;
     total_profit: number;
     over_recovery: number;
+    /** VAT inside the schedules (FL rentals, deferred VAT): collected, not earned. Already out of profit. */
+    vat_excluded: number;
     /** Profit as a share of the lend over the whole term. Not a yearly rate. */
     margin_over_term: number;
     /** The rate the money earns, solved against the instalments. Yearly. */
@@ -240,6 +248,7 @@ function paidOn(deal: LiveDealInput) {
 function profitOn(deal: LiveDealInput) {
   return roundMoney(
     contractedOn(deal) -
+      vatOnDeal(deal) -
       Number(deal.total_lend || 0) -
       Number(deal.commission || 0)
   );
@@ -329,6 +338,17 @@ export function buildLivePortfolio(
       ? roundMoney(opts.cashAtBank)
       : PORTFOLIO_BASE.cash_at_bank;
   const added = deals.filter((d) => isDealAddedAfterSnapshot(d.agreement_number));
+  // The 28 Aug profit was struck on gross rentals. The VAT inside the deals it
+  // covers is read off their live schedules and taken back out per type.
+  const snapshotVat: Record<DealType, number> = { HP: 0, FL: 0, L: 0 };
+  for (const deal of opts?.allDeals || []) {
+    const type = dealTypeOf(deal.agreement_number);
+    if (!type || isDealAddedAfterSnapshot(deal.agreement_number)) continue;
+    snapshotVat[type] = roundMoney(snapshotVat[type] + vatOnDeal(deal));
+  }
+  const snapshotVatTotal = roundMoney(
+    snapshotVat.HP + snapshotVat.FL + snapshotVat.L
+  );
   const summary = {
     total_deals: PORTFOLIO_BASE.total_deals,
     total_lent: PORTFOLIO_BASE.total_lent,
@@ -337,9 +357,10 @@ export function buildLivePortfolio(
     total_paid: PORTFOLIO_BASE.total_paid,
     total_outstanding: PORTFOLIO_BASE.total_outstanding,
     total_profit: roundMoney(
-      snapshotProfitExCommission() + totalOverRecovery()
+      snapshotProfitExCommission() + totalOverRecovery() - snapshotVatTotal
     ),
     over_recovery: totalOverRecovery(),
+    vat_excluded: snapshotVatTotal,
     margin_over_term: 0,
     annual_yield: 0,
     yield_deals: 0,
@@ -358,7 +379,8 @@ export function buildLivePortfolio(
       total_profit: roundMoney(
         PORTFOLIO_BASE.by_type.HP.total_profit -
           openingCommission.HP +
-          recovered.HP
+          recovered.HP -
+          snapshotVat.HP
       ),
     },
     FL: {
@@ -366,7 +388,8 @@ export function buildLivePortfolio(
       total_profit: roundMoney(
         PORTFOLIO_BASE.by_type.FL.total_profit -
           openingCommission.FL +
-          recovered.FL
+          recovered.FL -
+          snapshotVat.FL
       ),
     },
     L: {
@@ -374,7 +397,8 @@ export function buildLivePortfolio(
       total_profit: roundMoney(
         PORTFOLIO_BASE.by_type.L.total_profit -
           openingCommission.L +
-          recovered.L
+          recovered.L -
+          snapshotVat.L
       ),
     },
   };
@@ -390,6 +414,7 @@ export function buildLivePortfolio(
     const paid = paidOn(deal);
     const outstanding = settlementFigure(deal, deal.payments);
     const profit = profitOn(deal);
+    summary.vat_excluded = roundMoney(summary.vat_excluded + vatOnDeal(deal));
     summary.total_deals += 1;
     summary.total_lent = roundMoney(summary.total_lent + lend);
     summary.total_commission = roundMoney(summary.total_commission + comm);

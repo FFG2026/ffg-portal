@@ -198,3 +198,44 @@ assert(
 );
 
 console.log("portfolio-live tests ok");
+
+// VAT is collected, not earned: FL rentals go in net and deferred VAT stays out.
+{
+  const fl16 = {
+    agreement_number: "FL16",
+    agreement_type: "FL",
+    total_lend: 9750,
+    commission: 292.5,
+    monthly_instalment: 312.3,
+    term_months: 4,
+    payments: [{ status: "paid", amount: 1200, due_date: "2026-01-01" }],
+  };
+  const live = buildLivePortfolio([fl16]);
+  // 1,200 gross rentals = 1,000 net + 200 VAT.
+  assert(
+    live.summary.total_paid - PORTFOLIO_BASE.total_paid === 1200,
+    "cash collected stays on the gross basis"
+  );
+  assert(live.summary.vat_excluded === 200, `VAT excluded is 200, got ${live.summary.vat_excluded}`);
+  const plain = buildLivePortfolio([{ ...fl16, agreement_type: "HP", agreement_number: "HP200" }]);
+  assert(
+    Math.round((plain.summary.total_profit - live.summary.total_profit) * 100) / 100 === 200,
+    "the FL deal books 200 less profit than the same deal with no VAT in it"
+  );
+  const vatRow = buildLivePortfolio([
+    {
+      ...fl16,
+      agreement_type: "HP",
+      agreement_number: "HP201",
+      payments: [
+        { status: "paid", amount: 1200, due_date: "2026-01-01" },
+        { status: "paid", amount: 5000, due_date: "2026-01-01", notes: "Deferred VAT — paid." },
+      ],
+    },
+  ]);
+  assert(
+    vatRow.summary.total_profit === plain.summary.total_profit - 0 &&
+      vatRow.summary.vat_excluded === 5000,
+    "deferred VAT is excluded from profit and reported"
+  );
+}

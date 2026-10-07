@@ -554,7 +554,9 @@ function FfgFigures({
             </div>
             <div
               className={
-                data.summary.over_recovery > 0 ? "lead has-note" : "lead"
+                data.summary.over_recovery > 0 || data.summary.vat_excluded > 0
+                  ? "lead has-note"
+                  : "lead"
               }
             >
               <dt>Total profit</dt>
@@ -563,6 +565,13 @@ function FfgFigures({
                 <p className="fig-note">
                   Includes {gbp(data.summary.over_recovery)} recovered above
                   contract on settled agreements.
+                </p>
+              ) : null}
+              {data.summary.vat_excluded > 0 ? (
+                <p className="fig-note">
+                  After taking out {gbp(data.summary.vat_excluded)} of VAT in
+                  finance-lease rentals and deferred VAT payments. It is
+                  collected for HMRC, not earned.
                 </p>
               ) : null}
             </div>

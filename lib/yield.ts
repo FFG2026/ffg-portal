@@ -1,4 +1,5 @@
 import { roundMoney } from "./deal-status";
+import { incomeOnRow, isFinanceLease, VAT_RATE } from "./income";
 
 /**
  * Yield on money lent.
@@ -16,11 +17,16 @@ import { roundMoney } from "./deal-status";
 
 export type YieldDeal = {
   agreement_number?: string;
+  agreement_type?: string | null;
   total_lend?: number | string | null;
   commission?: number | string | null;
   monthly_instalment?: number | string | null;
   term_months?: number | null;
-  payments?: { amount?: number | string | null; due_date?: string | null }[];
+  payments?: {
+    amount?: number | string | null;
+    due_date?: string | null;
+    notes?: string | null;
+  }[];
 };
 
 /** Money out of the door on payout day: the lend plus the introducer's commission. */
@@ -61,7 +67,8 @@ export function instalmentsOf(deal: YieldDeal): number[] {
     .filter((r) => /^\d{4}-\d{2}-\d{2}/.test(String(r.due_date || "")))
     .map((r) => ({
       due: String(r.due_date).slice(0, 10),
-      amount: Number(r.amount || 0),
+      // Income, not cash: finance-lease rentals net of VAT, deferred VAT out.
+      amount: incomeOnRow(deal, r),
     }));
   if (dated.length) {
     const first = dated.reduce(
@@ -80,7 +87,8 @@ export function instalmentsOf(deal: YieldDeal): number[] {
   const monthly = Number(deal.monthly_instalment || 0);
   const term = Number(deal.term_months || 0);
   if (!(monthly > 0) || !(term > 0)) return [];
-  return Array.from({ length: term }, () => monthly);
+  const net = isFinanceLease(deal) ? monthly / (1 + VAT_RATE) : monthly;
+  return Array.from({ length: term }, () => net);
 }
 
 function presentValue(instalments: number[], monthlyRate: number) {

@@ -158,3 +158,61 @@ assert(marginOverTerm(6661.11, 25228.65) === 26.4, "margin over term is profit o
 assert(marginOverTerm(100, 0) === 0, "no lend, no margin");
 
 console.log("yield tests ok");
+
+// Finance-lease rentals are billed VAT-inclusive; the lend is the net price. A
+// rental's VAT is held for HMRC, so the yield is solved on the net rentals.
+{
+  const fl = {
+    agreement_number: "FL99",
+    total_lend: 20000,
+    commission: 0,
+    monthly_instalment: 850.15,
+    term_months: 36,
+  };
+  const gross = dealYield({ ...fl, agreement_number: "HP99" }) as number;
+  const net = dealYield(fl) as number;
+  assert(net < gross, `FL yield is struck on net rentals: ${net} < ${gross}`);
+  assert(
+    Math.abs((dealYield({ ...fl, monthly_instalment: 850.15 / 1.2, agreement_number: "HP99" }) as number) - net) < 0.05,
+    "an FL deal yields what the same net rental would as a plain deal"
+  );
+}
+
+// Deferred VAT is its own row and is not income at all.
+{
+  const withVat = {
+    agreement_number: "HP125",
+    total_lend: 20000,
+    commission: 0,
+    payments: [
+      ...Array.from({ length: 24 }, (_, i) => ({
+        amount: 1000,
+        due_date: `${2026 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-15`,
+      })),
+      { amount: 13198, due_date: "2026-04-15", notes: "Deferred VAT — paid." },
+    ],
+  };
+  const without = { ...withVat, payments: withVat.payments.slice(0, 24) };
+  assert(
+    dealYield(withVat) === dealYield(without),
+    "deferred VAT does not lift the yield"
+  );
+}
+
+// A row that merely mentions deferred VAT is still a rental (HP140's September row).
+{
+  const mention = {
+    agreement_number: "HP140",
+    total_lend: 20000,
+    commission: 0,
+    payments: Array.from({ length: 24 }, (_, i) => ({
+      amount: 1000,
+      due_date: `${2026 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-15`,
+      notes: i === 1 ? "September instalment. The deferred VAT that was folded into this row is now its own row." : null,
+    })),
+  };
+  assert(
+    dealYield(mention) === dealYield({ ...mention, payments: mention.payments.map((p) => ({ ...p, notes: null })) }),
+    "a note that mentions deferred VAT does not make the row pass-through"
+  );
+}
