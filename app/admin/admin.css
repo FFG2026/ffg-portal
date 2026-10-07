@@ -604,7 +604,10 @@
 .book-kv dt,.book-kv dd{padding:10px 0; border-bottom:1px solid var(--rule); font-size:13.5px;}
 .book-kv div:last-child dt,.book-kv div:last-child dd{border-bottom:none;}
 .book-kv dt{color:var(--ink-soft);}
-.book-kv dd{text-align:right; font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums;
+/* Browsers give dd a 40px left margin by default, which pushed the value
+   column off its grid track and broke each row's rule into two pieces. */
+.book-kv dd{margin:0; text-align:right; font-family:'IBM Plex Mono', monospace;
+  font-variant-numeric:tabular-nums;
   color:var(--navy); font-weight:600; font-size:13px;}
 /* The figures that actually get read first. */
 .book-kv .lead dt{color:var(--navy); font-weight:600;}

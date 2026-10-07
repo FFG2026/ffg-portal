@@ -566,34 +566,14 @@ function FfgFigures({
                 </p>
               ) : null}
             </div>
-            <div className="lead has-note">
-              <dt>Yield on money lent</dt>
-              <dd>{pct(data.summary.annual_yield)} a year</dd>
-              <p className="fig-note">
-                The rate the instalments earn on the balance outstanding, not
-                on the opening lend.{" "}
-                {data.summary.yield_excluded_deals > 0 ? (
-                  <>
-                    Across {data.summary.yield_deals} deals and{" "}
-                    {gbp(data.summary.yield_lent)} lent;{" "}
-                    {data.summary.yield_excluded_deals} settled early or in
-                    arrears ({gbp(data.summary.yield_excluded_lent)}) carry no
-                    rate and are excluded.
-                  </>
-                ) : (
-                  <>
-                    Across all {data.summary.yield_deals} deals and{" "}
-                    {gbp(data.summary.yield_lent)} lent.
-                  </>
-                )}
-              </p>
-            </div>
             <div className="has-note">
               <dt>Margin over term</dt>
               <dd>{pct(data.summary.margin_over_term)}</dd>
               <p className="fig-note">
-                Profit as a share of the lend across the whole term, not a
-                yearly rate.
+                The profit above as a share of everything lent
+                ({gbp(data.summary.total_profit)} of{" "}
+                {gbp(data.summary.total_lent)}), earned across each deal&apos;s
+                full term. Not a yearly rate.
               </p>
             </div>
             <div>
@@ -605,6 +585,29 @@ function FfgFigures({
                 savingCash={savingCash}
                 setCashMsg={setCashMsg}
               />
+            </div>
+            <div className="lead has-note">
+              <dt>Yield on money lent</dt>
+              <dd>{pct(data.summary.annual_yield)} a year</dd>
+              <p className="fig-note">
+                A yearly rate, and a separate measure from the margin above:
+                what the instalments earn on the balance still outstanding
+                rather than on the opening lend.{" "}
+                {data.summary.yield_excluded_deals > 0 ? (
+                  <>
+                    Solved across {data.summary.yield_deals} deals and{" "}
+                    {gbp(data.summary.yield_lent)} lent;{" "}
+                    {data.summary.yield_excluded_deals} settled early or in
+                    arrears ({gbp(data.summary.yield_excluded_lent)}) carry no
+                    rate and are excluded.
+                  </>
+                ) : (
+                  <>
+                    Solved across all {data.summary.yield_deals} deals and{" "}
+                    {gbp(data.summary.yield_lent)} lent.
+                  </>
+                )}
+              </p>
             </div>
             <div className="lead">
               <dt>Net position (incl. facility)</dt>
