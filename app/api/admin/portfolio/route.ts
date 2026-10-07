@@ -14,10 +14,12 @@ import {
   PROJECTION_RELEND_RATE,
 } from "../../../../lib/portfolio-live";
 import {
+  addMonthKey,
   relendMultiple,
   runOffByMonth,
   writingShape,
 } from "../../../../lib/turnover-model";
+import { collectedThisMonthFromLinkedRows } from "../../../../lib/gocardless/match-payments";
 import {
   buildGlacierPortfolio,
   GLACIER_CASH_SETTING,
@@ -30,6 +32,7 @@ import {
 import {
   LATEST_MONTH_KEY,
   MONTHLY_FIGURES,
+  withLiveMonthToDate,
 } from "../../../../lib/monthly-figures";
 
 export const dynamic = "force-dynamic";
@@ -92,7 +95,7 @@ async function liveFigures(
     (chunk) =>
       supabase
         .from("payments")
-        .select("agreement_id, amount, status, due_date, paid_date")
+        .select("agreement_id, amount, status, due_date, paid_date, gocardless_payment_id, source")
         .in("agreement_id", chunk),
     ids
   );
@@ -209,6 +212,23 @@ async function liveFigures(
     months: horizonMonths,
   });
 
+  // The curated monthly table only snapshots the month in progress on the day
+  // it is written, so the open month is recomputed here on exactly the basis
+  // the dashboard uses — Direct Debit collections plus genuine cash receipts.
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const nextMonthStart = `${addMonthKey(today.slice(0, 7), 1)}-01`;
+  const collectedThisMonth = collectedThisMonthFromLinkedRows(
+    dashboardDeals.flatMap((d) =>
+      (d.payments || []).map((p) => ({
+        ...p,
+        monthly_instalment: d.monthly_instalment,
+      }))
+    ),
+    monthStart,
+    nextMonthStart
+  );
+  const monthlyWithLiveMtd = withLiveMonthToDate(MONTHLY_FIGURES, collectedThisMonth);
+
   const portfolio = buildLivePortfolio(deals, {
     cashAtBank,
     allDeals,
@@ -218,7 +238,7 @@ async function liveFigures(
     ...portfolio,
     dashboard: buildFiguresDashboard({
       deals: dashboardDeals,
-      monthly: MONTHLY_FIGURES,
+      monthly: monthlyWithLiveMtd,
       monthKey: monthKey || LATEST_MONTH_KEY,
       today,
       totalBook: portfolio.summary.total_outstanding,

@@ -59,3 +59,25 @@ export function neighbouringMonth(key: string, delta: number) {
   if (i < 0 || i >= MONTHLY_FIGURES.length) return null;
   return MONTHLY_FIGURES[i];
 }
+
+/**
+ * The month in progress, taken from the live book rather than the table.
+ *
+ * MONTHLY_FIGURES is a curated record: each closed month is reconciled against
+ * the bank and then does not move. The row for the month still running is
+ * marked `mtd` and was only ever a snapshot of the day it was written, so it
+ * goes stale the moment the next collection lands — which is how the Live
+ * figures page came to show a different total from the dashboard for the same
+ * month. The closed months stay exactly as curated; only the open one is
+ * replaced, and with the figure the dashboard itself computes, so the two
+ * pages agree by construction rather than by being updated in step.
+ */
+export function withLiveMonthToDate(
+  rows: MonthlyFiguresRow[],
+  collectedSoFar: number | null | undefined
+): MonthlyFiguresRow[] {
+  if (collectedSoFar == null || !Number.isFinite(collectedSoFar)) return rows;
+  return rows.map((row) =>
+    row.mtd ? { ...row, payments_received: Math.round(collectedSoFar * 100) / 100 } : row
+  );
+}
