@@ -1,4 +1,5 @@
 import { roundMoney, settlementFigure, isPaidRow } from "./deal-status";
+import { bookYield, marginOverTerm } from "./yield";
 
 export const GLACIER_SHAREHOLDERS = ["Owen", "Ron", "Bob", "Len"] as const;
 
@@ -38,6 +39,11 @@ export type GlacierPortfolio = {
     total_paid: number;
     total_outstanding: number;
     total_profit: number;
+    annual_yield: number;
+    yield_deals: number;
+    yield_lent: number;
+    yield_excluded_deals: number;
+    yield_excluded_lent: number;
     blended_yield: number;
     avg_term_months: number;
     capital_in: number;
@@ -70,18 +76,6 @@ export function yearsUntil(isoDate: string, fromIso?: string) {
   const to = Date.parse(`${isoDate}T00:00:00Z`);
   if (!Number.isFinite(from) || !Number.isFinite(to)) return 0;
   return Math.max(0, (to - from) / (365.25 * 24 * 60 * 60 * 1000));
-}
-
-/** Turn profit over a typical deal term into a yearly compound rate. */
-export function annualizedYield(
-  profit: number,
-  lent: number,
-  avgTermMonths: number
-) {
-  if (lent <= 0 || avgTermMonths <= 0) return 0;
-  const totalReturn = 1 + profit / lent;
-  if (totalReturn <= 0) return 0;
-  return Math.pow(totalReturn, 12 / avgTermMonths) - 1;
 }
 
 export function compoundForward(
@@ -130,9 +124,11 @@ export function buildGlacierPortfolio(
   // Commission is paid out on payout day, so it is outlay, never earnings.
   const profit = roundMoney(contracted - lent - commission);
   const avgTermMonths = lent > 0 ? termWeight / lent : 36;
-  const blendedYield =
-    lent > 0 ? Math.round((profit / lent) * 1000) / 10 : 0;
-  const annualYield = annualizedYield(profit, lent, avgTermMonths);
+  const marginPct = marginOverTerm(profit, lent);
+  // The rate the money actually earns, solved against the instalments rather
+  // than assumed to sit on the opening lend for the whole term.
+  const yieldOnBook = bookYield(deals);
+  const annualYield = yieldOnBook.annual_yield / 100;
   const years = yearsUntil(GLACIER_HORIZON, opts?.from || generatedAt);
   const capitalIn = GLACIER_INVESTMENT_EACH * GLACIER_SHAREHOLDERS.length;
 
@@ -152,7 +148,7 @@ export function buildGlacierPortfolio(
     generated_at: generatedAt,
     horizon: GLACIER_HORIZON,
     years_to_horizon: Math.round(years * 100) / 100,
-    annual_yield: Math.round(annualYield * 1000) / 10,
+    annual_yield: yieldOnBook.annual_yield,
     summary: {
       total_deals: deals.length,
       total_lent: lent,
@@ -161,7 +157,12 @@ export function buildGlacierPortfolio(
       total_paid: paid,
       total_outstanding: outstanding,
       total_profit: profit,
-      blended_yield: blendedYield,
+      blended_yield: marginPct,
+      annual_yield: yieldOnBook.annual_yield,
+      yield_deals: yieldOnBook.deals,
+      yield_lent: yieldOnBook.lent,
+      yield_excluded_deals: yieldOnBook.excluded_deals,
+      yield_excluded_lent: yieldOnBook.excluded_lent,
       avg_term_months: Math.round(avgTermMonths * 10) / 10,
       capital_in: capitalIn,
       cash_at_bank: cashAtBank,

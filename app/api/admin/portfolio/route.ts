@@ -164,7 +164,17 @@ async function liveFigures(
       ? cashOverride
       : cashParsed ?? PORTFOLIO_BASE.cash_at_bank;
 
-  const portfolio = buildLivePortfolio(deals, { cashAtBank });
+  // The totals stay on the printed snapshot, but a rate cannot be recovered
+  // from totals, so every agreement on the book goes in for the yield.
+  const allDeals = (agreements || []).map((a) => ({
+    agreement_number: a.agreement_number,
+    agreement_type: a.agreement_type,
+    total_lend: a.total_lend,
+    commission: a.commission,
+    monthly_instalment: a.monthly_instalment,
+    term_months: a.term_months,
+  }));
+  const portfolio = buildLivePortfolio(deals, { cashAtBank, allDeals });
   return {
     ...portfolio,
     dashboard: buildFiguresDashboard({

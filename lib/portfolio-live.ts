@@ -1,4 +1,5 @@
 import { parseAgreementRef } from "./gocardless/parse-ref";
+import { bookYield, marginOverTerm, type YieldDeal } from "./yield";
 import { roundMoney, settlementFigure, isPaidRow } from "./deal-status";
 
 export type DealType = "HP" | "FL" | "L";
@@ -15,7 +16,9 @@ export type PortfolioTypeRow = {
   deals: number;
   total_lent: number;
   total_profit: number;
-  avg_yield: number;
+  /** Profit over lend across the term. Not a yearly rate. */
+  margin_over_term: number;
+  annual_yield: number;
 };
 
 export type PortfolioSnapshot = {
@@ -30,7 +33,7 @@ export type PortfolioSnapshot = {
   cash_at_bank: number;
   facility: number;
   shares_issued: number;
-  by_type: Record<DealType, Omit<PortfolioTypeRow, "label" | "type" | "avg_yield">>;
+  by_type: Record<DealType, Omit<PortfolioTypeRow, "label" | "type" | "margin_over_term" | "annual_yield">>;
   shareholders: PortfolioShareholder[];
 };
 
@@ -167,6 +170,14 @@ export type LivePortfolio = {
     total_outstanding: number;
     total_profit: number;
     over_recovery: number;
+    /** Profit as a share of the lend over the whole term. Not a yearly rate. */
+    margin_over_term: number;
+    /** The rate the money earns, solved against the instalments. Yearly. */
+    annual_yield: number;
+    yield_deals: number;
+    yield_lent: number;
+    yield_excluded_deals: number;
+    yield_excluded_lent: number;
     blended_yield: number;
     cash_at_bank: number;
     net_position: number;
@@ -276,7 +287,18 @@ export function snapshotProfitExCommission() {
 
 export function buildLivePortfolio(
   deals: LiveDealInput[],
-  opts?: { generatedAt?: string; cashAtBank?: number | null }
+  opts?: {
+    generatedAt?: string;
+    cashAtBank?: number | null;
+    /**
+     * Every agreement on the book, used for the yield alone. The totals stay
+     * on the printed snapshot, but a rate cannot be recovered from totals —
+     * it needs each deal's own instalments — so the whole book is passed in
+     * separately. Left out, the rate falls back to the deals written since
+     * the snapshot.
+     */
+     allDeals?: (LiveDealInput & YieldDeal)[];
+  }
 ): LivePortfolio {
   const generatedAt = opts?.generatedAt || new Date().toISOString();
   const cashAtBank =
@@ -295,6 +317,12 @@ export function buildLivePortfolio(
       snapshotProfitExCommission() + totalOverRecovery()
     ),
     over_recovery: totalOverRecovery(),
+    margin_over_term: 0,
+    annual_yield: 0,
+    yield_deals: 0,
+    yield_lent: 0,
+    yield_excluded_deals: 0,
+    yield_excluded_lent: 0,
     blended_yield: 0,
     cash_at_bank: cashAtBank,
     net_position: 0,
@@ -353,14 +381,26 @@ export function buildLivePortfolio(
     types[type].total_profit = roundMoney(types[type].total_profit + profit);
   }
 
-  summary.blended_yield =
-    summary.total_lent > 0
-      ? Math.round((summary.total_profit / summary.total_lent) * 1000) / 10
-      : 0;
+  summary.margin_over_term = marginOverTerm(
+    summary.total_profit,
+    summary.total_lent
+  );
+  summary.blended_yield = summary.margin_over_term;
+  const yieldBook = bookYield(
+    (opts?.allDeals && opts.allDeals.length ? opts.allDeals : deals) as YieldDeal[]
+  );
+  summary.annual_yield = yieldBook.annual_yield;
+  summary.yield_deals = yieldBook.deals;
+  summary.yield_lent = yieldBook.lent;
+  summary.yield_excluded_deals = yieldBook.excluded_deals;
+  summary.yield_excluded_lent = yieldBook.excluded_lent;
   summary.net_position = roundMoney(
     summary.total_outstanding + summary.cash_at_bank - PORTFOLIO_BASE.facility
   );
 
+  const yieldPool = (opts?.allDeals && opts.allDeals.length
+    ? opts.allDeals
+    : deals) as (LiveDealInput & YieldDeal)[];
   const by_type: PortfolioTypeRow[] = (["HP", "FL", "L"] as DealType[]).map(
     (type) => ({
       type,
@@ -368,12 +408,13 @@ export function buildLivePortfolio(
       deals: types[type].deals,
       total_lent: types[type].total_lent,
       total_profit: types[type].total_profit,
-      avg_yield:
-        types[type].total_lent > 0
-          ? Math.round(
-              (types[type].total_profit / types[type].total_lent) * 1000
-            ) / 10
-          : 0,
+      margin_over_term: marginOverTerm(
+        types[type].total_profit,
+        types[type].total_lent
+      ),
+      annual_yield: bookYield(
+        yieldPool.filter((d) => dealTypeOf(d.agreement_number) === type)
+      ).annual_yield,
     })
   );
 

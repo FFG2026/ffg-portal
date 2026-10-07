@@ -562,9 +562,34 @@ function FfgFigures({
                 </p>
               ) : null}
             </div>
+            <div className="lead">
+              <dt>Yield on money lent</dt>
+              <dd>{pct(data.summary.annual_yield)} a year</dd>
+              <p className="fig-note">
+                The rate the instalments actually earn on the balance
+                outstanding. {data.summary.yield_excluded_deals > 0 ? (
+                  <>
+                    Based on {data.summary.yield_deals} deals and{" "}
+                    {gbp(data.summary.yield_lent)} lent;{" "}
+                    {data.summary.yield_excluded_deals} older deals
+                    ({gbp(data.summary.yield_excluded_lent)}) are left out, their
+                    schedules being only part recorded.
+                  </>
+                ) : (
+                  <>
+                    Based on all {data.summary.yield_deals} deals and{" "}
+                    {gbp(data.summary.yield_lent)} lent.
+                  </>
+                )}
+              </p>
+            </div>
             <div>
-              <dt>Blended yield</dt>
-              <dd>{pct(data.summary.blended_yield)}</dd>
+              <dt>Margin over term</dt>
+              <dd>{pct(data.summary.margin_over_term)}</dd>
+              <p className="fig-note">
+                Profit as a share of the lend across the whole term, not a
+                yearly rate.
+              </p>
             </div>
             <div>
               <dt>Cash at bank</dt>
@@ -596,7 +621,8 @@ function FfgFigures({
                 <dl>
                   <div><dt>Total lent</dt><dd>{gbp(row.total_lent)}</dd></div>
                   <div><dt>Total profit</dt><dd>{gbp(row.total_profit)}</dd></div>
-                  <div><dt>Average yield</dt><dd>{pct(row.avg_yield)}</dd></div>
+                  <div><dt>Yield a year</dt><dd>{pct(row.annual_yield)}</dd></div>
+                  <div><dt>Margin over term</dt><dd>{pct(row.margin_over_term)}</dd></div>
                 </dl>
               </article>
             ))}
@@ -766,12 +792,12 @@ function GlacierFigures({
               <dd>{gbp(data.summary.total_profit)}</dd>
             </div>
             <div>
-              <dt>Blended yield</dt>
+              <dt>Margin over term</dt>
               <dd>{pct(data.summary.blended_yield)}</dd>
             </div>
             <div>
-              <dt>Annualised yield (for compounding)</dt>
-              <dd>{pct(data.annual_yield)}</dd>
+              <dt>Yield on money lent</dt>
+              <dd>{pct(data.annual_yield)} a year</dd>
             </div>
             <div>
               <dt>Cash at bank</dt>

@@ -1,6 +1,5 @@
 import {
   GLACIER_INVESTMENT_EACH,
-  annualizedYield,
   buildGlacierPortfolio,
   compoundForward,
   yearsUntil,
@@ -11,7 +10,6 @@ function assert(cond: unknown, msg: string) {
 }
 
 assert(Math.abs(yearsUntil("2028-09-21", "2026-09-21T00:00:00.000Z") - 2) < 0.01, "two years");
-assert(Math.abs(annualizedYield(0.213, 1, 36) - (Math.pow(1.213, 1 / 3) - 1)) < 1e-9, "3yr annualise");
 assert(compoundForward(100, 0.1, 2) === 121, "10% two years");
 
 const empty = buildGlacierPortfolio([], {

@@ -318,8 +318,9 @@ export function ForecastChart({
 
       <p className="fig-assumption">
         Run-off plus reinvestment: assumes the {gbp0(forecast.monthly_collections)} a
-        month currently collected is lent again at the book&apos;s blended yield of{" "}
-        {forecast.assumed_yield}%. A projection, not contracted business.
+        month currently collected is lent again, each pound adding the book&apos;s
+        margin over a full term of {forecast.assumed_yield}% to contracted value.
+        A projection, not contracted business.
       </p>
     </div>
   );
