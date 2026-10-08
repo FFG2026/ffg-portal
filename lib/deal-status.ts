@@ -241,7 +241,31 @@ export type PaymentDateRow = {
   amount?: number | string | null;
   due_date?: string | null;
   paid_date?: string | null;
+  /**
+   * The date GoCardless actually charges the instalment, when it is known.
+   * Overdue is counted from this, not from the schedule date, because the
+   * Direct Debit goes out a few days either side of it.
+   */
+  effective_due?: string | null;
+  /** A Direct Debit for this instalment is on its way or already collected. */
+  collecting?: boolean | null;
 };
+
+/** An instalment is not overdue until it has gone this long past its charge date. */
+export const OVERDUE_GRACE_DAYS = 3;
+
+function wholeDaysBetween(from: string, to: string) {
+  const a = Date.UTC(Number(from.slice(0, 4)), Number(from.slice(5, 7)) - 1, Number(from.slice(8, 10)));
+  const b = Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5, 7)) - 1, Number(to.slice(8, 10)));
+  return Math.round((b - a) / 86400000);
+}
+
+/** The date overdue is counted from: the GoCardless charge date, else the schedule date. */
+export function overdueFromDate(row: PaymentDateRow) {
+  const charge = String(row.effective_due || "").slice(0, 10);
+  if (charge.length === 10) return charge;
+  return String(row.due_date || "").slice(0, 10);
+}
 
 export function addCalendarMonths(iso: string, months: number) {
   const y = Number(iso.slice(0, 4));
@@ -292,8 +316,14 @@ export function overdueSum(
     (rows || [])
       .filter((r) => {
         if (isPaidRow(r.status) || !r.due_date) return false;
-        const due = String(r.due_date).slice(0, 10);
-        return due.length === 10 && due >= from && due < today;
+        // Money already instructed or collected is on its way, not missing.
+        if (r.collecting) return false;
+        const due = overdueFromDate(r);
+        return (
+          due.length === 10 &&
+          due >= from &&
+          wholeDaysBetween(due, today) >= OVERDUE_GRACE_DAYS
+        );
       })
       .reduce((sum, r) => sum + Number(r.amount || 0), 0)
   );

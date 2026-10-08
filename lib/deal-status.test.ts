@@ -278,8 +278,13 @@ assert(
 );
 assert(
   liveOverdueSum({ status: "active", term_months: 36 }, septemberMiss, "2026-10-24") ===
+    1604.25,
+  "October's own instalment is not overdue until it is 3 days past its date"
+);
+assert(
+  liveOverdueSum({ status: "active", term_months: 36 }, septemberMiss, "2026-10-26") ===
     3208.5,
-  "once October's own instalment passes unpaid it joins the arrears"
+  "once October's own instalment is 3 days late unpaid it joins the arrears"
 );
 assert(
   liveArrearsBroughtForward(

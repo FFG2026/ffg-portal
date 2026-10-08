@@ -37,8 +37,11 @@ import {
 } from "../../../../lib/turnover-model";
 import {
   missRowsForAgreements,
+  paymentsForAgreement,
   persistDirectDebitMissRows,
+  withPaymentMatchContext,
 } from "../../../../lib/gocardless/sync-payments";
+import { withChargeDates } from "../../../../lib/gocardless/charge-dates";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -88,6 +91,7 @@ export async function GET(request: Request) {
   let gcInFlightCount = 0;
   let gcHistory: any[] = [];
   let gcFailed: any[] = [];
+  let gcInFlightRaw: any[] = [];
   try {
     [agreements, customers] = await Promise.all([
       fetchAllRows(() =>
@@ -122,6 +126,7 @@ export async function GET(request: Request) {
         gcCollectedThisMonth = collectedPoundsFromGoCardlessPayments(gcMonth);
         gcMonthCount = gcMonth.length;
         const inFlight = loaded[2] || [];
+        gcInFlightRaw = inFlight;
         gcInFlight = inFlightPoundsFromGoCardlessPayments(inFlight);
         gcInFlightCount = inFlight.length;
         gcMonthLoaded = true;
@@ -175,6 +180,29 @@ export async function GET(request: Request) {
     const list = paymentsByAgreement.get(p.agreement_id) || [];
     list.push(p);
     paymentsByAgreement.set(p.agreement_id, list);
+  }
+
+  // Overdue is counted from the day GoCardless charges each instalment, and
+  // not before it has gone OVERDUE_GRACE_DAYS past that. Where GoCardless did
+  // not load, the schedule date stands in and the same grace still applies.
+  const gcAll = [...gcHistory, ...gcFailed, ...gcInFlightRaw];
+  const toSync = withPaymentMatchContext(
+    (agreements || []).map((agreement) => ({
+      id: agreement.id,
+      agreement_number: agreement.agreement_number,
+      gocardless_mandate_id: agreement.gocardless_mandate_id,
+      monthly_instalment: agreement.monthly_instalment,
+    }))
+  );
+  const chargedRowsByAgreement = new Map<string, any[]>();
+  for (const agreement of toSync) {
+    const rows = paymentsByAgreement.get(agreement.id) || [];
+    chargedRowsByAgreement.set(
+      agreement.id,
+      gcAll.length
+        ? withChargeDates(rows, paymentsForAgreement(gcAll, agreement))
+        : rows
+    );
   }
 
   const statusById = new Map(
@@ -250,7 +278,12 @@ export async function GET(request: Request) {
     if (liveById.get(a.id) === false) continue;
     const rows = paymentsByAgreement.get(a.id) || [];
     const company = nameById.get(a.customer_id) || "";
-    const od = chaseOverdueSum(company, a, rows, today);
+    const od = chaseOverdueSum(
+      company,
+      a,
+      chargedRowsByAgreement.get(a.id) || rows,
+      today
+    );
     overdue += od;
     arrearsBroughtIn += chaseArrearsBroughtForward(company, a, rows, today);
     outstanding += settlementFigure(a, rows) - od;
@@ -344,7 +377,14 @@ export async function GET(request: Request) {
       });
     }
     const overdueAmt =
-      unpaidSum(rows) > 0 ? chaseOverdueSum(company, a, rows, today) : 0;
+      unpaidSum(rows) > 0
+        ? chaseOverdueSum(
+            company,
+            a,
+            chargedRowsByAgreement.get(a.id) || rows,
+            today
+          )
+        : 0;
     if (isLive && overdueAmt > 0) {
       attention.push({
         agreement_number: a.agreement_number,
