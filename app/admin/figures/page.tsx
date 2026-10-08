@@ -548,9 +548,25 @@ function FfgFigures({
               <dt>Total paid to date</dt>
               <dd>{gbp(data.summary.total_paid)}</dd>
             </div>
-            <div className="lead">
+            <div
+              className={
+                data.summary.excluded.length > 0 ? "lead has-note" : "lead"
+              }
+            >
               <dt>Total remaining outstanding</dt>
               <dd>{gbp(data.summary.total_outstanding)}</dd>
+              {data.summary.excluded.length > 0 ? (
+                <p className="fig-note">
+                  Leaves out{" "}
+                  {data.summary.excluded
+                    .map((d) => d.agreement_number)
+                    .join(", ")}{" "}
+                  ({gbp(
+                    data.summary.excluded.reduce((sum, d) => sum + d.outstanding, 0)
+                  )}) while recovery is looked into. It is held out of every
+                  total on this page.
+                </p>
+              ) : null}
             </div>
             <div
               className={

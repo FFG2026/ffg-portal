@@ -72,6 +72,62 @@ export const PORTFOLIO_BASE: PortfolioSnapshot = {
   ],
 };
 
+/**
+ * Deals the printed 28 Aug book carries that are held out of every sum for now.
+ *
+ * FL7 (Future Logistics Worldwide Ltd, Renault Master NJ73 FDK) has never had a
+ * rental collected — the Direct Debit was cancelled before the first — and the
+ * vehicle's keeper has since changed, so it is not performing business. It is
+ * not in the agreements table, only inside the printed totals, and there is no
+ * per-deal record of what the snapshot booked for it. The figures below are
+ * therefore read from the signed agreement and the supplier invoice: the net
+ * price paid out, and the contracted rentals (2,605.50 + 24 x 1,168, plus VAT).
+ * Confirm against the printed book and correct here if it differs.
+ */
+export type ExcludedDeal = {
+  agreement_number: string;
+  type: DealType;
+  lent: number;
+  commission: number;
+  /** Contracted rentals including VAT, on the same cash basis as the rest of the book. */
+  contracted: number;
+  paid: number;
+  outstanding: number;
+  /** Contracted rentals net of VAT less lent and commission. */
+  profit: number;
+  reason: string;
+};
+
+export const EXCLUDED_DEALS: ExcludedDeal[] = [
+  {
+    agreement_number: "FL7",
+    type: "FL",
+    lent: 26000,
+    commission: 0,
+    contracted: 36765,
+    paid: 0,
+    outstanding: 36765,
+    profit: 4637.5,
+    reason:
+      "No rental ever collected; Direct Debit cancelled before the first and the keeper has changed. Held out while recovery is looked into.",
+  },
+];
+
+function excludedTotals(type?: DealType) {
+  const rows = EXCLUDED_DEALS.filter((d) => !type || d.type === type);
+  const sum = (pick: (d: ExcludedDeal) => number) =>
+    roundMoney(rows.reduce((total, d) => total + pick(d), 0));
+  return {
+    deals: rows.length,
+    lent: sum((d) => d.lent),
+    commission: sum((d) => d.commission),
+    contracted: sum((d) => d.contracted),
+    paid: sum((d) => d.paid),
+    outstanding: sum((d) => d.outstanding),
+    profit: sum((d) => d.profit),
+  };
+}
+
 export type OverRecovery = {
   agreement_number: string;
   type: DealType;
@@ -190,6 +246,13 @@ export type LivePortfolio = {
     total_outstanding: number;
     total_profit: number;
     over_recovery: number;
+    /** Deals held out of every sum above, and what they would have added. */
+    excluded: {
+      agreement_number: string;
+      outstanding: number;
+      lent: number;
+      reason: string;
+    }[];
     /** VAT inside the schedules (FL rentals, deferred VAT): collected, not earned. Already out of profit. */
     vat_excluded: number;
     /** Profit as a share of the lend over the whole term. Not a yearly rate. */
@@ -367,22 +430,35 @@ export function buildLivePortfolio(
             (PORTFOLIO_BASE.by_type.FL.total_profit - openingCommissionFl)
         );
   const flVatAdjust = flOpeningProfit == null ? snapshotVat.FL : 0;
+  const held = excludedTotals();
+  const heldFl = excludedTotals("FL");
   const summary = {
-    total_deals: PORTFOLIO_BASE.total_deals,
-    total_lent: PORTFOLIO_BASE.total_lent,
-    total_commission: PORTFOLIO_BASE.total_commission,
-    total_repayments_contracted: PORTFOLIO_BASE.total_repayments_contracted,
-    total_paid: PORTFOLIO_BASE.total_paid,
-    total_outstanding: PORTFOLIO_BASE.total_outstanding,
+    total_deals: PORTFOLIO_BASE.total_deals - held.deals,
+    total_lent: roundMoney(PORTFOLIO_BASE.total_lent - held.lent),
+    total_commission: roundMoney(PORTFOLIO_BASE.total_commission - held.commission),
+    total_repayments_contracted: roundMoney(
+      PORTFOLIO_BASE.total_repayments_contracted - held.contracted
+    ),
+    total_paid: roundMoney(PORTFOLIO_BASE.total_paid - held.paid),
+    total_outstanding: roundMoney(
+      PORTFOLIO_BASE.total_outstanding - held.outstanding
+    ),
     total_profit: roundMoney(
       snapshotProfitExCommission() +
         totalOverRecovery() -
         snapshotVat.HP -
         snapshotVat.L -
         flVatAdjust +
-        flReplacesPrinted
+        flReplacesPrinted -
+        (flOpeningProfit == null ? heldFl.profit : 0)
     ),
     over_recovery: totalOverRecovery(),
+    excluded: EXCLUDED_DEALS.map((d) => ({
+      agreement_number: d.agreement_number,
+      outstanding: d.outstanding,
+      lent: d.lent,
+      reason: d.reason,
+    })),
     vat_excluded: snapshotVatTotal,
     margin_over_term: 0,
     annual_yield: 0,
@@ -408,6 +484,10 @@ export function buildLivePortfolio(
     },
     FL: {
       ...PORTFOLIO_BASE.by_type.FL,
+      deals: PORTFOLIO_BASE.by_type.FL.deals - heldFl.deals,
+      total_lent: roundMoney(PORTFOLIO_BASE.by_type.FL.total_lent - heldFl.lent),
+      // The live finance leases already leave a held-out deal off; only the
+      // printed fallback still carries it and has to have it taken back out.
       total_profit:
         flOpeningProfit != null
           ? roundMoney(flOpeningProfit + recovered.FL)
@@ -415,7 +495,8 @@ export function buildLivePortfolio(
               PORTFOLIO_BASE.by_type.FL.total_profit -
                 openingCommission.FL +
                 recovered.FL -
-                snapshotVat.FL
+                snapshotVat.FL -
+                heldFl.profit
             ),
     },
     L: {

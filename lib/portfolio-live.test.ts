@@ -8,7 +8,22 @@ import {
   totalOverRecovery,
   overRecoveryByType,
   OVER_RECOVERIES,
+  EXCLUDED_DEALS,
 } from "./portfolio-live";
+
+// Deals held out of every sum (FL7): what the printed totals carry for them.
+const held = EXCLUDED_DEALS.reduce(
+  (t, d) => ({
+    deals: t.deals + 1,
+    lent: t.lent + d.lent,
+    contracted: t.contracted + d.contracted,
+    paid: t.paid + d.paid,
+    outstanding: t.outstanding + d.outstanding,
+    profit: t.profit + d.profit,
+  }),
+  { deals: 0, lent: 0, contracted: 0, paid: 0, outstanding: 0, profit: 0 }
+);
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg);
@@ -23,14 +38,23 @@ assert(isDealAddedAfterSnapshot("FL16") === true, "next FL is after the snapshot
 assert(isDealAddedAfterSnapshot("L4") === false, "L4 is in the base");
 
 const base = buildLivePortfolio([]);
-assert(base.summary.total_deals === 160, "empty book keeps the snapshot deal count");
-assert(base.summary.total_outstanding === 1981148.72, "owed in starts at the printed figure");
+assert(
+  base.summary.total_deals === 160 - held.deals,
+  "empty book keeps the snapshot deal count less the held-out deals"
+);
+assert(
+  base.summary.total_outstanding === r2(1981148.72 - held.outstanding),
+  "owed in starts at the printed figure less the held-out deals"
+);
 // 21% on the printed book; 17.1% once the commission inside it is taken out.
 assert(
   base.summary.blended_yield === 17.1,
   `blended yield net of commission, got ${base.summary.blended_yield}`
 );
-assert(base.summary.net_position === 816148.72, "net position matches the printed sheet");
+assert(
+  base.summary.net_position === r2(816148.72 - held.outstanding),
+  "net position is the printed sheet less the held-out deals"
+);
 assert(base.shareholders[0].pct_owned === 16.3, "Ron owns 16.3%");
 // "Total owed in" is the whole book's outstanding, not a per-shareholder
 // figure — each holder's share of it is their value of shareholding.
@@ -63,12 +87,12 @@ const withHp142 = buildLivePortfolio([
     payments: [{ status: "due", amount: 964.76 }],
   },
 ]);
-assert(withHp142.summary.total_deals === 161, "only HP142 increments the deal count");
-assert(withHp142.summary.total_lent === 5231544.63, "HP142 lend is added");
+assert(withHp142.summary.total_deals === 161 - held.deals, "only HP142 increments the deal count");
+assert(withHp142.summary.total_lent === r2(5231544.63 - held.lent), "HP142 lend is added");
 assert(withHp142.summary.total_commission === 203605.46, "HP142 commission is added");
 assert(withHp142.summary.total_paid === 4199814.69, "paid HP142 instalment is added");
 assert(
-  withHp142.summary.total_outstanding === 1981559.53,
+  withHp142.summary.total_outstanding === r2(1981559.53 - held.outstanding),
   "unpaid HP142 instalment is added to owed in"
 );
 assert(
@@ -85,7 +109,7 @@ assert(
   `opening profit less commission, got ${snapshotProfitExCommission()}`
 );
 assert(
-  base.summary.total_profit === Math.round((892951.63 + totalOverRecovery()) * 100) / 100,
+  base.summary.total_profit === Math.round((892951.63 + totalOverRecovery() - held.profit) * 100) / 100,
   `empty book opens at the restated profit plus over-recovery, got ${base.summary.total_profit}`
 );
 
@@ -104,16 +128,16 @@ assert(
 );
 assert(
   Math.round((base.summary.total_profit - snapshotProfitExCommission()) * 100) / 100 ===
-    totalOverRecovery(),
-  "the live profit is the restated snapshot plus the over-recovery, nothing else"
+    r2(totalOverRecovery() - held.profit),
+  "the live profit is the restated snapshot plus the over-recovery, less the held-out deals"
 );
 // It is profit only. The lend, the contracted repayments and the cash the
 // printed book recorded are left exactly as printed.
 assert(
-  base.summary.total_lent === PORTFOLIO_BASE.total_lent &&
-    base.summary.total_paid === PORTFOLIO_BASE.total_paid &&
+  base.summary.total_lent === r2(PORTFOLIO_BASE.total_lent - held.lent) &&
+    base.summary.total_paid === r2(PORTFOLIO_BASE.total_paid - held.paid) &&
     base.summary.total_repayments_contracted ===
-      PORTFOLIO_BASE.total_repayments_contracted,
+      r2(PORTFOLIO_BASE.total_repayments_contracted - held.contracted),
   "an over-recovery moves profit alone"
 );
 assert(
@@ -148,7 +172,8 @@ assert(
   withHp142.summary.total_profit ===
     Math.round(
       (snapshotProfitExCommission() +
-        totalOverRecovery() +
+        totalOverRecovery() -
+        held.profit +
         hp142Contracted -
         15000 -
         600) *
@@ -193,7 +218,7 @@ assert(parseCashAtBank("77000") === 77000, "cash parses from a plain number");
 const moreCash = buildLivePortfolio([], { cashAtBank: 77000 });
 assert(moreCash.summary.cash_at_bank === 77000, "cash override is used");
 assert(
-  moreCash.summary.net_position === 826148.72,
+  moreCash.summary.net_position === r2(826148.72 - held.outstanding),
   "net position moves with cash at bank"
 );
 
