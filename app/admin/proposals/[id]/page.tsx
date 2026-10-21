@@ -126,6 +126,7 @@ function ProposalInner() {
 
       <div className="pp-stack">
         <DetailsPanel p={p} editable={editable} busy={busy === "edit"} onSave={(fields) => act("edit", { fields }, "Saved – checks re-run.")} />
+        <DealPackPanel p={p} />
         <ChecksPanel p={p} busy={busy === "run_checks"} onRerun={() => act("run_checks", {}, "Checks re-run.")} />
         {["new", "underwriting", "approved"].includes(status) && (
           <UnderwritePanel p={p} busy={busy === "underwrite"} onSave={(decision, notes) => act("underwrite", { decision, notes }, decision === "approve" ? "Approved – now agree a rate." : decision === "refer" ? "Marked as referred." : "Declined.")} />
@@ -507,6 +508,40 @@ function DeclinePanel({ busy, onDecline }: { busy: boolean; onDecline: (reason: 
         <button className="danger" disabled={busy || !reason.trim()} onClick={() => onDecline(reason)}>{busy ? "Declining…" : "Decline"}</button>
         <button onClick={() => setOpen(false)}>Cancel</button>
       </div>
+    </div>
+  );
+}
+
+/* ---------- the deal pack sent over from the DCF portal ---------- */
+
+function DealPackPanel({ p }: { p: P }) {
+  const x = p.extras || {};
+  const docs: { category: string | null; file_name: string | null }[] = Array.isArray(x.documents) ? x.documents : [];
+  const link: string | null = typeof x.drive_folder_link === "string" && /^https:\/\//.test(x.drive_folder_link) ? x.drive_folder_link : null;
+  const other: { term: number; monthly_payment: number }[] = Array.isArray(x.other_terms_offered) ? x.other_terms_offered : [];
+  if (!link && !docs.length && x.shareholders_funds == null && !x.customer_phone && !other.length) return null;
+  const byCategory: Record<string, string[]> = {};
+  for (const d of docs) (byCategory[d.category || "other"] ||= []).push(d.file_name || "(unnamed)");
+  return (
+    <div className="page-panel">
+      <h2>Deal pack</h2>
+      <div className="panel-sub">Sent over from the DCF portal with the proposal.</div>
+      <dl className="pp-kv">
+        {link && (<><dt>Documents folder</dt><dd><a href={link} target="_blank" rel="noopener noreferrer">Open in Google Drive ↗</a></dd></>)}
+        {x.customer_phone && (<><dt>Customer phone</dt><dd>{x.customer_phone}</dd></>)}
+        {x.shareholders_funds != null && (<><dt>Shareholders' funds{x.shareholders_funds_period_end ? ` (${String(x.shareholders_funds_period_end).slice(0, 10)})` : ""}</dt><dd>{gbp(x.shareholders_funds)}</dd></>)}
+        {other.length > 0 && (<><dt>Other terms the customer was offered</dt><dd>{other.map((o) => `${o.term}m ${gbp(o.monthly_payment)}`).join(" · ")}</dd></>)}
+      </dl>
+      {docs.length > 0 && (
+        <div style={{ marginTop: 10, fontSize: 13.5 }}>
+          <strong style={{ color: "var(--navy)" }}>Documents on file ({docs.length})</strong>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {Object.entries(byCategory).map(([cat, names]) => (
+              <li key={cat}>{cat.replace(/_/g, " ")}: {names.join(", ")}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
