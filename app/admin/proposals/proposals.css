@@ -1,0 +1,50 @@
+.pp-drop{border:2px dashed var(--rule); border-radius:12px; padding:26px 18px; text-align:center; background:#fff; transition:border-color .15s, background .15s;}
+.pp-drop.over{border-color:var(--navy); background:#F4F8FD;}
+.pp-drop strong{display:block; color:var(--navy); font-size:15px; margin-bottom:4px;}
+.pp-drop span.hint{display:block; color:var(--slate); font-size:12.5px; margin-bottom:12px;}
+.pp-paste{margin-top:12px; text-align:left;}
+.pp-paste summary{cursor:pointer; font-size:13px; font-weight:600; color:var(--ink-soft);}
+.pp-paste textarea{width:100%; min-height:140px; margin:10px 0; padding:10px; border:1px solid var(--rule); border-radius:8px; font:inherit; font-size:13px;}
+.pp-status{display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:5px; white-space:nowrap;}
+.pp-status.new{background:#E8F1FD; color:#1B5FB8;}
+.pp-status.underwriting{background:var(--gold-pale); color:#8A6A24;}
+.pp-status.approved{background:#E6F4EA; color:#1E7B3A;}
+.pp-status.accepted{background:#D7EFE0; color:#14612D;}
+.pp-status.on_book{background:var(--navy); color:#fff;}
+.pp-status.declined{background:#FBEAEA; color:#B4232C;}
+.pp-row{cursor:pointer;}
+.pp-num{font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap;}
+.pp-steps{display:flex; gap:6px; flex-wrap:wrap; margin:0 0 16px; padding:0; list-style:none;}
+.pp-steps li{font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; border:1px solid var(--rule); background:#fff; color:var(--slate);}
+.pp-steps li.done{background:#E6F4EA; border-color:#BFE3CB; color:#1E7B3A;}
+.pp-steps li.now{background:var(--navy); border-color:var(--navy); color:#fff;}
+.pp-stack{display:grid; gap:14px;}
+.pp-two{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+@media (max-width:900px){.pp-two{grid-template-columns:1fr;}}
+.pp-checks{list-style:none; margin:0; padding:0;}
+.pp-checks li{display:grid; grid-template-columns:22px 150px 1fr; gap:8px; padding:9px 0; border-bottom:1px solid var(--rule); font-size:13.5px; align-items:start;}
+.pp-checks li:last-child{border-bottom:none;}
+.pp-checks .lbl{font-weight:600; color:var(--navy);}
+.pp-dot{width:12px; height:12px; border-radius:50%; margin-top:4px; background:#9AA7B5;}
+.pp-dot.ok{background:#2E9E55;}
+.pp-dot.review{background:#E0A526;}
+.pp-dot.issue{background:#D0343C;}
+@media (max-width:700px){.pp-checks li{grid-template-columns:22px 1fr;} .pp-checks .lbl{grid-column:2;} .pp-checks li span.txt{grid-column:2;}}
+.pp-kv{display:grid; grid-template-columns:auto 1fr; gap:0 18px; font-size:13.5px;}
+.pp-kv dt{color:var(--ink-soft); padding:7px 0; border-bottom:1px solid var(--rule);}
+.pp-kv dd{margin:0; padding:7px 0; border-bottom:1px solid var(--rule); text-align:right; font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums;}
+.pp-kv .hl dt,.pp-kv .hl dd{color:var(--navy); font-weight:700;}
+.pp-btns{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;}
+.pp-btns button{padding:10px 16px; border-radius:8px; border:1px solid var(--rule); background:#fff; font-weight:600; cursor:pointer;}
+.pp-btns button.primary{background:var(--navy); color:#fff; border-color:var(--navy);}
+.pp-btns button.danger{color:#B4232C; border-color:#E8B7BA;}
+.pp-btns button.on{outline:2px solid var(--navy);}
+.pp-btns button:disabled{opacity:.55; cursor:wait;}
+.pp-textarea{width:100%; padding:10px; border:1px solid var(--rule); border-radius:8px; font:inherit; font-size:13.5px;}
+.pp-mono{font-family:'IBM Plex Mono', monospace; font-size:12.5px; line-height:1.55;}
+.pp-events{list-style:none; margin:0; padding:0; font-size:13px;}
+.pp-events li{padding:7px 0; border-bottom:1px solid var(--rule); display:flex; gap:10px; justify-content:space-between;}
+.pp-events li:last-child{border-bottom:none;}
+.pp-events time{color:var(--slate); white-space:nowrap; font-family:'IBM Plex Mono', monospace; font-size:11.5px;}
+.pp-warn{background:#FFF7E0; border:1px solid #F0DFA0; color:#7A5C10; padding:10px 12px; border-radius:8px; font-size:13px; margin:10px 0;}
+.pp-diff{color:#B4232C;}

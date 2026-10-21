@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { authorizeAdminRequest } from "../../../../lib/admin";
-import { buildPaymentSchedule } from "../../../../lib/schedule";
 import { bookFromRequest } from "../../../../lib/admin-book";
-import { glacierAgreementNumber } from "../../../../lib/glacier-gem-book";
-import { inheritedMandateId } from "../../../../lib/gocardless/inherit-mandate";
+import { createDeal } from "../../../../lib/create-deal";
 
 export const dynamic = "force-dynamic";
-
-function n(v: unknown) {
-  if (v === null || v === undefined || v === "") return null;
-  const x = Number(v);
-  return Number.isFinite(x) ? x : null;
-}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -22,170 +14,23 @@ export async function POST(request: Request) {
   }
 
   const book = bookFromRequest(request, body);
-  const companyName = String(body.company_name || "").trim();
-  const agreementType = String(body.agreement_type || (book === "gg" ? "GG" : "HP"))
-    .trim()
-    .toUpperCase()
-    .replace(/^LN$/, "L")
-    .replace(/^LOAN$/, "L");
-  const startDate = String(body.start_date || "").slice(0, 10);
-  const termMonths = n(body.term_months);
-  const monthly = n(body.monthly_instalment);
-
-  if (!companyName || !startDate || !termMonths || !monthly) {
+  const result = await createDeal(createAdminClient(), body, book);
+  if (!result.ok) {
     return NextResponse.json(
-      {
-        error:
-          "Company name, start date, term and monthly instalment are required.",
-      },
-      { status: 400 }
-    );
-  }
-
-  const supabase = createAdminClient();
-
-  let agreementNumber = String(body.agreement_number || "").trim().toUpperCase();
-  if (!agreementNumber) {
-    const { data: existing } = await supabase
-      .from("agreements")
-      .select("agreement_number")
-      .ilike("agreement_number", `${agreementType}%`);
-    let maxN = 0;
-    for (const row of existing || []) {
-      const match = String(row.agreement_number).match(/(\d+)/);
-      if (match) maxN = Math.max(maxN, Number(match[1]));
-    }
-    agreementNumber =
-      book === "gg" || agreementType === "GG"
-        ? glacierAgreementNumber(maxN + 1)
-        : `${agreementType}${maxN + 1}`;
-  } else {
-    const { data: clash } = await supabase
-      .from("agreements")
-      .select("id")
-      .ilike("agreement_number", agreementNumber)
-      .maybeSingle();
-    if (clash) {
-      return NextResponse.json(
-        { error: `${agreementNumber} already exists.` },
-        { status: 409 }
-      );
-    }
-  }
-
-  let customerId = String(body.customer_id || "").trim();
-  if (!customerId) {
-    const { data: existingCustomer } = await supabase
-      .from("customers")
-      .select("id")
-      .ilike("company_name", companyName)
-      .limit(1)
-      .maybeSingle();
-    if (existingCustomer) {
-      customerId = existingCustomer.id;
-      const patch: Record<string, string> = {};
-      if (body.email) patch.email = String(body.email).trim();
-      if (body.phone) patch.phone = String(body.phone).trim();
-      if (body.contact_name) patch.contact_name = String(body.contact_name).trim();
-      if (Object.keys(patch).length) {
-        await supabase.from("customers").update(patch).eq("id", customerId);
-      }
-    } else {
-      const { data: created, error: custErr } = await supabase
-        .from("customers")
-        .insert({
-          company_name: companyName,
-          contact_name: body.contact_name || null,
-          email: body.email || null,
-          phone: body.phone || null,
-        })
-        .select("id")
-        .single();
-      if (custErr || !created) {
-        return NextResponse.json(
-          { error: custErr?.message || "Could not create customer" },
-          { status: 500 }
-        );
-      }
-      customerId = created.id;
-    }
-  }
-
-  // An existing customer collects every agreement on the mandate they already
-  // pay us by, so a new deal picks it up by itself. Two mandates to choose
-  // between is the one case that still needs a person.
-  //
-  // Only ever from the same book. Glacier Gem is collected by hand — Rocket
-  // Hire and Prior Construction both run FFG agreements on a mandate and GG
-  // agreements on none — so a GG deal must not quietly acquire the FFG
-  // mandate and start pulling GoCardless collections onto its schedule.
-  let mandateId = String(body.gocardless_mandate_id || "").trim() || null;
-  let mandateSource: string = mandateId ? "supplied" : "none";
-  if (!mandateId) {
-    const { data: siblings } = await supabase
-      .from("agreements")
-      .select("gocardless_mandate_id, status")
-      .eq("customer_id", customerId)
-      .eq("book", book);
-    const inherited = inheritedMandateId(siblings);
-    mandateId = inherited.mandateId;
-    mandateSource = inherited.reason;
-  }
-
-  const { data: agreement, error: agrErr } = await supabase
-    .from("agreements")
-    .insert({
-      agreement_number: agreementNumber,
-      agreement_type: agreementType,
-      customer_id: customerId,
-      asset_description: body.asset_description || null,
-      purchase_price: n(body.purchase_price),
-      customer_deposit: n(body.customer_deposit),
-      total_lend: n(body.total_lend) ?? monthly * termMonths,
-      commission: n(body.commission),
-      documentation_fee: n(body.documentation_fee),
-      monthly_instalment: monthly,
-      term_months: termMonths,
-      start_date: startDate,
-      written_date: String(body.written_date || startDate).slice(0, 10),
-      status: "active",
-      book,
-      gocardless_mandate_id: mandateId,
-    })
-    .select("id, agreement_number")
-    .single();
-
-  if (agrErr || !agreement) {
-    return NextResponse.json(
-      { error: agrErr?.message || "Could not create agreement" },
-      { status: 500 }
-    );
-  }
-
-  const schedule = buildPaymentSchedule({
-    termMonths,
-    monthlyInstalment: monthly,
-    startDate,
-  }).map((row) => ({ ...row, agreement_id: agreement.id }));
-
-  const { error: payErr } = await supabase.from("payments").insert(schedule);
-  if (payErr) {
-    return NextResponse.json(
-      {
-        error: `Agreement ${agreement.agreement_number} was created but the schedule failed: ${payErr.message}`,
-        agreement,
-      },
-      { status: 500 }
+      result.agreement
+        ? { error: result.error, agreement: result.agreement }
+        : { error: result.error },
+      { status: result.status }
     );
   }
 
   return NextResponse.json({
     success: true,
-    agreement_number: agreement.agreement_number,
-    customer_id: customerId,
-    instalments: schedule.length,
-    gocardless_mandate_id: mandateId,
-    mandate_source: mandateSource,
+    agreement_number: result.agreement_number,
+    customer_id: result.customer_id,
+    instalments: result.instalments,
+    gocardless_mandate_id: result.gocardless_mandate_id,
+    mandate_source: result.mandate_source,
   });
 }
 
