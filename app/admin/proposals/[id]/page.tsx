@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import AdminShell, { adminHeaders } from "../../AdminShell";
 import PageHero from "../../PageHero";
 import { priceProposal } from "../../../../lib/proposals/calc";
@@ -42,6 +42,7 @@ export default function ProposalPage() {
 
 function ProposalInner() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [p, setP] = useState<P | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
   const [error, setError] = useState("");
@@ -163,6 +164,16 @@ function ProposalInner() {
             <div className="pp-btns"><button onClick={() => act("reopen", {}, "Reopened.")} disabled={!!busy}>Reopen</button></div>
           </div>
         )}
+
+        <DeletePanel
+          status={status}
+          agreementNumber={p.agreement_number}
+          busy={busy === "delete"}
+          onDelete={async () => {
+            const r = await act("delete", { confirm: true });
+            if (r) router.push("/admin/proposals");
+          }}
+        />
 
         <div className="page-panel">
           <h2>History</h2>
@@ -506,6 +517,31 @@ function DeclinePanel({ busy, onDecline }: { busy: boolean; onDecline: (reason: 
       <div className="pp-btns">
         <button className="danger" disabled={busy || !reason.trim()} onClick={() => onDecline(reason)}>{busy ? "Declining…" : "Decline"}</button>
         <button onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function DeletePanel({ status, agreementNumber, busy, onDelete }: { status: string; agreementNumber: string | null; busy: boolean; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <div className="pp-btns" style={{ marginTop: 0 }}>
+        <button className="danger" onClick={() => setOpen(true)}>Delete this proposal…</button>
+      </div>
+    );
+  }
+  return (
+    <div className="page-panel">
+      <h2>Delete this proposal</h2>
+      <p className="admin-lead">
+        This removes the proposal and its history from the FFG portal for good. The quote on the DCF portal isn't touched, and it can be sent to FFG again.
+        {status === "accepted" ? " The acceptance email has already gone out and can't be recalled." : ""}
+        {status === "on_book" ? ` Agreement ${agreementNumber} stays on the book – only the proposal record is deleted.` : ""}
+      </p>
+      <div className="pp-btns">
+        <button className="danger" disabled={busy} onClick={onDelete}>{busy ? "Deleting…" : "Yes, delete it"}</button>
+        <button disabled={busy} onClick={() => setOpen(false)}>Cancel</button>
       </div>
     </div>
   );

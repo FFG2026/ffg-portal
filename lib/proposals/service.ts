@@ -476,6 +476,16 @@ export async function applyAction(
       return {};
     }
 
+    case "delete": {
+      // Removes the proposal and its history. If it was already put on the book the
+      // agreement stays – only the proposal record goes. Deleting also lets the
+      // DCF quote be sent to FFG again.
+      if (body.confirm !== true) throw new ProposalError("Confirm the delete first.");
+      const { error } = await supabase.from("ffg_proposals").delete().eq("id", id);
+      if (error) throw new ProposalError(error.message, 500);
+      return { deleted: true, agreement_number: p.agreement_number || null };
+    }
+
     case "reopen": {
       requireStatus(p, ["declined"], "reopen");
       const { error } = await supabase
