@@ -553,6 +553,9 @@ function DealPackPanel({ p }: { p: P }) {
           </ul>
         </div>
       )}
+    </div>
+  );
+}
 
 function DeletePanel({ status, agreementNumber, busy, onDelete }: { status: string; agreementNumber: string | null; busy: boolean; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
