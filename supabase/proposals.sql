@@ -87,6 +87,8 @@ create table if not exists public.ffg_proposals (
 
 create index if not exists ffg_proposals_status_idx on public.ffg_proposals (status, created_at desc);
 create index if not exists ffg_proposals_company_number_idx on public.ffg_proposals (company_number);
+-- One proposal per DCF quote, whether it arrived by email or by the Send to FFG button.
+create unique index if not exists ffg_proposals_dcf_quote_uidx on public.ffg_proposals (dcf_quote_id) where dcf_quote_id is not null;
 
 create table if not exists public.ffg_proposal_events (
   id uuid primary key default gen_random_uuid(),

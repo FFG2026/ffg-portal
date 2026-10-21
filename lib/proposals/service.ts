@@ -105,6 +105,15 @@ export async function ingestEmail(
 
   const received = email.date && !isNaN(new Date(email.date).getTime()) ? new Date(email.date).toISOString() : null;
   const quote = await matchQuote(supabase, parsed, received);
+  if (quote) {
+    // The same quote may already be here, e.g. sent from the DCF portal's Send to FFG button.
+    const { data: already } = await supabase
+      .from("ffg_proposals")
+      .select("id")
+      .eq("dcf_quote_id", quote.id)
+      .maybeSingle();
+    if (already) return { id: already.id as string, duplicate: true, warnings: [] as string[] };
+  }
 
   let repEmail: string | null = null;
   if (quote?.rep_id) {

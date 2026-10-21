@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../../lib/supabase/admin";
 import { authorizeAdminRequest } from "../../../../../lib/admin";
-import { applyAction, getProposal, ProposalError } from "../../../../../lib/proposals/service";
+import { applyAction, getProposal, runChecks, ProposalError } from "../../../../../lib/proposals/service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -18,7 +18,12 @@ export async function GET(
   }
   try {
     const supabase = createAdminClient();
-    const proposal = await getProposal(supabase, params.id);
+    let proposal = await getProposal(supabase, params.id);
+    // Proposals sent from the DCF portal arrive without checks – run them the first time it's opened.
+    if (!proposal.checks) {
+      await runChecks(supabase, params.id).catch(() => undefined);
+      proposal = await getProposal(supabase, params.id);
+    }
     const { data: events } = await supabase
       .from("ffg_proposal_events")
       .select("id, created_at, actor, kind, detail")
