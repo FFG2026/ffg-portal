@@ -36,6 +36,7 @@ const NAV = [
   { href: "/figures", label: "Live figures", icon: "chart", owenOnly: true },
   { href: "/customers", label: "Customers", icon: "users" },
   { href: "/agreements", label: "Agreements", icon: "file" },
+  { href: "/proposals", label: "Proposals", icon: "mail", ffgOnly: true },
   { href: "/new-deal", label: "New deal", icon: "plus" },
   { href: "/lookup", label: "Lookup", icon: "search" },
   { href: "/drive", label: "Drive", icon: "folder" },
@@ -52,6 +53,7 @@ function NavIcon({ name }: { name: string }) {
     search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
     folder: <path d="M3 6h7l2 2h9v11H3z"/>,
     staff: <><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 20v-2a5 5 0 0 1 10 0v2M12 20v-2a5 5 0 0 1 10 0v2"/></>,
+    mail: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></>,
     signout: <><path d="M15 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2"/><path d="M19 12H9m10 0-3-3m3 3-3 3"/></>,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
