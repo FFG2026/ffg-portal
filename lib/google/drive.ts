@@ -76,7 +76,10 @@ export async function driveAccessToken(
   if (service) {
     return accessTokenFromServiceAccount(
       service,
-      opts.write ? DRIVE_WRITE_SCOPE : undefined
+      opts.write ? DRIVE_WRITE_SCOPE : undefined,
+      opts.write
+        ? (process.env.GOOGLE_DRIVE_IMPERSONATE_EMAIL || "sales@dcfgroup.co.uk").trim()
+        : undefined
     );
   }
   if (opts.write) {
@@ -300,6 +303,9 @@ const FOLDER_MIME = "application/vnd.google-apps.folder";
 
 function driveWriteError(status: number, json: any, action: string) {
   const message = json?.error?.message || `Drive request failed (${status})`;
+  if (/storage quota|do not have storage/i.test(message)) {
+    return new Error(`${action}: ${message} (files must be created as a Workspace user, not the bare service account).`);
+  }
   if (status === 403 || status === 404) {
     return new Error(
       `${action}: Google refused (${message}). Share the Future FG agreements folder with the portal's Google service account as an Editor, and check the folder is in a Shared Drive.`
