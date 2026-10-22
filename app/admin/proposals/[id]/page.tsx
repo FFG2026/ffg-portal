@@ -322,7 +322,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
   const [busy, setBusy] = useState("");
   const [hirer, setHirer] = useState({ contact_name: "", phone: "", address_line1: "", address_line2: "", postcode: "" });
   const [dirs, setDirs] = useState<Director[]>([]);
-  const [goods, setGoods] = useState({ chassis: "", reg: "", reg_date: "", condition: "", goods_location1: "", goods_location_postcode: "", supplier_address1: "", supplier_address2: "", supplier_postcode: "" });
+  const [goods, setGoods] = useState({ description: "", chassis: "", reg: "", reg_date: "", condition: "", goods_location1: "", goods_location_postcode: "", supplier_address1: "", supplier_address2: "", supplier_postcode: "" });
   const [ins, setIns] = useState({ insurer_name: "", insurer_address1: "", insurer_address2: "", insurer_address3: "", insurer_postcode: "", insurer_policy: "", insurer_expiry: "" });
   const [invoiceNote, setInvoiceNote] = useState<{ file: string | null; warnings: string[] } | null>(null);
   const [invoiceError, setInvoiceError] = useState("");
@@ -350,7 +350,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
       setPre(prefill);
       setHirer(prefill.hirer);
       setDirs(prefill.directors.map((d: any) => ({ ...d, dob: "", include: true })));
-      setGoods((g) => ({ ...g, condition: p.asset_condition || "" }));
+      setGoods((g) => ({ ...g, description: g.description || p.asset_description || "", condition: p.asset_condition || "" }));
       setDocFee(String(prefill.documentation_fee ?? ""));
       setOptionFee(String(prefill.option_fee ?? ""));
     } catch (e: any) {
@@ -369,6 +369,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
       const { invoice } = await call("read_invoice");
       const f = invoice.facts;
       setGoods((g) => ({
+        description: f.description || g.description,
         chassis: f.chassis || g.chassis,
         reg: f.reg || g.reg,
         reg_date: f.reg_date || g.reg_date,
@@ -454,6 +455,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
             </p>
           )}
           <div className="admin-form">
+            <div className="full"><label>Description of goods</label><input value={goods.description} onChange={(e) => setGoods({ ...goods, description: e.target.value })} placeholder="e.g. Ford Transit Custom 280 L1 H1 Limited" /></div>
             <div><label>Chassis / serial no.</label><input value={goods.chassis} onChange={(e) => setGoods({ ...goods, chassis: e.target.value })} /></div>
             <div><label>Registration (N/A if none)</label><input value={goods.reg} onChange={(e) => setGoods({ ...goods, reg: e.target.value })} /></div>
             <div><label>Date of reg / year of manufacture</label><input value={goods.reg_date} onChange={(e) => setGoods({ ...goods, reg_date: e.target.value })} placeholder="dd/mm/yy or year" /></div>
