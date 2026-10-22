@@ -1,4 +1,4 @@
-import { PDFDocument, PDFForm } from "pdf-lib";
+import { PDFDocument, PDFDropdown, PDFForm, PDFTextField } from "pdf-lib";
 
 /** Standard PDF fonts only cover WinAnsi: swap the few characters that don't fit. */
 export function winAnsi(text: unknown): string {
@@ -27,10 +27,27 @@ export async function loadTemplate(b64: string) {
   return { doc, form: doc.getForm() };
 }
 
-export function setText(form: PDFForm, name: string, value: unknown) {
+/** Fixes the text size of a field. Some template fields have auto-size (0) or no size at all, which renders at wildly different sizes. */
+export function fixFontSize(field: PDFTextField | PDFDropdown, size: number) {
+  const da = `/Helv ${size} Tf 0 g`;
+  try {
+    field.setFontSize(size);
+  } catch {
+    field.acroField.setDefaultAppearance(da);
+  }
+  for (const w of field.acroField.getWidgets()) {
+    try {
+      w.setDefaultAppearance(da);
+    } catch {
+      /* widget keeps the field's appearance string */
+    }
+  }
+}
+
+export function setText(form: PDFForm, name: string, value: unknown, size = 10) {
   const text = winAnsi(value);
   if (!text) return;
   const field = form.getTextField(name);
   field.setText(text);
-  try { field.setFontSize(10); } catch { /* no default appearance string: keep the template size */ }
+  fixFontSize(field, size);
 }
