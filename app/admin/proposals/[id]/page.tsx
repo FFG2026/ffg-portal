@@ -28,6 +28,7 @@ const EVENT_TEXT: Record<string, string> = {
   rate_agreed: "Rate agreed",
   acceptance_sent: "Acceptance sent",
   put_on_book: "Put on the book",
+  documents_raised: "Finance documents raised",
   declined: "Declined",
   reopened: "Reopened",
 };
@@ -131,6 +132,9 @@ function ProposalInner() {
         <ChecksPanel p={p} busy={busy === "run_checks"} onRerun={() => act("run_checks", {}, "Checks re-run.")} />
         {["new", "underwriting", "approved"].includes(status) && (
           <UnderwritePanel p={p} busy={busy === "underwrite"} onSave={(decision, notes) => act("underwrite", { decision, notes }, decision === "approve" ? "Approved – now agree a rate." : decision === "refer" ? "Marked as referred." : "Declined.")} />
+        )}
+        {["approved", "accepted"].includes(status) && p.uw_decision === "approve" && (
+          <DocumentsPanel id={id} p={p} onDone={load} setError={setError} setOk={setOk} />
         )}
         {status === "approved" && (
           <RatePanel p={p} busy={busy === "set_rate"} onSave={(v) => act("set_rate", v, "Rate saved.")} />
@@ -305,6 +309,130 @@ function UnderwritePanel({ p, busy, onSave }: { p: P; busy: boolean; onSave: (d:
         <button disabled={busy} onClick={() => onSave("refer", notes)}>Refer / hold</button>
         <button className="danger" disabled={busy || !notes.trim()} onClick={() => onSave("decline", notes)} title={!notes.trim() ? "Add a note first" : ""}>Decline</button>
       </div>
+    </div>
+  );
+}
+
+/* ---------- 3b. finance documents ---------- */
+
+type Director = { name: string; birth: string; address: string; dob: string; include: boolean };
+
+function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; onDone: () => void; setError: (m: string) => void; setOk: (m: string) => void }) {
+  const [pre, setPre] = useState<any>(null);
+  const [busy, setBusy] = useState("");
+  const [hirer, setHirer] = useState({ contact_name: "", phone: "", address_line1: "", address_line2: "", postcode: "" });
+  const [dirs, setDirs] = useState<Director[]>([]);
+  const [docFee, setDocFee] = useState("");
+  const [optionFee, setOptionFee] = useState("");
+  const [done, setDone] = useState<any>(null);
+  const docs = p.extras?.docs;
+
+  const call = async (action: string, extra: Record<string, unknown> = {}) => {
+    const res = await fetch(`/api/admin/proposals/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ action, ...extra }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "That didn't work");
+    return json;
+  };
+
+  const prepare = async () => {
+    setBusy("prefill");
+    setError("");
+    try {
+      const { prefill } = await call("documents_prefill");
+      setPre(prefill);
+      setHirer(prefill.hirer);
+      setDirs(prefill.directors.map((d: any) => ({ ...d, dob: "", include: true })));
+      setDocFee(String(prefill.documentation_fee ?? ""));
+      setOptionFee(String(prefill.option_fee ?? ""));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const raise = async () => {
+    setBusy("raise");
+    setError("");
+    try {
+      const guarantors = dirs.filter((d) => d.include && d.name.trim()).map((d) => ({ name: d.name, dob: d.dob, address: d.address }));
+      const { documents } = await call("raise_documents", {
+        input: { ...hirer, signatory_name: guarantors[0]?.name || hirer.contact_name, documentation_fee: numOrNull(docFee), option_fee: numOrNull(optionFee), guarantors },
+      });
+      setDone(documents);
+      setOk(`${documents.agreement_number}: ${documents.files.length} document${documents.files.length === 1 ? "" : "s"} saved to Drive.`);
+      onDone();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const setDir = (i: number, patch: Partial<Director>) => setDirs((x) => x.map((d, j) => (j === i ? { ...d, ...patch } : d)));
+  const agreed = p.agreed_monthly !== null && p.agreed_monthly !== undefined;
+
+  return (
+    <div className="page-panel">
+      <h2>Finance documents</h2>
+      <div className="panel-sub">
+        Saves an approval record, the hire purchase agreement and a personal guarantee for each director into a new folder in the Future FG Drive folder.
+        {!agreed ? " The rate isn't agreed yet, so the documents would carry the quoted figures – agree the rate first if it has changed." : ""}
+      </div>
+      {docs?.folder_link && (
+        <p className="admin-lead">
+          Raised {docs.raised_at ? new Date(docs.raised_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""} as <strong>{p.extras?.reserved_agreement_number}</strong>.{" "}
+          <a href={docs.folder_link} target="_blank" rel="noreferrer">Open the folder in Drive →</a>
+        </p>
+      )}
+      {!pre ? (
+        <div className="pp-btns">
+          <button className="primary" disabled={!!busy} onClick={prepare}>{busy === "prefill" ? "Looking up Companies House…" : docs ? "Raise again (new versions)" : "Prepare the documents"}</button>
+        </div>
+      ) : (
+        <>
+          <p className="admin-lead">
+            Number <strong>{pre.agreement_number}</strong>{pre.reserved ? " (already reserved for this deal)" : " (will be reserved for this deal)"} · folder <strong>{pre.agreement_number} - {pre.company?.name || p.company_name}</strong>
+          </p>
+          {!pre.hp_supported && <p className="admin-field-hint">There's no template for this product yet, so only the approval record and guarantees will be raised.</p>}
+          <h3 style={{ margin: "14px 0 6px", fontSize: 14 }}>Hirer</h3>
+          <div className="admin-form">
+            <div><label>Main contact</label><input value={hirer.contact_name} onChange={(e) => setHirer({ ...hirer, contact_name: e.target.value })} /></div>
+            <div><label>Telephone</label><input value={hirer.phone} onChange={(e) => setHirer({ ...hirer, phone: e.target.value })} /></div>
+            <div><label>Address line 1</label><input value={hirer.address_line1} onChange={(e) => setHirer({ ...hirer, address_line1: e.target.value })} /></div>
+            <div><label>Address line 2</label><input value={hirer.address_line2} onChange={(e) => setHirer({ ...hirer, address_line2: e.target.value })} /></div>
+            <div><label>Postcode</label><input value={hirer.postcode} onChange={(e) => setHirer({ ...hirer, postcode: e.target.value })} /></div>
+            <div><label>Documentation fee (£)</label><input value={docFee} onChange={(e) => setDocFee(e.target.value)} inputMode="decimal" /></div>
+            <div><label>Option to purchase fee (£)</label><input value={optionFee} onChange={(e) => setOptionFee(e.target.value)} inputMode="decimal" /></div>
+          </div>
+          <h3 style={{ margin: "14px 0 6px", fontSize: 14 }}>Personal guarantees</h3>
+          <p className="admin-field-hint">Directors from Companies House. It only gives birth month and year, so add the full date of birth and home address for each guarantor.</p>
+          {!dirs.length && <p className="admin-field-hint">No directors came back from Companies House – add one below.</p>}
+          {dirs.map((d, i) => (
+            <div key={i} className="admin-form" style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--rule)" }}>
+              <div className="full"><label><input type="checkbox" checked={d.include} onChange={(e) => setDir(i, { include: e.target.checked })} /> Guarantee for {d.name || "this person"}{d.birth ? ` (born ${d.birth})` : ""}</label></div>
+              <div><label>Full name</label><input value={d.name} onChange={(e) => setDir(i, { name: e.target.value })} /></div>
+              <div><label>Date of birth</label><input type="date" value={d.dob} onChange={(e) => setDir(i, { dob: e.target.value })} /></div>
+              <div className="full"><label>Home address</label><input value={d.address} onChange={(e) => setDir(i, { address: e.target.value })} /></div>
+            </div>
+          ))}
+          <div className="pp-btns">
+            <button onClick={() => setDirs([...dirs, { name: "", birth: "", address: "", dob: "", include: true }])}>Add a guarantor</button>
+            <button className="primary" disabled={!!busy} onClick={raise}>{busy === "raise" ? "Saving to Drive…" : "Raise the documents"}</button>
+          </div>
+        </>
+      )}
+      {done && (
+        <div style={{ marginTop: 12 }}>
+          <p className="admin-lead"><a href={done.folder_link} target="_blank" rel="noreferrer">Open {done.folder_name} in Drive →</a></p>
+          <ul className="pp-events">{done.files.map((f: any) => <li key={f.link}><span><a href={f.link} target="_blank" rel="noreferrer">{f.name}</a></span></li>)}</ul>
+          {done.skipped.map((m: string) => <p key={m} className="admin-field-hint">{m}</p>)}
+        </div>
+      )}
     </div>
   );
 }

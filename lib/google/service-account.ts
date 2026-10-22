@@ -62,7 +62,10 @@ export function serviceAccountFromEnv() {
   return parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || "");
 }
 
-export async function accessTokenFromServiceAccount(account: ServiceAccount) {
+export async function accessTokenFromServiceAccount(
+  account: ServiceAccount,
+  scope: string = DRIVE_READONLY_SCOPE
+) {
   const now = Math.floor(Date.now() / 1000);
   const header = Buffer.from(
     JSON.stringify({ alg: "RS256", typ: "JWT" })
@@ -70,7 +73,7 @@ export async function accessTokenFromServiceAccount(account: ServiceAccount) {
   const payload = Buffer.from(
     JSON.stringify({
       iss: account.client_email,
-      scope: DRIVE_READONLY_SCOPE,
+      scope,
       aud: GOOGLE_TOKEN_URL,
       iat: now,
       exp: now + 3600,

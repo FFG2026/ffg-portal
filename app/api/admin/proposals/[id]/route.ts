@@ -4,7 +4,7 @@ import { authorizeAdminRequest } from "../../../../../lib/admin";
 import { applyAction, getProposal, runChecks, ProposalError } from "../../../../../lib/proposals/service";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const NO_CACHE = { "Cache-Control": "no-store, max-age=0" };
 

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllRows } from "../supabase/fetch-all";
 import { getSetting, setSetting } from "./settings";
 import { parseDealFolderTitle, pickFolderForAgreement } from "./folder-match";
-import { googleOAuthConfigured, refreshAccessToken } from "./oauth";
+import { DRIVE_WRITE_SCOPE, googleOAuthConfigured, refreshAccessToken } from "./oauth";
 import {
   accessTokenFromServiceAccount,
   parseServiceAccountJson,
@@ -68,10 +68,21 @@ export async function getAgreementsFolderId(
   );
 }
 
-export async function driveAccessToken(supabase: SupabaseClient) {
+export async function driveAccessToken(
+  supabase: SupabaseClient,
+  opts: { write?: boolean } = {}
+) {
   const service = await resolveServiceAccount(supabase);
   if (service) {
-    return accessTokenFromServiceAccount(service);
+    return accessTokenFromServiceAccount(
+      service,
+      opts.write ? DRIVE_WRITE_SCOPE : undefined
+    );
+  }
+  if (opts.write) {
+    throw new Error(
+      "Saving to Drive needs the Google service account (the connected Google login is read-only)."
+    );
   }
   const refresh = await getRefreshToken(supabase);
   if (!refresh) {
@@ -283,4 +294,76 @@ export function fileKind(mimeType: string) {
   if (mimeType.includes("document") || mimeType.includes("msword")) return "Document";
   if (mimeType.includes("presentation")) return "Presentation";
   return "File";
+}
+
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+function driveWriteError(status: number, json: any, action: string) {
+  const message = json?.error?.message || `Drive request failed (${status})`;
+  if (status === 403 || status === 404) {
+    return new Error(
+      `${action}: Google refused (${message}). Share the Future FG agreements folder with the portal's Google service account as an Editor, and check the folder is in a Shared Drive.`
+    );
+  }
+  return new Error(`${action}: ${message}`);
+}
+
+/** Makes a folder under `parentId`, or returns the one already there with that name. */
+export async function findOrCreateDriveFolder(
+  accessToken: string,
+  parentId: string,
+  name: string
+): Promise<{ id: string; link: string }> {
+  const find = new URL(DRIVE_FILES);
+  find.searchParams.set(
+    "q",
+    `'${parentId}' in parents and trashed = false and mimeType = '${FOLDER_MIME}' and name = '${name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`
+  );
+  find.searchParams.set("fields", "files(id,webViewLink)");
+  find.searchParams.set("supportsAllDrives", "true");
+  find.searchParams.set("includeItemsFromAllDrives", "true");
+  const found = await driveGet(accessToken, find).catch(() => null);
+  const hit = found?.files?.[0];
+  if (hit) return { id: hit.id, link: hit.webViewLink };
+
+  const res = await fetch(`${DRIVE_FILES}?supportsAllDrives=true&fields=id,webViewLink`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parentId] }),
+    cache: "no-store",
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw driveWriteError(res.status, json, "Could not create the Drive folder");
+  return { id: json.id, link: json.webViewLink };
+}
+
+export async function uploadDriveFile(
+  accessToken: string,
+  parentId: string,
+  name: string,
+  mimeType: string,
+  bytes: Uint8Array
+): Promise<{ id: string; link: string }> {
+  const boundary = `ffg_${Date.now().toString(36)}`;
+  const meta = JSON.stringify({ name, parents: [parentId] });
+  const body = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
+    Buffer.from(bytes),
+    Buffer.from(`\r\n--${boundary}--`),
+  ]);
+  const res = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,webViewLink",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+      },
+      body,
+      cache: "no-store",
+    }
+  );
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw driveWriteError(res.status, json, `Could not save ${name} to Drive`);
+  return { id: json.id, link: json.webViewLink };
 }
