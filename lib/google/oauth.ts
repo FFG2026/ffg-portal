@@ -4,6 +4,8 @@ export const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const DRIVE_READONLY_SCOPE =
   "https://www.googleapis.com/auth/drive.readonly";
+/** Needed only to create deal folders and save generated documents. */
+export const DRIVE_WRITE_SCOPE = "https://www.googleapis.com/auth/drive";
 
 export function googleClientId() {
   return process.env.GOOGLE_CLIENT_ID || "";

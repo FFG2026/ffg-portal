@@ -6,6 +6,8 @@ import { priceProposal } from "./calc";
 import { buildAcceptanceEmail, PRODUCT_LABELS } from "./acceptance-email";
 import { createDeal } from "../create-deal";
 import { parseAdminBook } from "../admin-book";
+import { readSupplierInvoice } from "./documents/read-invoice";
+import { documentsPrefill, raiseDocuments, reserveNumber, type RaiseInput } from "./documents/raise";
 
 export class ProposalError extends Error {
   status: number;
@@ -336,6 +338,54 @@ export async function applyAction(
       return { priced };
     }
 
+    case "documents_prefill": {
+      requireStatus(p, ["approved", "accepted"], "raise documents");
+      return { prefill: await documentsPrefill(supabase, p) };
+    }
+
+    case "read_invoice": {
+      requireStatus(p, ["approved", "accepted"], "read the invoice");
+      try {
+        return { invoice: await readSupplierInvoice(supabase, p) };
+      } catch (err: any) {
+        throw new ProposalError(err?.message || "Could not read the invoice.", 502);
+      }
+    }
+
+    case "raise_documents": {
+      requireStatus(p, ["approved", "accepted"], "raise documents");
+      if (p.uw_decision !== "approve") throw new ProposalError("Approve the proposal first.");
+      let result;
+      try {
+        // Reserve the number first so it is the same one the deal goes on the book under.
+        const number = await reserveNumber(supabase, p);
+        result = await raiseDocuments(supabase, { ...p, extras: { ...(p.extras || {}), reserved_agreement_number: number } }, who, (body.input || {}) as RaiseInput);
+      } catch (err: any) {
+        throw new ProposalError(err?.message || "Could not raise the documents.", 502);
+      }
+      const extras = {
+        ...(p.extras || {}),
+        reserved_agreement_number: result.agreement_number,
+        docs: {
+          version: result.version,
+          folder_name: result.folder_name,
+          folder_link: result.folder_link,
+          raised_at: new Date().toISOString(),
+          raised_by: who,
+          files: [...((p.extras?.docs?.files as any[]) || []), ...result.files],
+        },
+      };
+      const { error } = await supabase.from("ffg_proposals").update(touch({ extras })).eq("id", id);
+      if (error) throw new ProposalError(error.message, 500);
+      await logEvent(supabase, id, who, "documents_raised", {
+        agreement_number: result.agreement_number,
+        folder: result.folder_name,
+        files: result.files.map((f) => f.name),
+        skipped: result.skipped,
+      });
+      return { documents: result };
+    }
+
     case "acceptance_draft": {
       requireStatus(p, ["approved", "accepted"], "draft the acceptance");
       if (num(p.agreed_monthly) === null) throw new ProposalError("Agree a rate first.");
@@ -412,7 +462,7 @@ export async function applyAction(
         supabase,
         {
           agreement_type: typeMap[p.product_type || "hp"] || "HP",
-          agreement_number: str(body.agreement_number) || "",
+          agreement_number: str(body.agreement_number) || str(p.extras?.reserved_agreement_number) || "",
           company_name: p.company_name,
           email: p.customer_email,
           contact_name: str(body.contact_name),
