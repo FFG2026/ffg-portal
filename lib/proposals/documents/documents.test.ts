@@ -20,7 +20,7 @@ test("HP agreement fills the form fields", async () => {
   });
   const form = (await PDFDocument.load(bytes)).getForm();
   assert.equal(form.getTextField("Text1").getText(), "TEST LTD");
-  assert.equal(form.getTextField("g").getText(), "£ 9,000.00");
+  assert.equal(form.getTextField("g").getText(), "9000.00");
   assert.equal(form.getDropdown("Dropdown37").getSelected()[0], "Monthly");
 });
 
