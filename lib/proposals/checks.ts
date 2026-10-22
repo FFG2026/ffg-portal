@@ -57,12 +57,21 @@ export function figureChecks(p: ProposalFigures): Check[] {
             level: "ok",
             detail: `${gbp(cash_price)} − ${gbp(dep)} deposit + ${gbp(priced.commission)} commission = ${gbp(priced.financed)}.`,
           }
-        : {
-            id: "financed",
-            label: "Amount financed",
-            level: "issue",
-            detail: `Email says ${gbp(financed)} but cash price − deposit + commission is ${gbp(priced.financed)}.`,
-          }
+        : Math.abs(financed - priced.netLend) <= 0.01
+          ? {
+              // The customer-facing quote shows the amount financed without the commission.
+              // DCF's commission is paid on top, so the customer repays the higher figure plus interest.
+              id: "financed",
+              label: "Amount financed",
+              level: "ok",
+              detail: `Email shows ${gbp(financed)} (${gbp(cash_price)} − ${gbp(dep)} deposit), without the ${gbp(priced.commission)} commission. With the commission the customer repays ${gbp(priced.financed)} plus interest.`,
+            }
+          : {
+              id: "financed",
+              label: "Amount financed",
+              level: "issue",
+              detail: `Email says ${gbp(financed)} but cash price − deposit is ${gbp(priced.netLend)}, or ${gbp(priced.financed)} with the commission.`,
+            }
     );
   }
 
