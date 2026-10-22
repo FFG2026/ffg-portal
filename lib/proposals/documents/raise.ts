@@ -20,6 +20,7 @@ const n = (v: any) => (v === null || v === undefined || v === "" || !Number.isFi
 export type GuarantorInput = { name: string; dob: string; address: string };
 export type RaiseInput = {
   contact_name?: string;
+  email?: string;
   phone?: string;
   address_line1?: string;
   address_line2?: string;
@@ -85,6 +86,7 @@ export async function documentsPrefill(supabase: SupabaseClient, p: P) {
     company: company ? { name: company.name, registered_office: company.registeredOffice, registered_in: company.registeredIn } : null,
     hirer: {
       contact_name: company?.directors?.[0]?.name || "",
+      email: p.customer_email || "",
       phone: p.extras?.customer_phone || "",
       address_line1: company?.registeredOfficeParts.line1 || "",
       address_line2: company?.registeredOfficeParts.line2 || "",
@@ -198,7 +200,7 @@ export async function raiseDocuments(supabase: SupabaseClient, p: P, actorName: 
         agreementNumber: number,
         hirerName: companyName,
         companyNumber: p.company_number || "",
-        email: p.customer_email || "",
+        email: input.email?.trim() || "",
         contactName: input.contact_name || signatory,
         phone: input.phone || p.extras?.customer_phone || "",
         addressLine1: input.address_line1 || company?.registeredOfficeParts.line1 || "",

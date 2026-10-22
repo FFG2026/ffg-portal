@@ -1,6 +1,6 @@
 import { rgb, StandardFonts } from "pdf-lib";
 import { HP_TEMPLATE_B64 } from "./hp-template";
-import { loadTemplate, money, setText } from "./pdf-util";
+import { fixFontSize, loadTemplate, money, setText } from "./pdf-util";
 import { winAnsi } from "./pdf-util";
 import type { HpData } from "./types";
 
@@ -44,18 +44,16 @@ export async function fillHirePurchaseAgreement(d: HpData): Promise<Uint8Array> 
   ];
   d.goods.slice(0, rows.length).forEach((g, i) => {
     const [desc, chassis, reg, cond, regDate, cost] = rows[i];
-    setText(form, desc, g.description);
-    // The description box is narrow: shrink long descriptions so they fit on one line.
-    if (g.description && g.description.length > 22) {
-      try { form.getTextField(desc).setFontSize(g.description.length > 34 ? 7 : 8.5); } catch { /* keep template size */ }
-    }
-    setText(form, chassis, g.chassis);
-    setText(form, reg, g.reg);
-    setText(form, cond, g.condition);
-    setText(form, regDate, g.regDate);
-    setText(form, cost, g.cost !== null && g.cost !== undefined ? money(g.cost) : "");
+    const len = (g.description || "").length;
+    // The description box is narrow: shrink long descriptions so they sit on one line.
+    setText(form, desc, g.description, Math.round(Math.max(5.5, Math.min(9, 156 / (Math.max(len, 1) * 0.52))) * 2) / 2);
+    setText(form, chassis, g.chassis, 9);
+    setText(form, reg, g.reg, 8.5);
+    setText(form, cond, g.condition, 9);
+    setText(form, regDate, g.regDate, 9);
+    setText(form, cost, g.cost !== null && g.cost !== undefined ? money(g.cost) : "", 9);
   });
-  if (d.goods.length === 1 && d.goods[0].cost === undefined) setText(form, "Text15", money(fin.c));
+  if (d.goods.length === 1 && d.goods[0].cost === undefined) setText(form, "Text15", money(fin.c), 9);
 
   setText(form, "a", money(fin.a));
   setText(form, "b", money(fin.b));
@@ -69,7 +67,7 @@ export async function fillHirePurchaseAgreement(d: HpData): Promise<Uint8Array> 
   setText(form, "Text36", String(d.termMonths));
   const freq = form.getDropdown("Dropdown37");
   freq.select("Monthly");
-  try { freq.setFontSize(10); } catch { /* keep template size */ }
+  fixFontSize(freq, 10);
   setText(form, "Text38", money(d.monthly));
   setText(form, "Text56", d.optionFee.toFixed(2));
   setText(form, "Text57", String(d.termMonths));

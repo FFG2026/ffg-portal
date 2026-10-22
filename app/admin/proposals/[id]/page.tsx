@@ -317,10 +317,19 @@ function UnderwritePanel({ p, busy, onSave }: { p: P; busy: boolean; onSave: (d:
 
 type Director = { name: string; birth: string; address: string; dob: string; include: boolean };
 
+/** A registration date more than a year ago means the vehicle is used, whatever the proposal said. */
+function usedFromRegDate(value: string | null): string {
+  const m = String(value || "").match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if (!m) return "";
+  const year = Number(m[3].length === 2 ? `20${m[3]}` : m[3]);
+  const d = new Date(year, Number(m[2]) - 1, Number(m[1]));
+  return Number.isNaN(d.getTime()) ? "" : Date.now() - d.getTime() > 365 * 86400000 ? "Used" : "";
+}
+
 function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; onDone: () => void; setError: (m: string) => void; setOk: (m: string) => void }) {
   const [pre, setPre] = useState<any>(null);
   const [busy, setBusy] = useState("");
-  const [hirer, setHirer] = useState({ contact_name: "", phone: "", address_line1: "", address_line2: "", postcode: "" });
+  const [hirer, setHirer] = useState({ contact_name: "", email: "", phone: "", address_line1: "", address_line2: "", postcode: "" });
   const [dirs, setDirs] = useState<Director[]>([]);
   const [goods, setGoods] = useState({ description: "", chassis: "", reg: "", reg_date: "", condition: "", goods_location1: "", goods_location_postcode: "", supplier_address1: "", supplier_address2: "", supplier_postcode: "" });
   const [ins, setIns] = useState({ insurer_name: "", insurer_address1: "", insurer_address2: "", insurer_address3: "", insurer_postcode: "", insurer_policy: "", insurer_expiry: "" });
@@ -373,7 +382,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
         chassis: f.chassis || g.chassis,
         reg: f.reg || g.reg,
         reg_date: f.reg_date || g.reg_date,
-        condition: f.condition || g.condition,
+        condition: f.condition || usedFromRegDate(f.reg_date) || g.condition,
         goods_location1: f.goods_location1 || g.goods_location1,
         goods_location_postcode: f.goods_location_postcode || g.goods_location_postcode,
         supplier_address1: f.supplier_address1 || g.supplier_address1,
@@ -435,6 +444,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
           <h3 style={{ margin: "14px 0 6px", fontSize: 14 }}>Hirer</h3>
           <div className="admin-form">
             <div><label>Main contact</label><input value={hirer.contact_name} onChange={(e) => setHirer({ ...hirer, contact_name: e.target.value })} /></div>
+            <div><label>Hirer's email</label><input value={hirer.email} onChange={(e) => setHirer({ ...hirer, email: e.target.value })} /></div>
             <div><label>Telephone</label><input value={hirer.phone} onChange={(e) => setHirer({ ...hirer, phone: e.target.value })} /></div>
             <div><label>Address line 1</label><input value={hirer.address_line1} onChange={(e) => setHirer({ ...hirer, address_line1: e.target.value })} /></div>
             <div><label>Address line 2</label><input value={hirer.address_line2} onChange={(e) => setHirer({ ...hirer, address_line2: e.target.value })} /></div>
@@ -459,7 +469,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
             <div><label>Chassis / serial no.</label><input value={goods.chassis} onChange={(e) => setGoods({ ...goods, chassis: e.target.value })} /></div>
             <div><label>Registration (N/A if none)</label><input value={goods.reg} onChange={(e) => setGoods({ ...goods, reg: e.target.value })} /></div>
             <div><label>Date of reg / year of manufacture</label><input value={goods.reg_date} onChange={(e) => setGoods({ ...goods, reg_date: e.target.value })} placeholder="dd/mm/yy or year" /></div>
-            <div><label>New / used</label><input value={goods.condition} onChange={(e) => setGoods({ ...goods, condition: e.target.value })} /></div>
+            <div><label>New / used</label><select value={goods.condition} onChange={(e) => setGoods({ ...goods, condition: e.target.value })}><option value="">Choose…</option><option value="New">New</option><option value="Used">Used</option></select></div>
             <div><label>Goods location (if not the hirer's address)</label><input value={goods.goods_location1} onChange={(e) => setGoods({ ...goods, goods_location1: e.target.value })} /></div>
             <div><label>Goods location postcode</label><input value={goods.goods_location_postcode} onChange={(e) => setGoods({ ...goods, goods_location_postcode: e.target.value })} /></div>
             <div><label>Supplier address</label><input value={goods.supplier_address1} onChange={(e) => setGoods({ ...goods, supplier_address1: e.target.value })} /></div>
