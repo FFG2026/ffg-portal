@@ -6,6 +6,7 @@ import { priceProposal } from "./calc";
 import { buildAcceptanceEmail, PRODUCT_LABELS } from "./acceptance-email";
 import { createDeal } from "../create-deal";
 import { parseAdminBook } from "../admin-book";
+import { readSupplierInvoice } from "./documents/read-invoice";
 import { documentsPrefill, raiseDocuments, reserveNumber, type RaiseInput } from "./documents/raise";
 
 export class ProposalError extends Error {
@@ -340,6 +341,15 @@ export async function applyAction(
     case "documents_prefill": {
       requireStatus(p, ["approved", "accepted"], "raise documents");
       return { prefill: await documentsPrefill(supabase, p) };
+    }
+
+    case "read_invoice": {
+      requireStatus(p, ["approved", "accepted"], "read the invoice");
+      try {
+        return { invoice: await readSupplierInvoice(supabase, p) };
+      } catch (err: any) {
+        throw new ProposalError(err?.message || "Could not read the invoice.", 502);
+      }
     }
 
     case "raise_documents": {

@@ -59,3 +59,9 @@ test("HP agreement carries goods, supplier address and insurance expiry digits",
   assert.equal(form.getTextField("Text63").getText(), "Aviva");
   assert.equal(["Text69", "Text70", "Text71", "Text72", "Text73", "Text74", "Text75", "Text76"].map((n) => form.getTextField(n).getText()).join(""), "31122026");
 });
+
+test("Drive folder id comes out of a folder link", async () => {
+  const { folderIdFromLink } = await import("./read-invoice");
+  assert.equal(folderIdFromLink("https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp?usp=sharing"), "1AbCdEfGhIjKlMnOp");
+  assert.equal(folderIdFromLink(null), null);
+});

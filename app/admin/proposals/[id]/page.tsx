@@ -324,6 +324,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
   const [dirs, setDirs] = useState<Director[]>([]);
   const [goods, setGoods] = useState({ chassis: "", reg: "", reg_date: "", condition: "", goods_location1: "", goods_location_postcode: "", supplier_address1: "", supplier_address2: "", supplier_postcode: "" });
   const [ins, setIns] = useState({ insurer_name: "", insurer_address1: "", insurer_address2: "", insurer_address3: "", insurer_postcode: "", insurer_policy: "", insurer_expiry: "" });
+  const [invoiceNote, setInvoiceNote] = useState<{ file: string | null; warnings: string[] } | null>(null);
   const [docFee, setDocFee] = useState("");
   const [optionFee, setOptionFee] = useState("");
   const [done, setDone] = useState<any>(null);
@@ -351,6 +352,31 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
       setGoods((g) => ({ ...g, condition: p.asset_condition || "" }));
       setDocFee(String(prefill.documentation_fee ?? ""));
       setOptionFee(String(prefill.option_fee ?? ""));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const readInvoice = async () => {
+    setBusy("invoice");
+    setError("");
+    try {
+      const { invoice } = await call("read_invoice");
+      const f = invoice.facts;
+      setGoods((g) => ({
+        chassis: f.chassis || g.chassis,
+        reg: f.reg || g.reg,
+        reg_date: f.reg_date || g.reg_date,
+        condition: f.condition || g.condition,
+        goods_location1: f.goods_location1 || g.goods_location1,
+        goods_location_postcode: f.goods_location_postcode || g.goods_location_postcode,
+        supplier_address1: f.supplier_address1 || g.supplier_address1,
+        supplier_address2: f.supplier_address2 || g.supplier_address2,
+        supplier_postcode: f.supplier_postcode || g.supplier_postcode,
+      }));
+      setInvoiceNote({ file: f.file || invoice.files_read[0] || null, warnings: invoice.warnings });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -414,6 +440,15 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
           </div>
           <h3 style={{ margin: "14px 0 6px", fontSize: 14 }}>Goods</h3>
           <p className="admin-field-hint">The documents aren't raised until the chassis, registration and registration date are in.</p>
+          <div className="pp-btns" style={{ marginTop: 6 }}>
+            <button disabled={!!busy} onClick={readInvoice}>{busy === "invoice" ? "Reading the invoice…" : "Read these from the supplier invoice"}</button>
+          </div>
+          {invoiceNote && (
+            <p className="admin-field-hint">
+              Filled from {invoiceNote.file || "the invoice"} – check each box against it.
+              {invoiceNote.warnings.map((w) => <span key={w} style={{ display: "block", color: "#B4232C" }}>{w}</span>)}
+            </p>
+          )}
           <div className="admin-form">
             <div><label>Chassis / serial no.</label><input value={goods.chassis} onChange={(e) => setGoods({ ...goods, chassis: e.target.value })} /></div>
             <div><label>Registration (N/A if none)</label><input value={goods.reg} onChange={(e) => setGoods({ ...goods, reg: e.target.value })} /></div>
