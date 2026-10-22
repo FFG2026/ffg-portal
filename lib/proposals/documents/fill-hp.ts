@@ -1,6 +1,9 @@
 import { rgb, StandardFonts } from "pdf-lib";
 import { HP_TEMPLATE_B64 } from "./hp-template";
-import { fixFontSize, loadTemplate, money, setText } from "./pdf-util";
+import { fixFontSize, loadTemplate, setText } from "./pdf-util";
+
+/** Plain number for the money boxes: Adobe Sign rejects pound signs and thousands separators in them. */
+const money = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? "" : v.toFixed(2));
 import { winAnsi } from "./pdf-util";
 import type { HpData } from "./types";
 
