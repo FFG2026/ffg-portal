@@ -64,7 +64,9 @@ export function serviceAccountFromEnv() {
 
 export async function accessTokenFromServiceAccount(
   account: ServiceAccount,
-  scope: string = DRIVE_READONLY_SCOPE
+  scope: string = DRIVE_READONLY_SCOPE,
+  /** Act as this Workspace user (domain-wide delegation). Needed to create files: service accounts have no storage of their own. */
+  subject?: string
 ) {
   const now = Math.floor(Date.now() / 1000);
   const header = Buffer.from(
@@ -74,6 +76,7 @@ export async function accessTokenFromServiceAccount(
     JSON.stringify({
       iss: account.client_email,
       scope,
+      ...(subject ? { sub: subject } : {}),
       aud: GOOGLE_TOKEN_URL,
       iat: now,
       exp: now + 3600,
