@@ -45,6 +45,10 @@ export async function fillHirePurchaseAgreement(d: HpData): Promise<Uint8Array> 
   d.goods.slice(0, rows.length).forEach((g, i) => {
     const [desc, chassis, reg, cond, regDate, cost] = rows[i];
     setText(form, desc, g.description);
+    // The description box is narrow: shrink long descriptions so they fit on one line.
+    if (g.description && g.description.length > 22) {
+      try { form.getTextField(desc).setFontSize(g.description.length > 34 ? 7 : 8.5); } catch { /* keep template size */ }
+    }
     setText(form, chassis, g.chassis);
     setText(form, reg, g.reg);
     setText(form, cond, g.condition);

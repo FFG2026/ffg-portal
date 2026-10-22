@@ -30,6 +30,7 @@ export type RaiseInput = {
   option_fee?: number | null;
   guarantors?: GuarantorInput[];
   /** Goods details: the agreement is not raised without these. */
+  description?: string;
   chassis?: string;
   reg?: string;
   reg_date?: string;
@@ -155,7 +156,7 @@ export async function raiseDocuments(supabase: SupabaseClient, p: P, actorName: 
     company: companyName,
     companyNumber: p.company_number || null,
     product: PRODUCT_TITLE[product] || "Proposal",
-    asset: p.asset_description || null,
+    asset: input.description?.trim() || p.asset_description || null,
     supplier: p.supplier_name || null,
     proposal: [
       ["Cash price", gbp(p.cash_price)],
@@ -203,7 +204,7 @@ export async function raiseDocuments(supabase: SupabaseClient, p: P, actorName: 
         addressLine1: input.address_line1 || company?.registeredOfficeParts.line1 || "",
         addressLine2: input.address_line2 || company?.registeredOfficeParts.line2 || "",
         postcode: input.postcode || company?.registeredOfficeParts.postcode || "",
-        goods: [{ description: p.asset_description || "", chassis: input.chassis, reg: input.reg, condition: input.condition || p.asset_condition || "", regDate: input.reg_date }],
+        goods: [{ description: input.description?.trim() || p.asset_description || "", chassis: input.chassis, reg: input.reg, condition: input.condition || p.asset_condition || "", regDate: input.reg_date }],
         cashPrice: cash,
         vat,
         deposit,
