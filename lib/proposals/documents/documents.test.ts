@@ -44,3 +44,18 @@ test("Companies House officer names are flipped and title-cased", () => {
   assert.equal(displayOfficerName("MURRELL, Hayden John"), "Hayden John Murrell");
   assert.equal(displayOfficerName("O'BRIEN, mary-jane"), "Mary-Jane O'Brien");
 });
+
+test("HP agreement carries goods, supplier address and insurance expiry digits", async () => {
+  const bytes = await fillHirePurchaseAgreement({
+    agreementNumber: "HP100", hirerName: "TEST LTD", companyNumber: "123", email: "a@b.co", contactName: "A", phone: "07", addressLine1: "1 Road", addressLine2: "Town", postcode: "AB1 2CD",
+    goods: [{ description: "Van", chassis: "VIN123", reg: "AB12CDE", condition: "New", regDate: "01/02/26" }], cashPrice: 10000, vat: 2000, deposit: 1000, documentationFee: 195, termMonths: 36, monthly: 300, optionFee: 100,
+    supplierName: "SUPP", supplierAddress1: "9 Lane", supplierPostcode: "ZZ1 1ZZ", signatoryName: "A", signatoryPosition: "Director",
+    insurer: { name: "Aviva", policy: "P1", expiry: "31/12/2026" },
+  });
+  const form = (await PDFDocument.load(bytes)).getForm();
+  assert.equal(form.getTextField("Text11").getText(), "VIN123");
+  assert.equal(form.getTextField("Text12").getText(), "AB12CDE");
+  assert.equal(form.getTextField("Text62").getText(), "ZZ1 1ZZ");
+  assert.equal(form.getTextField("Text63").getText(), "Aviva");
+  assert.equal(["Text69", "Text70", "Text71", "Text72", "Text73", "Text74", "Text75", "Text76"].map((n) => form.getTextField(n).getText()).join(""), "31122026");
+});

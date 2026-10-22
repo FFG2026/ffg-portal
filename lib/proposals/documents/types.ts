@@ -36,6 +36,12 @@ export type HpData = {
   monthly: number;
   optionFee: number;
   supplierName: string;
+  supplierAddress1?: string;
+  supplierAddress2?: string;
+  supplierPostcode?: string;
+  goodsLocation1?: string;
+  goodsLocationPostcode?: string;
+  insurer?: { name?: string; address1?: string; address2?: string; address3?: string; postcode?: string; policy?: string; expiry?: string };
   signatoryName: string;
   signatoryPosition: string;
 };

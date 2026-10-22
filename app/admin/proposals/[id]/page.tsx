@@ -322,6 +322,8 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
   const [busy, setBusy] = useState("");
   const [hirer, setHirer] = useState({ contact_name: "", phone: "", address_line1: "", address_line2: "", postcode: "" });
   const [dirs, setDirs] = useState<Director[]>([]);
+  const [goods, setGoods] = useState({ chassis: "", reg: "", reg_date: "", condition: "", goods_location1: "", goods_location_postcode: "", supplier_address1: "", supplier_address2: "", supplier_postcode: "" });
+  const [ins, setIns] = useState({ insurer_name: "", insurer_address1: "", insurer_address2: "", insurer_address3: "", insurer_postcode: "", insurer_policy: "", insurer_expiry: "" });
   const [docFee, setDocFee] = useState("");
   const [optionFee, setOptionFee] = useState("");
   const [done, setDone] = useState<any>(null);
@@ -346,6 +348,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
       setPre(prefill);
       setHirer(prefill.hirer);
       setDirs(prefill.directors.map((d: any) => ({ ...d, dob: "", include: true })));
+      setGoods((g) => ({ ...g, condition: p.asset_condition || "" }));
       setDocFee(String(prefill.documentation_fee ?? ""));
       setOptionFee(String(prefill.option_fee ?? ""));
     } catch (e: any) {
@@ -361,7 +364,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
     try {
       const guarantors = dirs.filter((d) => d.include && d.name.trim()).map((d) => ({ name: d.name, dob: d.dob, address: d.address }));
       const { documents } = await call("raise_documents", {
-        input: { ...hirer, signatory_name: guarantors[0]?.name || hirer.contact_name, documentation_fee: numOrNull(docFee), option_fee: numOrNull(optionFee), guarantors },
+        input: { ...hirer, ...goods, ...ins, signatory_name: guarantors[0]?.name || hirer.contact_name, documentation_fee: numOrNull(docFee), option_fee: numOrNull(optionFee), guarantors },
       });
       setDone(documents);
       setOk(`${documents.agreement_number}: ${documents.files.length} document${documents.files.length === 1 ? "" : "s"} saved to Drive.`);
@@ -408,6 +411,28 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
             <div><label>Postcode</label><input value={hirer.postcode} onChange={(e) => setHirer({ ...hirer, postcode: e.target.value })} /></div>
             <div><label>Documentation fee (£)</label><input value={docFee} onChange={(e) => setDocFee(e.target.value)} inputMode="decimal" /></div>
             <div><label>Option to purchase fee (£)</label><input value={optionFee} onChange={(e) => setOptionFee(e.target.value)} inputMode="decimal" /></div>
+          </div>
+          <h3 style={{ margin: "14px 0 6px", fontSize: 14 }}>Goods</h3>
+          <p className="admin-field-hint">The documents aren't raised until the chassis, registration and registration date are in.</p>
+          <div className="admin-form">
+            <div><label>Chassis / serial no.</label><input value={goods.chassis} onChange={(e) => setGoods({ ...goods, chassis: e.target.value })} /></div>
+            <div><label>Registration (N/A if none)</label><input value={goods.reg} onChange={(e) => setGoods({ ...goods, reg: e.target.value })} /></div>
+            <div><label>Date of reg / year of manufacture</label><input value={goods.reg_date} onChange={(e) => setGoods({ ...goods, reg_date: e.target.value })} placeholder="dd/mm/yy or year" /></div>
+            <div><label>New / used</label><input value={goods.condition} onChange={(e) => setGoods({ ...goods, condition: e.target.value })} /></div>
+            <div><label>Goods location (if not the hirer's address)</label><input value={goods.goods_location1} onChange={(e) => setGoods({ ...goods, goods_location1: e.target.value })} /></div>
+            <div><label>Goods location postcode</label><input value={goods.goods_location_postcode} onChange={(e) => setGoods({ ...goods, goods_location_postcode: e.target.value })} /></div>
+            <div><label>Supplier address</label><input value={goods.supplier_address1} onChange={(e) => setGoods({ ...goods, supplier_address1: e.target.value })} /></div>
+            <div><label>Supplier address line 2</label><input value={goods.supplier_address2} onChange={(e) => setGoods({ ...goods, supplier_address2: e.target.value })} /></div>
+            <div><label>Supplier postcode</label><input value={goods.supplier_postcode} onChange={(e) => setGoods({ ...goods, supplier_postcode: e.target.value })} /></div>
+          </div>
+          <h3 style={{ margin: "14px 0 6px", fontSize: 14 }}>Insurance (optional)</h3>
+          <div className="admin-form">
+            <div><label>Insurer</label><input value={ins.insurer_name} onChange={(e) => setIns({ ...ins, insurer_name: e.target.value })} /></div>
+            <div><label>Policy number</label><input value={ins.insurer_policy} onChange={(e) => setIns({ ...ins, insurer_policy: e.target.value })} /></div>
+            <div><label>Insurer address</label><input value={ins.insurer_address1} onChange={(e) => setIns({ ...ins, insurer_address1: e.target.value })} /></div>
+            <div><label>Insurer address line 2</label><input value={ins.insurer_address2} onChange={(e) => setIns({ ...ins, insurer_address2: e.target.value })} /></div>
+            <div><label>Insurer postcode</label><input value={ins.insurer_postcode} onChange={(e) => setIns({ ...ins, insurer_postcode: e.target.value })} /></div>
+            <div><label>Policy expiry (dd/mm/yyyy)</label><input value={ins.insurer_expiry} onChange={(e) => setIns({ ...ins, insurer_expiry: e.target.value })} placeholder="dd/mm/yyyy" /></div>
           </div>
           <h3 style={{ margin: "14px 0 6px", fontSize: 14 }}>Personal guarantees</h3>
           <p className="admin-field-hint">Directors from Companies House. It only gives birth month and year, so add the full date of birth and home address for each guarantor.</p>

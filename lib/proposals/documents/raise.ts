@@ -29,6 +29,23 @@ export type RaiseInput = {
   documentation_fee?: number | null;
   option_fee?: number | null;
   guarantors?: GuarantorInput[];
+  /** Goods details: the agreement is not raised without these. */
+  chassis?: string;
+  reg?: string;
+  reg_date?: string;
+  condition?: string;
+  goods_location1?: string;
+  goods_location_postcode?: string;
+  supplier_address1?: string;
+  supplier_address2?: string;
+  supplier_postcode?: string;
+  insurer_name?: string;
+  insurer_address1?: string;
+  insurer_address2?: string;
+  insurer_address3?: string;
+  insurer_postcode?: string;
+  insurer_policy?: string;
+  insurer_expiry?: string;
 };
 
 /** Next free number for this product, counting both booked agreements and numbers already reserved. */
@@ -91,6 +108,15 @@ export type RaiseResult = {
 export async function raiseDocuments(supabase: SupabaseClient, p: P, actorName: string, input: RaiseInput): Promise<RaiseResult> {
   if (!p.company_name) throw new Error("The proposal has no company name.");
   const product = p.product_type || "hp";
+  // Nothing is saved or reserved until the deal details are all in.
+  if (product === "hp") {
+    const missing = [
+      !input.chassis?.trim() && "chassis / serial number",
+      !input.reg?.trim() && "registration (type N/A if there isn't one)",
+      !input.reg_date?.trim() && "date of registration / year of manufacture",
+    ].filter(Boolean);
+    if (missing.length) throw new Error(`Add the ${missing.join(", ")} first – the documents are only raised once the deal is complete.`);
+  }
   const number = await reserveNumber(supabase, p);
   const agreed = p.agreed_monthly !== null && p.agreed_monthly !== undefined;
 
@@ -177,7 +203,7 @@ export async function raiseDocuments(supabase: SupabaseClient, p: P, actorName: 
         addressLine1: input.address_line1 || company?.registeredOfficeParts.line1 || "",
         addressLine2: input.address_line2 || company?.registeredOfficeParts.line2 || "",
         postcode: input.postcode || company?.registeredOfficeParts.postcode || "",
-        goods: [{ description: p.asset_description || "", condition: p.asset_condition || "" }],
+        goods: [{ description: p.asset_description || "", chassis: input.chassis, reg: input.reg, condition: input.condition || p.asset_condition || "", regDate: input.reg_date }],
         cashPrice: cash,
         vat,
         deposit,
@@ -186,6 +212,20 @@ export async function raiseDocuments(supabase: SupabaseClient, p: P, actorName: 
         monthly,
         optionFee: input.option_fee ?? HAVE.defaultOptionFee,
         supplierName: p.supplier_name || "",
+        supplierAddress1: input.supplier_address1,
+        supplierAddress2: input.supplier_address2,
+        supplierPostcode: input.supplier_postcode,
+        goodsLocation1: input.goods_location1,
+        goodsLocationPostcode: input.goods_location_postcode,
+        insurer: {
+          name: input.insurer_name,
+          address1: input.insurer_address1,
+          address2: input.insurer_address2,
+          address3: input.insurer_address3,
+          postcode: input.insurer_postcode,
+          policy: input.insurer_policy,
+          expiry: input.insurer_expiry,
+        },
         signatoryName: signatory,
         signatoryPosition: input.signatory_position || "Director",
       });

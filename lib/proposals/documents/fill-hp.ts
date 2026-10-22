@@ -70,6 +70,27 @@ export async function fillHirePurchaseAgreement(d: HpData): Promise<Uint8Array> 
   setText(form, "Text56", d.optionFee.toFixed(2));
   setText(form, "Text57", String(d.termMonths));
   setText(form, "Text58", d.supplierName);
+  setText(form, "Text59", d.supplierAddress1);
+  setText(form, "Text60", d.supplierAddress2);
+  setText(form, "Text62", d.supplierPostcode);
+  setText(form, "Text34", d.goodsLocation1);
+  setText(form, "Text35", d.goodsLocationPostcode);
+
+  // Page 2: insurance (all optional - often not known until closer to delivery).
+  const ins = d.insurer;
+  if (ins) {
+    setText(form, "Text63", ins.name);
+    setText(form, "Text64", ins.address1);
+    setText(form, "Text65", ins.address2);
+    setText(form, "Text66", ins.address3);
+    setText(form, "Text67", ins.postcode);
+    setText(form, "Text68", ins.policy);
+    // Expiry date goes one digit per box: dd / mm / yyyy.
+    const digits = String(ins.expiry || "").replace(/\D/g, "");
+    if (digits.length === 8) {
+      ["Text69", "Text70", "Text71", "Text72", "Text73", "Text74", "Text75", "Text76"].forEach((name, i) => setText(form, name, digits[i]));
+    }
+  }
 
   // Page 2: hirer signatory (name, position, mobile) - signature and date stay blank.
   setText(form, "Text80", d.signatoryName);
