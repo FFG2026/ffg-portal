@@ -325,6 +325,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
   const [goods, setGoods] = useState({ chassis: "", reg: "", reg_date: "", condition: "", goods_location1: "", goods_location_postcode: "", supplier_address1: "", supplier_address2: "", supplier_postcode: "" });
   const [ins, setIns] = useState({ insurer_name: "", insurer_address1: "", insurer_address2: "", insurer_address3: "", insurer_postcode: "", insurer_policy: "", insurer_expiry: "" });
   const [invoiceNote, setInvoiceNote] = useState<{ file: string | null; warnings: string[] } | null>(null);
+  const [invoiceError, setInvoiceError] = useState("");
   const [docFee, setDocFee] = useState("");
   const [optionFee, setOptionFee] = useState("");
   const [done, setDone] = useState<any>(null);
@@ -362,6 +363,8 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
   const readInvoice = async () => {
     setBusy("invoice");
     setError("");
+    setInvoiceError("");
+    setInvoiceNote(null);
     try {
       const { invoice } = await call("read_invoice");
       const f = invoice.facts;
@@ -378,7 +381,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
       }));
       setInvoiceNote({ file: f.file || invoice.files_read[0] || null, warnings: invoice.warnings });
     } catch (e: any) {
-      setError(e.message);
+      setInvoiceError(e.message);
     } finally {
       setBusy("");
     }
@@ -443,6 +446,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
           <div className="pp-btns" style={{ marginTop: 6 }}>
             <button disabled={!!busy} onClick={readInvoice}>{busy === "invoice" ? "Reading the invoice…" : "Read these from the supplier invoice"}</button>
           </div>
+          {invoiceError && <p className="admin-field-hint" style={{ color: "#B4232C" }}>Couldn't read the invoice: {invoiceError}</p>}
           {invoiceNote && (
             <p className="admin-field-hint">
               Filled from {invoiceNote.file || "the invoice"} – check each box against it.
