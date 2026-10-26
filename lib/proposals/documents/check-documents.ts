@@ -21,7 +21,10 @@ const str = (v: unknown, max = 120) => {
 };
 
 const readable = (f: DriveFile) =>
-  /pdf|image\/(png|jpe?g|webp)/i.test(f.mimeType) || /\.pdf$/i.test(f.name);
+  (/pdf|image\/(png|jpe?g|webp)/i.test(f.mimeType) || /\.pdf$/i.test(f.name)) &&
+  !/^application\/vnd\.google-apps\./i.test(f.mimeType);
+const looksLikeInvoice = (name: string) =>
+  /invoice|inv[-_ ]?\d|pro[- ]?forma|proforma|quotation|supplier|purchase/i.test(name);
 const mimeFor = (f: DriveFile) =>
   /\.pdf$/i.test(f.name) || /pdf/i.test(f.mimeType) ? "application/pdf" : f.mimeType;
 
@@ -31,7 +34,15 @@ function dedupe(files: DriveFile[]) {
   for (const f of files) {
     const key = f.name.toLowerCase().replace(/\s+/g, " ").trim();
     const prev = byName.get(key);
-    if (!prev || String(f.modifiedTime || "") > String(prev.modifiedTime || "")) byName.set(key, f);
+    // Prefer a real PDF/image over a Google-converted copy, then the newest.
+    const real = (x: DriveFile) => (/pdf|image\//i.test(x.mimeType) ? 1 : 0);
+    if (
+      !prev ||
+      real(f) > real(prev) ||
+      (real(f) === real(prev) && String(f.modifiedTime || "") > String(prev.modifiedTime || ""))
+    ) {
+      byName.set(key, f);
+    }
   }
   return Array.from(byName.values());
 }
@@ -121,7 +132,17 @@ async function accountsChecks(files: DriveFile[], token: string): Promise<Check[
   }
 }
 
-async function invoiceChecks(supabase: SupabaseClient, p: P): Promise<Check[]> {
+async function invoiceChecks(supabase: SupabaseClient, p: P, files: DriveFile[]): Promise<Check[]> {
+  if (!files.some((f) => looksLikeInvoice(f.name) && !/request/i.test(f.name))) {
+    return [
+      {
+        id: "doc-invoice",
+        label: "Supplier invoice",
+        level: "info",
+        detail: "No supplier invoice (PDF or image named like an invoice or pro-forma) is in the Drive folder, so it wasn't checked.",
+      },
+    ];
+  }
   try {
     const r = await readSupplierInvoice(supabase, p);
     const f = r.facts;
@@ -257,7 +278,7 @@ export async function documentChecks(supabase: SupabaseClient, p: P): Promise<Ch
   files = dedupe(files.filter(readable));
   const [acc, inv, bank] = await Promise.all([
     accountsChecks(files, token),
-    invoiceChecks(supabase, p),
+    invoiceChecks(supabase, p, files),
     bankChecks(files, token, p),
   ]);
   return [...acc, ...inv, ...bank];
