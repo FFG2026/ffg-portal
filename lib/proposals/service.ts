@@ -6,7 +6,8 @@ import { priceProposal } from "./calc";
 import { buildAcceptanceEmail, PRODUCT_LABELS } from "./acceptance-email";
 import { createDeal } from "../create-deal";
 import { parseAdminBook } from "../admin-book";
-import { readSupplierInvoice } from "./documents/read-invoice";
+import { readSupplierInvoice, folderIdFromLink } from "./documents/read-invoice";
+import { driveAccessToken, listDriveChildren } from "../google/drive";
 import { documentChecks } from "./documents/check-documents";
 import { documentsPrefill, raiseDocuments, reserveNumber, type RaiseInput } from "./documents/raise";
 
@@ -38,6 +39,50 @@ export async function logEvent(
   await supabase
     .from("ffg_proposal_events")
     .insert({ proposal_id: proposalId, actor, kind, detail });
+}
+
+/**
+ * A frozen copy of what was on the file at the moment of a decision: the figures,
+ * the checks as they stood, and the documents in the Drive folder. Stored with the
+ * history entry so it can be shown later whatever happens to the proposal.
+ */
+export async function decisionSnapshot(supabase: SupabaseClient, p: Record<string, any>) {
+  const figures: Record<string, unknown> = {};
+  for (const k of [
+    "company_name", "company_number", "product_type", "asset_description", "supplier_name",
+    "cash_price", "vat", "deposit", "commission", "financed", "term_months", "quoted_rate_pct",
+    "quoted_monthly", "agreed_rate_pct", "agreed_term_months", "agreed_deposit", "agreed_commission",
+    "agreed_monthly", "agreed_financed",
+  ]) {
+    if (p[k] !== undefined && p[k] !== null) figures[k] = p[k];
+  }
+  const checks = Array.isArray(p.checks)
+    ? (p.checks as Check[]).map((c) => ({ id: c.id, label: c.label, level: c.level, detail: c.detail }))
+    : [];
+  let documents: { name: string; modified: string | null }[] = [];
+  const folderId = folderIdFromLink(p.extras?.drive_folder_link);
+  if (folderId) {
+    try {
+      const listing = Promise.resolve().then(async () => {
+        const token = await driveAccessToken(supabase);
+        const top = await listDriveChildren(token, folderId);
+        const files = top.filter((f) => f.mimeType !== "application/vnd.google-apps.folder");
+        return files.map((f) => ({ name: f.name, modified: f.modifiedTime || f.createdTime || null }));
+      });
+      const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000));
+      documents = await Promise.race([listing, timeout]);
+    } catch {
+      documents = [];
+    }
+  }
+  return {
+    taken_at: new Date().toISOString(),
+    figures,
+    checks_run_at: p.checks_at || null,
+    checks,
+    documents,
+    drive_folder_link: p.extras?.drive_folder_link || null,
+  };
 }
 
 export async function getProposal(supabase: SupabaseClient, id: string) {
@@ -290,7 +335,7 @@ export async function applyAction(
       }
       const { error } = await supabase.from("ffg_proposals").update(touch(patch)).eq("id", id);
       if (error) throw new ProposalError(error.message, 500);
-      await logEvent(supabase, id, who, `underwriting_${decision}`, { notes });
+      await logEvent(supabase, id, who, `underwriting_${decision}`, { notes, snapshot: await decisionSnapshot(supabase, p) });
       return {};
     }
 
@@ -440,7 +485,7 @@ export async function applyAction(
         )
         .eq("id", id);
       if (error) throw new ProposalError(`Email sent but the record failed to save: ${error.message}`, 500);
-      await logEvent(supabase, id, who, "acceptance_sent", { to, provider_id: out?.id || null });
+      await logEvent(supabase, id, who, "acceptance_sent", { to, provider_id: out?.id || null, snapshot: await decisionSnapshot(supabase, p) });
       return {};
     }
 
@@ -511,6 +556,7 @@ export async function applyAction(
         agreement_number: result.agreement_number,
         instalments: result.instalments,
         mandate: result.mandate_source,
+        snapshot: await decisionSnapshot(supabase, p),
       });
       return {
         agreement_number: result.agreement_number,
@@ -529,7 +575,7 @@ export async function applyAction(
         .update(touch({ status: "declined", decline_reason: reason, declined_at: new Date().toISOString() }))
         .eq("id", id);
       if (error) throw new ProposalError(error.message, 500);
-      await logEvent(supabase, id, who, "declined", { reason });
+      await logEvent(supabase, id, who, "declined", { reason, snapshot: await decisionSnapshot(supabase, p) });
       return {};
     }
 
@@ -541,6 +587,14 @@ export async function applyAction(
       const { error } = await supabase.from("ffg_proposals").delete().eq("id", id);
       if (error) throw new ProposalError(error.message, 500);
       return { deleted: true, agreement_number: p.agreement_number || null };
+    }
+
+    case "add_note": {
+      const note = str(body.note);
+      if (!note) throw new ProposalError("Write the note first.");
+      if (note.length > 4000) throw new ProposalError("Keep the note under 4,000 characters.");
+      await logEvent(supabase, id, who, "note", { note });
+      return {};
     }
 
     case "reopen": {

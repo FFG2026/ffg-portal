@@ -31,6 +31,8 @@ const EVENT_TEXT: Record<string, string> = {
   documents_raised: "Finance documents raised",
   declined: "Declined",
   reopened: "Reopened",
+  note: "Note added",
+  resubmitted: "Resubmitted from DCF",
 };
 
 export default function ProposalPage() {
@@ -190,16 +192,96 @@ function ProposalInner() {
                   {e.actor ? ` · ${e.actor}` : ""}
                   {e.detail?.notes ? ` – “${e.detail.notes}”` : ""}
                   {e.detail?.reason ? ` – “${e.detail.reason}”` : ""}
+                  {e.detail?.note ? ` – “${e.detail.note}”` : ""}
                   {e.detail?.agreement_number ? ` – ${e.detail.agreement_number}` : ""}
                   {e.kind === "rate_agreed" && e.detail?.rate !== undefined ? ` – ${e.detail.rate}%, ${gbp(e.detail.monthly)}/month` : ""}
+                  {e.detail?.snapshot && <Snapshot s={e.detail.snapshot} />}
                 </span>
-                <time>{new Date(e.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</time>
+                <time>{new Date(e.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
               </li>
             ))}
           </ul>
+          <NoteBox busy={busy === "add_note"} onAdd={(note) => act("add_note", { note }, "Note added to the file.")} />
         </div>
       </div>
     </>
+  );
+}
+
+function NoteBox({ busy, onAdd }: { busy: boolean; onAdd: (note: string) => Promise<unknown> }) {
+  const [note, setNote] = useState("");
+  return (
+    <div style={{ marginTop: 14 }}>
+      <label style={{ fontSize: 13, fontWeight: 600 }}>Add a note to the file</label>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={3}
+        style={{ width: "100%", marginTop: 6 }}
+        placeholder="e.g. Spoke to the director, agreed to supply the invoice by Friday. Notes can't be edited or removed."
+      />
+      <div className="pp-btns">
+        <button
+          className="primary"
+          disabled={busy || !note.trim()}
+          onClick={async () => {
+            const r = await onAdd(note.trim());
+            if (r) setNote("");
+          }}
+        >
+          {busy ? "Saving…" : "Add note"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** What was on the file when the decision was made: figures, checks and documents, frozen at that moment. */
+function Snapshot({ s }: { s: any }) {
+  const f = s.figures || {};
+  const money = (k: string) => (f[k] === undefined ? null : gbp(f[k]));
+  const rows: [string, string | null][] = [
+    ["Customer", f.company_name ? `${f.company_name}${f.company_number ? ` (${f.company_number})` : ""}` : null],
+    ["Cash price", money("cash_price")],
+    ["Deposit", money("agreed_deposit") || money("deposit")],
+    ["Commission", money("agreed_commission") || money("commission")],
+    ["Amount financed", money("agreed_financed") || money("financed")],
+    ["Term", f.agreed_term_months || f.term_months ? `${f.agreed_term_months || f.term_months} months` : null],
+    ["Rate", f.agreed_rate_pct !== undefined ? `${f.agreed_rate_pct}% (agreed)` : f.quoted_rate_pct !== undefined ? `${f.quoted_rate_pct}% (quoted)` : null],
+    ["Monthly", money("agreed_monthly") || money("quoted_monthly")],
+  ];
+  return (
+    <details style={{ marginTop: 4, fontSize: 13 }}>
+      <summary style={{ cursor: "pointer", color: "var(--muted, #6b7280)" }}>What was on file at the time</summary>
+      <dl className="pp-kv" style={{ marginTop: 6 }}>
+        {rows.filter(([, v]) => v).map(([k, v]) => (
+          <span key={k} style={{ display: "contents" }}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </span>
+        ))}
+      </dl>
+      {Array.isArray(s.checks) && s.checks.length > 0 && (
+        <>
+          <strong>Checks{s.checks_run_at ? ` (run ${new Date(s.checks_run_at).toLocaleString("en-GB")})` : ""}</strong>
+          <ul style={{ margin: "4px 0 6px", paddingLeft: 18 }}>
+            {s.checks.map((c: any) => (
+              <li key={c.id}>{c.label} [{c.level}]: {c.detail}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {Array.isArray(s.documents) && s.documents.length > 0 && (
+        <>
+          <strong>Documents in the folder ({s.documents.length})</strong>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+            {s.documents.map((d: any, i: number) => (
+              <li key={i}>{d.name}{d.modified ? ` · ${new Date(d.modified).toLocaleDateString("en-GB")}` : ""}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </details>
   );
 }
 
