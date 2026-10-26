@@ -128,7 +128,7 @@ function ProposalInner() {
 
       <div className="pp-stack">
         <DetailsPanel p={p} editable={editable} busy={busy === "edit"} onSave={(fields) => act("edit", { fields }, "Saved – checks re-run.")} />
-        <DealPackPanel p={p} />
+        <DealPackPanel id={id} p={p} />
         <ChecksPanel p={p} busy={busy === "run_checks"} onRerun={() => act("run_checks", {}, "Checks re-run.")} />
         {["new", "underwriting", "approved"].includes(status) && (
           <UnderwritePanel p={p} busy={busy === "underwrite"} onSave={(decision, notes) => act("underwrite", { decision, notes }, decision === "approve" ? "Approved – now agree a rate." : decision === "refer" ? "Marked as referred." : "Declined.")} />
@@ -735,8 +735,21 @@ function DeclinePanel({ busy, onDecline }: { busy: boolean; onDecline: (reason: 
 
 /* ---------- the deal pack sent over from the DCF portal ---------- */
 
-function DealPackPanel({ p }: { p: P }) {
+function DealPackPanel({ id, p }: { id: string; p: P }) {
   const x = p.extras || {};
+  const [live, setLive] = useState<{ name: string; kind: string; modified: string | null; url: string | null; folder: string | null }[] | null>(null);
+  const [liveErr, setLiveErr] = useState("");
+  const hasFolder = typeof x.drive_folder_link === "string";
+  useEffect(() => {
+    if (!hasFolder) return;
+    fetch(`/api/admin/proposals/${id}/drive-files`, { headers: adminHeaders(), cache: "no-store" })
+      .then(async (r) => {
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "Could not read the Drive folder");
+        setLive(j.files || []);
+      })
+      .catch((e) => setLiveErr(e.message || "Could not read the Drive folder"));
+  }, [id, hasFolder, p.updated_at]);
   const docs: { category: string | null; file_name: string | null }[] = Array.isArray(x.documents) ? x.documents : [];
   const link: string | null = typeof x.drive_folder_link === "string" && /^https:\/\//.test(x.drive_folder_link) ? x.drive_folder_link : null;
   const other: { term: number; monthly_payment: number }[] = Array.isArray(x.other_terms_offered) ? x.other_terms_offered : [];
@@ -753,7 +766,21 @@ function DealPackPanel({ p }: { p: P }) {
         {x.shareholders_funds != null && (<><dt>Shareholders' funds{x.shareholders_funds_period_end ? ` (${String(x.shareholders_funds_period_end).slice(0, 10)})` : ""}</dt><dd>{gbp(x.shareholders_funds)}</dd></>)}
         {other.length > 0 && (<><dt>Other terms the customer was offered</dt><dd>{other.map((o) => `${o.term}m ${gbp(o.monthly_payment)}`).join(" · ")}</dd></>)}
       </dl>
-      {docs.length > 0 && (
+      {live && live.length > 0 && (
+        <div style={{ marginTop: 10, fontSize: 13.5 }}>
+          <strong style={{ color: "var(--navy)" }}>In the Drive folder now ({live.length})</strong>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {live.map((f, i) => (
+              <li key={i}>
+                <a href={f.url || "#"} target="_blank" rel="noopener noreferrer">{f.name}</a>
+                {" "}<span style={{ color: "var(--muted, #6b7280)" }}>{f.kind}{f.folder ? ` · ${f.folder}` : ""}{f.modified ? ` · ${new Date(f.modified).toLocaleDateString("en-GB")}` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {liveErr && <div className="pp-warn" style={{ marginTop: 10 }}>Couldn't read the Drive folder: {liveErr}</div>}
+      {!live && docs.length > 0 && (
         <div style={{ marginTop: 10, fontSize: 13.5 }}>
           <strong style={{ color: "var(--navy)" }}>Documents on file ({docs.length})</strong>
           <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
