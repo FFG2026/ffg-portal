@@ -7,6 +7,7 @@ import { buildAcceptanceEmail, PRODUCT_LABELS } from "./acceptance-email";
 import { createDeal } from "../create-deal";
 import { parseAdminBook } from "../admin-book";
 import { readSupplierInvoice } from "./documents/read-invoice";
+import { documentChecks } from "./documents/check-documents";
 import { documentsPrefill, raiseDocuments, reserveNumber, type RaiseInput } from "./documents/raise";
 
 export class ProposalError extends Error {
@@ -174,7 +175,11 @@ export async function ingestEmail(
   return { id: created.id as string, duplicate: false, warnings: parsed.warnings };
 }
 
-export async function runChecks(supabase: SupabaseClient, id: string): Promise<Check[]> {
+export async function runChecks(
+  supabase: SupabaseClient,
+  id: string,
+  opts: { documents?: boolean } = {}
+): Promise<Check[]> {
   const p = await getProposal(supabase, id);
   const figures = figureChecks({
     cash_price: num(p.cash_price),
@@ -196,7 +201,8 @@ export async function runChecks(supabase: SupabaseClient, id: string): Promise<C
     cash_price: num(p.cash_price),
     financed: num(p.financed),
   });
-  const checks = [...data, ...figures];
+  const docs = opts.documents ? await documentChecks(supabase, p).catch(() => []) : [];
+  const checks = [...data, ...docs, ...figures];
   await supabase
     .from("ffg_proposals")
     .update({ checks, checks_at: new Date().toISOString(), updated_at: new Date().toISOString() })
@@ -256,7 +262,7 @@ export async function applyAction(
     }
 
     case "run_checks": {
-      await runChecks(supabase, id);
+      await runChecks(supabase, id, { documents: true });
       return {};
     }
 
