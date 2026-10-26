@@ -114,11 +114,14 @@ export async function buildApprovalPdf(d: ApprovalData): Promise<Uint8Array> {
   heading(d.checksRunAt ? `Checks at the time (run ${new Date(d.checksRunAt).toLocaleString("en-GB", { dateStyle: "long", timeStyle: "short" })})` : "Checks at the time");
   for (const c of d.checks) {
     const lines = wrap(c.detail, font, 9.5, W - M - 190);
-    ensure(14 * Math.max(1, lines.length));
-    text(c.label, M, 9.5, bold);
+    // Long labels wrap inside the label column instead of running into the level column.
+    const labelLines = wrap(c.label, bold, 9.5, 96);
+    const rows = Math.max(1, lines.length, labelLines.length);
+    ensure(14 * rows);
+    labelLines.forEach((ln, i) => page.drawText(ln, { x: M, y: y - i * 12.5, size: 9.5, font: bold, color: ink }));
     page.drawText(LEVEL[c.level] || c.level, { x: 150, y, size: 9, font: bold, color: COLOUR[c.level] || ink });
     lines.forEach((ln, i) => page.drawText(ln, { x: 190, y: y - i * 12.5, size: 9.5, font, color: ink }));
-    y -= 13 * Math.max(1, lines.length) + 2;
+    y -= 13 * rows + 2;
   }
 
   return doc.save();
