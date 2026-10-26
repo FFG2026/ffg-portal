@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
 import PageHero from "../PageHero";
+import VehicleSettlement from "./VehicleSettlement";
 import { notifyBookChanged } from "../../../lib/admin-book-reload";
 
 type RelatedAgreement = {
@@ -558,6 +559,19 @@ function LookupInner() {
                   notifyBookChanged();
                 }}
               />
+
+              {result.status.live && currentAdminBook() !== "gg" && (
+                <VehicleSettlement
+                  key={`${result.agreement.agreement_number}-vehicles`}
+                  agreementNumber={result.agreement.agreement_number}
+                  gbp={gbp}
+                  formatDate={formatDate}
+                  onDone={() => {
+                    runLookup("agreement", result.agreement.agreement_number);
+                    notifyBookChanged();
+                  }}
+                />
+              )}
 
               {result.status.live &&
                 (result.status.settlement_figure > 0 ||
