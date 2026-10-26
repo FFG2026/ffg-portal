@@ -207,7 +207,13 @@ function ProposalInner() {
 
 function DetailsPanel({ p, editable, busy, onSave }: { p: P; editable: boolean; busy: boolean; onSave: (f: Record<string, unknown>) => void }) {
   const keys = ["company_name", "company_number", "customer_email", "rep_name", "rep_email", "asset_description", "supplier_name", "supplier_number", "cash_price", "deposit", "commission", "financed", "term_months", "quoted_rate_pct", "quoted_monthly"] as const;
-  const init = useMemo(() => Object.fromEntries(keys.map((k) => [k, p[k] === null || p[k] === undefined ? "" : String(p[k])])) as Record<string, string>, [p]); // eslint-disable-line react-hooks/exhaustive-deps
+  const moneyKeys = ["cash_price", "deposit", "commission", "financed", "quoted_monthly"];
+  const shown = (k: string) => {
+    if (p[k] === null || p[k] === undefined) return "";
+    const n = Number(p[k]);
+    return moneyKeys.includes(k) && Number.isFinite(n) ? n.toFixed(2) : String(p[k]);
+  };
+  const init = useMemo(() => Object.fromEntries(keys.map((k) => [k, shown(k)])) as Record<string, string>, [p]); // eslint-disable-line react-hooks/exhaustive-deps
   const [f, setF] = useState(init);
   useEffect(() => setF(init), [init]);
   const dirty = keys.some((k) => f[k] !== init[k]);
