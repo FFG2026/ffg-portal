@@ -32,6 +32,8 @@ const EVENT_TEXT: Record<string, string> = {
   declined: "Declined",
   reopened: "Reopened",
   note: "Note added",
+  approval_emailed: "Approval emailed to the rep",
+  approval_record_saved: "Approval record saved to the deal folder",
   resubmitted: "Resubmitted from DCF",
 };
 
@@ -133,7 +135,21 @@ function ProposalInner() {
         <DealPackPanel id={id} p={p} />
         <ChecksPanel p={p} busy={busy === "run_checks"} onRerun={() => act("run_checks", {}, "Checks re-run.")} />
         {["new", "underwriting", "approved"].includes(status) && (
-          <UnderwritePanel p={p} busy={busy === "underwrite"} onSave={(decision, notes) => act("underwrite", { decision, notes }, decision === "approve" ? "Approved – now agree a rate." : decision === "refer" ? "Marked as referred." : "Declined.")} />
+          <UnderwritePanel p={p} busy={busy === "underwrite"} onSave={async (decision, notes) => {
+            const r = await act("underwrite", { decision, notes });
+            if (!r) return;
+            if (decision === "approve") {
+              const done = [
+                "Approved – now agree a rate.",
+                r.emailed_to ? `Emailed ${r.emailed_to}.` : "",
+                r.approval_record ? `Approval record saved to the deal folder (${r.approval_record.file_name}).` : "",
+                ...(r.warnings || []),
+              ].filter(Boolean);
+              setOk(done.join(" "));
+            } else {
+              setOk(decision === "refer" ? "Marked as referred." : "Declined.");
+            }
+          }} />
         )}
         {["approved", "accepted"].includes(status) && p.uw_decision === "approve" && (
           <DocumentsPanel id={id} p={p} onDone={load} setError={setError} setOk={setOk} />

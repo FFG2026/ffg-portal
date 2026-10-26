@@ -15,6 +15,7 @@ export type ApprovalData = {
   decidedAt: string | null;
   notes: string | null;
   checks: Array<{ label: string; level: string; detail: string }>;
+  checksRunAt?: string | null;
   raisedBy: string;
 };
 
@@ -110,7 +111,7 @@ export async function buildApprovalPdf(d: ApprovalData): Promise<Uint8Array> {
     kv(d.agreed);
   }
 
-  heading("Checks at the time");
+  heading(d.checksRunAt ? `Checks at the time (run ${new Date(d.checksRunAt).toLocaleString("en-GB", { dateStyle: "long", timeStyle: "short" })})` : "Checks at the time");
   for (const c of d.checks) {
     const lines = wrap(c.detail, font, 9.5, W - M - 190);
     ensure(14 * Math.max(1, lines.length));

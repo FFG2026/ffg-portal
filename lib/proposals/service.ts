@@ -9,6 +9,7 @@ import { parseAdminBook } from "../admin-book";
 import { readSupplierInvoice, folderIdFromLink } from "./documents/read-invoice";
 import { driveAccessToken, listDriveChildren } from "../google/drive";
 import { documentChecks } from "./documents/check-documents";
+import { saveApprovalRecord } from "./documents/approval-record";
 import { documentsPrefill, raiseDocuments, reserveNumber, type RaiseInput } from "./documents/raise";
 
 export class ProposalError extends Error {
@@ -336,7 +337,67 @@ export async function applyAction(
       const { error } = await supabase.from("ffg_proposals").update(touch(patch)).eq("id", id);
       if (error) throw new ProposalError(error.message, 500);
       await logEvent(supabase, id, who, `underwriting_${decision}`, { notes, snapshot: await decisionSnapshot(supabase, p) });
-      return {};
+      if (decision !== "approve") return {};
+
+      // On approval: tell whoever proposed it, and file an approval record PDF in the deal folder.
+      const decided = { ...p, uw_decision: "approve", uw_notes: notes, uw_by: who, uw_at: patch.uw_at as string };
+      const warnings: string[] = [];
+      let emailedTo: string | null = null;
+      let record: { file_name: string; file_link: string; agreement_number: string } | null = null;
+
+      const to = str(p.rep_email);
+      if (!to) {
+        warnings.push("No rep email is on the proposal, so nobody was told. Add it under The proposal and tell them yourself.");
+      } else if (!process.env.RESEND_API_KEY) {
+        warnings.push("Email isn't set up on the server (RESEND_API_KEY), so the rep wasn't told.");
+      } else {
+        try {
+          const money = (v: unknown) => (num(v) === null ? "-" : `£${Number(v).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          const text = [
+            `Hi ${str(p.rep_name) || "there"},`,
+            "",
+            `${p.company_name} has been approved at underwriting by ${who}.`,
+            "",
+            `Cash price ${money(p.cash_price)} · amount financed ${money(p.financed)}${p.term_months ? ` · ${p.term_months} months` : ""}${p.quoted_monthly ? ` · quoted ${money(p.quoted_monthly)} a month` : ""}.`,
+            "",
+            notes ? `Notes from underwriting:\n${notes}` : "No notes were added.",
+            "",
+            "The rate and terms will be confirmed to you in the acceptance, which follows separately. This is not the acceptance.",
+            "",
+            "Future FG",
+          ].join("\n");
+          const res = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: "Future FG <noreply@ffg.finance>",
+              to,
+              bcc: actor.email ? [actor.email] : undefined,
+              reply_to: actor.email || undefined,
+              subject: `Approved – ${p.company_name}`,
+              text,
+            }),
+          });
+          const out: any = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(out?.message || String(res.status));
+          emailedTo = to;
+          await logEvent(supabase, id, who, "approval_emailed", { to, notes });
+        } catch (e: any) {
+          warnings.push(`The approval email didn't send (${e.message}).`);
+        }
+      }
+
+      try {
+        record = await saveApprovalRecord(supabase, decided, who);
+        await logEvent(supabase, id, who, "approval_record_saved", {
+          file_name: record.file_name,
+          link: record.file_link,
+          agreement_number: record.agreement_number,
+        });
+      } catch (e: any) {
+        warnings.push(`The approval PDF wasn't saved to the deal folder (${e.message}).`);
+      }
+      return { emailed_to: emailedTo, approval_record: record, warnings };
     }
 
     case "set_rate": {
