@@ -144,7 +144,7 @@ function ProposalInner() {
           <AcceptancePanel id={id} p={p} busy={busy === "send_acceptance"} onSend={(v) => act("send_acceptance", v, "Acceptance sent.")} setError={setError} />
         )}
         {["accepted", "on_book"].includes(status) && p.acceptance_sent_at && <SentAcceptance p={p} />}
-        {status === "accepted" && (
+        {(status === "accepted" || (status === "approved" && p.agreed_monthly !== null && p.agreed_term_months)) && (
           <BookPanel p={p} busy={busy === "put_on_book"} onBook={async (v) => {
             const r = await act("put_on_book", v);
             if (r) setOk(`${r.agreement_number} is on the book with ${r.instalments} instalments.${r.mandate_source === "inherited" ? " It picked up this customer's existing direct debit mandate." : r.mandate_source === "none" ? " No direct debit mandate yet – add it on the deal sheet once it's set up." : ""}`);

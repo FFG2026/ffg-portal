@@ -439,7 +439,8 @@ export async function applyAction(
     }
 
     case "put_on_book": {
-      requireStatus(p, ["accepted"], "put the deal on the book");
+      requireStatus(p, ["approved", "accepted"], "put the deal on the book");
+      const priorStatus = p.status === "approved" ? "approved" : "accepted";
       const startDate = String(body.start_date || "").slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new ProposalError("Enter the start date.");
       const monthly = num(body.monthly_instalment) ?? num(p.agreed_monthly);
@@ -454,7 +455,7 @@ export async function applyAction(
         .from("ffg_proposals")
         .update(touch({ status: "on_book" }))
         .eq("id", id)
-        .eq("status", "accepted")
+        .eq("status", priorStatus)
         .select("id");
       if (!claimed?.length) throw new ProposalError("This proposal has already been put on the book.", 409);
 
@@ -484,7 +485,7 @@ export async function applyAction(
       if (!result.ok) {
         // Put it back so it can be fixed and tried again – unless the agreement itself exists.
         if (!result.agreement) {
-          await supabase.from("ffg_proposals").update(touch({ status: "accepted" })).eq("id", id);
+          await supabase.from("ffg_proposals").update(touch({ status: priorStatus })).eq("id", id);
         }
         throw new ProposalError(result.error, result.status);
       }
