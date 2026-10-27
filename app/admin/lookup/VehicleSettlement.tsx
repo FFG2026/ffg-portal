@@ -193,7 +193,8 @@ export default function VehicleSettlement({
           </div>
 
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <style>{`.vs-table th,.vs-table td{padding:6px 14px;white-space:nowrap}.vs-table th:first-child,.vs-table td:first-child{padding-left:4px;padding-right:4px}.vs-table tbody tr{border-top:1px solid rgba(0,0,0,0.06)}`}</style>
+            <table className="vs-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ textAlign: "left" }}>
                   <th></th>
