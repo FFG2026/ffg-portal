@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Amortisation from "./Amortisation";
 import AdminShell, { adminHeaders, currentAdminBook } from "../AdminShell";
 import PageHero from "../PageHero";
 import VehicleSettlement from "./VehicleSettlement";
@@ -570,6 +571,17 @@ function LookupInner() {
                     runLookup("agreement", result.agreement.agreement_number);
                     notifyBookChanged();
                   }}
+                />
+              )}
+
+              {result.schedule.length > 0 && (
+                <Amortisation
+                  agreementNumber={result.agreement.agreement_number}
+                  version={result.schedule
+                    .map((r) => `${r.instalment_number}:${r.amount}:${r.status}`)
+                    .join("|")}
+                  gbp={gbp}
+                  formatDate={formatDate}
                 />
               )}
 
