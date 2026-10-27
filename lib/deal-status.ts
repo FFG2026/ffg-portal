@@ -281,6 +281,25 @@ export function lastReceivedPaymentDate(
 }
 
 /**
+ * Days a Direct Debit instalment is given to be confirmed before it counts as
+ * missed. GoCardless only confirms a collection a few working days after the
+ * charge date, so a row that is merely waiting looks identical to an unpaid
+ * one. A row GoCardless has actually failed is not waiting, so it counts at
+ * once.
+ */
+export const OVERDUE_GRACE_DAYS = 7;
+
+function isOverdueRow(r: PaymentDateRow, from: string, before: string, today: string) {
+  if (isPaidRow(r.status) || !r.due_date) return false;
+  const due = String(r.due_date).slice(0, 10);
+  if (due.length !== 10 || due < from || due >= before) return false;
+  if (String(r.status || "").toLowerCase() === "failed") return true;
+  const graceEnd = new Date(`${due}T00:00:00Z`);
+  graceEnd.setUTCDate(graceEnd.getUTCDate() + OVERDUE_GRACE_DAYS);
+  return graceEnd.toISOString().slice(0, 10) <= today;
+}
+
+/**
  * Missed payments: instalments whose due date has passed unpaid, in this
  * calendar month and the one before it.
  *
@@ -291,7 +310,8 @@ export function lastReceivedPaymentDate(
  * collectable and worth chasing, and it is what the month's cash forecast
  * needs to carry.
  *
- * Nothing else suppresses a row. An instalment that has gone unpaid this
+ * A Direct Debit still inside its confirmation grace (OVERDUE_GRACE_DAYS)
+ * does not count unless GoCardless has failed it. Nothing else suppresses a row. An instalment that has gone unpaid this
  * month counts even if a later one was collected, because the money did not
  * arrive; if it did arrive and was never matched, that is worth seeing too.
  */
@@ -302,11 +322,7 @@ export function overdueSum(
   const from = startOfLastCalendarMonth(today);
   return roundMoney(
     (rows || [])
-      .filter((r) => {
-        if (isPaidRow(r.status) || !r.due_date) return false;
-        const due = String(r.due_date).slice(0, 10);
-        return due.length === 10 && due >= from && due < today;
-      })
+      .filter((r) => isOverdueRow(r, from, today, today))
       .reduce((sum, r) => sum + Number(r.amount || 0), 0)
   );
 }
@@ -324,11 +340,7 @@ export function arrearsBroughtForward(
   const monthStart = `${today.slice(0, 8)}01`;
   return roundMoney(
     (rows || [])
-      .filter((r) => {
-        if (isPaidRow(r.status) || !r.due_date) return false;
-        const due = String(r.due_date).slice(0, 10);
-        return due.length === 10 && due >= from && due < monthStart;
-      })
+      .filter((r) => isOverdueRow(r, from, monthStart, today))
       .reduce((sum, r) => sum + Number(r.amount || 0), 0)
   );
 }

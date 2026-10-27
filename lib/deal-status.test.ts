@@ -278,8 +278,21 @@ assert(
 );
 assert(
   liveOverdueSum({ status: "active", term_months: 36 }, septemberMiss, "2026-10-24") ===
+    1604.25,
+  "October's instalment is still inside the 7-day confirmation grace"
+);
+assert(
+  liveOverdueSum({ status: "active", term_months: 36 }, septemberMiss, "2026-10-31") ===
     3208.5,
-  "once October's own instalment passes unpaid it joins the arrears"
+  "once the grace has run out October's own instalment joins the arrears"
+);
+assert(
+  liveOverdueSum(
+    { status: "active", term_months: 36 },
+    [{ status: "failed", amount: 500, due_date: "2026-10-23" }],
+    "2026-10-24"
+  ) === 500,
+  "a failed Direct Debit counts at once, grace or not"
 );
 assert(
   liveArrearsBroughtForward(
