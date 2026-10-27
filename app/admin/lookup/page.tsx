@@ -560,7 +560,7 @@ function LookupInner() {
                 }}
               />
 
-              {result.status.live && currentAdminBook() !== "gg" && (
+              {result.status.live && (
                 <VehicleSettlement
                   key={`${result.agreement.agreement_number}-vehicles`}
                   agreementNumber={result.agreement.agreement_number}
