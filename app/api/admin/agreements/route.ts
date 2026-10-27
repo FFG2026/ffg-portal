@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       (chunk) =>
         supabase
           .from("payments")
-          .select("agreement_id, amount, status, due_date, paid_date")
+          .select("agreement_id, amount, status, due_date, paid_date, instalment_number")
           .in("agreement_id", chunk),
       ids
     );

@@ -20,10 +20,22 @@ export function isUnwoundAgreement(status: string | null | undefined) {
   return String(status || "").trim().toLowerCase() === "cancelled";
 }
 
+/**
+ * Paid rentals out of the term the deal was set up with. Settlement lines
+ * (instalment number 0 or below) sit on the schedule for the money trail but
+ * are not rentals, so they never count towards "X of 48 paid".
+ */
 export function paidCount(
-  rows: { status?: string | null }[] | null | undefined
+  rows:
+    | { status?: string | null; instalment_number?: number | string | null }[]
+    | null
+    | undefined
 ) {
-  return (rows || []).filter((r) => isPaidRow(r.status)).length;
+  return (rows || []).filter(
+    (r) =>
+      isPaidRow(r.status) &&
+      !(r.instalment_number !== undefined && r.instalment_number !== null && Number(r.instalment_number) <= 0)
+  ).length;
 }
 
 /**

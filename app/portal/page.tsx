@@ -87,9 +87,10 @@ export default async function PortalPage() {
       netBookValue: netBookValue(agreement, schedule),
       lastPaymentDate: lastPayment ? lastPayment.due_date : null,
       directDebitUpToDate: isDirectDebitUpToDate(schedule),
+      // The window follows every paid line on the schedule (settlement lines included).
       schedule: schedule.slice(
-        Math.max(0, paidCount - 2),
-        Math.min(schedule.length, paidCount + 3)
+        Math.max(0, paidPayments.length - 2),
+        Math.min(schedule.length, paidPayments.length + 3)
       ),
       isLive: isLiveDeal(agreement, schedule),
     };

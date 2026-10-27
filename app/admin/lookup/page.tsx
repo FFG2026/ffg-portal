@@ -603,7 +603,7 @@ function LookupInner() {
               <div className="lookup-schedule-head">
                 <h3>Payment schedule</h3>
                 <span className="lookup-schedule-count">
-                  {result.schedule.length} instalments
+                  {result.schedule.filter((r) => Number(r.instalment_number) > 0).length} instalments
                 </span>
               </div>
               {currentAdminBook() === "gg" && (

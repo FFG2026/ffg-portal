@@ -448,3 +448,16 @@ assert(
 );
 
 console.log("deal-status manual-receipt tests ok");
+
+// Settlement lines (instalment 0 or below) never count towards paid rentals.
+{
+  const rows = [
+    { status: "paid", instalment_number: 1 },
+    { status: "paid", instalment_number: 2 },
+    { status: "paid", instalment_number: 0 },
+    { status: "paid", instalment_number: -1 },
+    { status: "due", instalment_number: 3 },
+  ];
+  assert(paidCount(rows) === 2, "settlement lines must not count as paid rentals");
+  assert(paidCount([{ status: "paid" }, { status: "paid" }]) === 2, "rows without a number still count");
+}
