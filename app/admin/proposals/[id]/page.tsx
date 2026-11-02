@@ -442,6 +442,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
   const [docFee, setDocFee] = useState("");
   const [optionFee, setOptionFee] = useState("");
   const [done, setDone] = useState<any>(null);
+  const [raiseError, setRaiseError] = useState("");
   const docs = p.extras?.docs;
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
@@ -504,6 +505,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
   const raise = async () => {
     setBusy("raise");
     setError("");
+    setRaiseError("");
     try {
       const guarantors = dirs.filter((d) => d.include && d.name.trim()).map((d) => ({ name: d.name, dob: d.dob, address: d.address }));
       const { documents } = await call("raise_documents", {
@@ -513,7 +515,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
       setOk(`${documents.agreement_number}: ${documents.files.length} document${documents.files.length === 1 ? "" : "s"} saved to Drive.`);
       onDone();
     } catch (e: any) {
-      setError(e.message);
+      setRaiseError(e.message || "Could not raise the documents.");
     } finally {
       setBusy("");
     }
@@ -604,6 +606,7 @@ function DocumentsPanel({ id, p, onDone, setError, setOk }: { id: string; p: P; 
             <button onClick={() => setDirs([...dirs, { name: "", birth: "", address: "", dob: "", include: true }])}>Add a guarantor</button>
             <button className="primary" disabled={!!busy} onClick={raise}>{busy === "raise" ? "Saving to Drive…" : "Raise the documents"}</button>
           </div>
+          {raiseError && <div className="admin-error" role="alert" style={{ marginTop: 10 }}>{raiseError}</div>}
         </>
       )}
       {done && (
