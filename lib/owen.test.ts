@@ -15,7 +15,7 @@ assert(
 assert(isOwenBrunning({ email: "staff", name: "Staff" }) === false, "staff code is not Owen");
 assert(
   isOwenBrunning({ email: "sales@ffg.finance", name: "Sales" }) === false,
-  "other staff cannot open the owner figures"
+  "other staff are not treated as Owen"
 );
 
 console.log("owen tests ok");

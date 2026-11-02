@@ -5,7 +5,7 @@ export function normalizePersonName(name: string | null | undefined) {
     .trim();
 }
 
-/** Owner figures page — Owen Brunning only. */
+/** Owen Brunning — used for owner-only extras, not the live figures tab. */
 export function isOwenBrunning(user: {
   email?: string | null;
   name?: string | null;
