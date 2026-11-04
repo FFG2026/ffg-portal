@@ -1,7 +1,9 @@
 /** FFG GoCardless descriptions look like HP41/1, FL16/4, L2/12. */
 
+/** HP41/1 or FL16/4 — a hyphenated suffix like HP83-2 is a second
+ *  subscription on the same HP, not instalment 2. */
 const INSTALMENT_REF =
-  /\b(HP|FL|GG|L)\s*0*(\d+)\s*[\/\-]\s*0*(\d+)\b/i;
+  /\b(HP|FL|GG|L)\s*0*(\d+)\s*\/\s*0*(\d+)\b/i;
 const AGREEMENT_ONLY_REF = /\b(HP|FL|GG|L)\s*0*(\d+)\b/i;
 
 export type AgreementRef = {

@@ -168,4 +168,63 @@ const hp104Unlabelled = paymentsForAgreement(
 assert(!hp104Unlabelled.some((p) => p.id === "PM_150"), "as-and-when HP104 does not guess unlabelled mandate cash");
 assert(hp104Unlabelled.some((p) => p.id === "PM_HP104"), "HP104/8 still attaches when the ref is on the payment");
 
+const hp83 = {
+  id: "hp83",
+  agreement_number: "HP83",
+  gocardless_mandate_id: "MD_DC",
+  monthly_instalment: 327.59,
+  mandateShared: true,
+};
+const hp83Gc = paymentsForAgreement(
+  [
+    {
+      id: "PM_HP83",
+      description: "FFG HP83",
+      reference: "FFG HP83",
+      charge_date: "2025-06-16",
+      status: "paid_out",
+      amount: 65517,
+      links: { mandate: "MD_DC" },
+    },
+    {
+      id: "PM_HP83_2",
+      description: "FFG HP83-2",
+      reference: "FFG HP83-2",
+      charge_date: "2025-06-16",
+      status: "paid_out",
+      amount: 32759,
+      links: { mandate: "MD_DC" },
+    },
+    {
+      id: "PM_HP87",
+      description: "FFG HP87",
+      reference: "FFG HP87",
+      charge_date: "2025-06-04",
+      status: "paid_out",
+      amount: 37627,
+      links: { mandate: "MD_DC" },
+    },
+    {
+      id: "PM_DOCFEE",
+      description: "Documentation Fee",
+      reference: "FFG DocFee",
+      charge_date: "2025-01-31",
+      status: "paid_out",
+      amount: 19500,
+      links: { mandate: "MD_DC" },
+    },
+  ],
+  hp83
+);
+assert(
+  hp83Gc.some((p) => p.id === "PM_HP83" && p.instalment_number == null),
+  "original HP83 rent still belongs to HP83"
+);
+assert(
+  hp83Gc.some((p) => p.id === "PM_HP83_2" && p.instalment_number == null),
+  "HP83-2 is the reduced remaining van, not instalment 2"
+);
+assert(!hp83Gc.some((p) => p.id === "PM_HP87"), "HP87 on the shared mandate does not tick HP83");
+assert(!hp83Gc.some((p) => p.id === "PM_DOCFEE"), "documentation fees stay off the HP83 schedule");
+
 console.log("payments-for-agreement tests ok");
