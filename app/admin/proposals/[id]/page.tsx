@@ -809,7 +809,7 @@ function PayoutPanel({ p, act, busy, error }: { p: P; act: (action: string, extr
         <div>
           <h2>Last check before payout</h2>
           <div className="panel-sub">
-            Reads the signed agreement, the signed guarantee, the supplier's invoice and our commission invoice from the deal folder and checks them against this proposal. Nothing is paid out or booked until it is cleared.
+            Reads the signed agreement, the signed guarantee, the supplier's invoice and our commission invoice from the deal folder and checks them against this proposal. Booking is locked until the figures on the finance documents, supplier invoice and commission invoice all agree. Everything else is shown for information.
             {st?.run_at ? ` Run ${new Date(st.run_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}${st.run_by ? ` by ${st.run_by}` : ""}.` : ""}
           </div>
         </div>
@@ -823,7 +823,7 @@ function PayoutPanel({ p, act, busy, error }: { p: P; act: (action: string, extr
 
       <div className="pp-warn" style={{ borderColor: ev.cleared ? "#2E9E55" : undefined }}>
         {ev.cleared ? (
-          <strong>Cleared – safe to pay out and put on the book.</strong>
+          <strong>Cleared – the figures agree across the documents.</strong>
         ) : (
           <>
             <strong>Not cleared yet.</strong>
@@ -870,7 +870,7 @@ function PayoutPanel({ p, act, busy, error }: { p: P; act: (action: string, extr
 
       {ev.ran && (
         <div style={{ marginTop: 16 }}>
-          <h3 style={{ fontSize: 14, margin: "0 0 4px", color: "var(--navy)" }}>Tick off by hand</h3>
+          <h3 style={{ fontSize: 14, margin: "0 0 4px", color: "var(--navy)" }}>Reminders (don't block booking)</h3>
           <ul className="pp-checks">
             {ev.manual.map((m: EvaluatedManual) => (
               <li key={m.key}>

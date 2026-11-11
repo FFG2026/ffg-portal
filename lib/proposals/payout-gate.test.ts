@@ -93,8 +93,15 @@ function stateFor(p: Record<string, any>, f: PayoutFacts): PayoutState {
   const st = stateFor(proposal, facts());
   let p = { ...proposal, extras: { ...proposal.extras, payout_check: st } };
   let ev = evaluatePayout(p);
-  assert.equal(ev.cleared, false);
-  assert.ok(ev.blockers.some((b) => /Deposit received/.test(b)));
+  // Reynolds' figures all agree, so only figures count and it is cleared; the other differences are advisory.
+  assert.equal(ev.cleared, true, ev.blockers.join(" | "));
+  assert.equal(ev.items.find((i) => i.id === "a-vat")!.state, "advisory");
+  // A figure that doesn't agree blocks.
+  const bad = facts();
+  bad.commission!.total = 300;
+  const pb = { ...proposal, extras: { ...proposal.extras, payout_check: stateFor(proposal, bad) } };
+  assert.equal(evaluatePayout(pb).cleared, false);
+  p = { ...proposal, extras: { ...proposal.extras, payout_check: { ...st, overrides: {} } } };
 
   // Accept each open item with a reason, tick the manual items: cleared.
   const overrides: NonNullable<PayoutState["overrides"]> = {};
@@ -115,9 +122,15 @@ function stateFor(p: Record<string, any>, f: PayoutFacts): PayoutState {
   const ev2 = evaluatePayout(p2);
   assert.equal(ev2.manual.find((m) => m.key === "bank_verified")!.done, false);
 
-  // An accepted reason stops counting if the underlying detail changes.
-  const changed = { ...p.extras.payout_check, overrides: { "a-vat": { reason: "ok", by: "o", at: "n", detail: "something else" } } };
-  assert.equal(evaluatePayout({ ...p, extras: { ...p.extras, payout_check: changed } }).cleared, false);
+  // An accepted reason stops counting if the underlying detail changes (use a blocking figure).
+  const bad2 = facts();
+  bad2.commission!.total = 300;
+  const st2 = stateFor(proposal, bad2);
+  const cid = st2.items.find((i) => i.id === "c-amount")!;
+  const okOverride = { ...st2, overrides: { "c-amount": { reason: "ok", by: "o", at: "n", detail: cid.detail } } };
+  assert.equal(evaluatePayout({ ...proposal, extras: { ...proposal.extras, payout_check: okOverride } }).cleared, true);
+  const staleOverride = { ...st2, overrides: { "c-amount": { reason: "ok", by: "o", at: "n", detail: "something else" } } };
+  assert.equal(evaluatePayout({ ...proposal, extras: { ...proposal.extras, payout_check: staleOverride } }).cleared, false);
 
   // Never run: not cleared.
   assert.equal(evaluatePayout(proposal).cleared, false);

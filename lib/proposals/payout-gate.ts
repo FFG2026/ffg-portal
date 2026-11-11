@@ -498,8 +498,14 @@ export function buildPayoutItems(p: P, facts: PayoutFacts): PayoutItem[] {
 
 /* ---------- is the deal cleared? ---------- */
 
+/** Only these block payout: the figures on the finance documents, supplier invoice and commission invoice must agree. */
+export const BLOCKING_IDS = new Set([
+  "p-agreed", "a-found", "i-found", "c-found", "a-price", "a-deposit", "a-financed", "a-payments",
+  "i-price", "i-vat", "c-amount", "x-unread",
+]);
+
 export type EvaluatedItem = PayoutItem & {
-  state: "ok" | "info" | "accepted" | "open";
+  state: "ok" | "info" | "advisory" | "accepted" | "open";
   override?: { reason: string; by: string | null; at: string };
 };
 
@@ -539,6 +545,7 @@ export function evaluatePayout(p: P): PayoutEvaluation {
   const items: EvaluatedItem[] = st.items.map((it) => {
     if (it.level === "ok") return { ...it, state: "ok" as const };
     if (it.level === "info") return { ...it, state: "info" as const };
+    if (!BLOCKING_IDS.has(it.id)) return { ...it, state: "advisory" as const };
     const o = overrides[it.id];
     if (o && o.reason && o.detail === it.detail) {
       return { ...it, state: "accepted" as const, override: { reason: o.reason, by: o.by, at: o.at } };
@@ -566,6 +573,5 @@ export function evaluatePayout(p: P): PayoutEvaluation {
   if (stale) blockers.push("The proposal's figures have changed since the check ran – run it again.");
   const open = items.filter((i) => i.state === "open");
   for (const i of open) blockers.push(`${i.label}: ${i.level === "issue" ? "doesn't add up" : "needs a look"} – fix it or accept it with a reason.`);
-  for (const m of manual) if (!m.done) blockers.push(`${m.label} – not ticked off.`);
   return { ran: true, stale, items, manual, blockers, cleared: blockers.length === 0 };
 }
