@@ -421,6 +421,8 @@ export async function applyAction(
           : num(p.commission_pct) !== null
             ? null
             : num(p.commission);
+      const monthlyOverride = body.monthly !== undefined && body.monthly !== "" && body.monthly !== null ? num(body.monthly) : null;
+      if (monthlyOverride !== null && monthlyOverride <= 0) throw new ProposalError("Enter a monthly payment above zero, or leave it blank.");
       const priced = priceProposal({
         cashPrice: cash,
         deposit,
@@ -428,6 +430,7 @@ export async function applyAction(
         commission,
         ratePct: rate,
         termMonths: term,
+        monthlyOverride,
       });
       const { error } = await supabase
         .from("ffg_proposals")
@@ -446,7 +449,7 @@ export async function applyAction(
         )
         .eq("id", id);
       if (error) throw new ProposalError(error.message, 500);
-      await logEvent(supabase, id, who, "rate_agreed", { rate, term, ...priced });
+      await logEvent(supabase, id, who, "rate_agreed", { rate, term, monthly_override: monthlyOverride, ...priced });
       return { priced };
     }
 

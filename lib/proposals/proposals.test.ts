@@ -123,3 +123,12 @@ const mail = buildAcceptanceEmail({
 assert.ok(mail.body.startsWith("Hi Zara,"));
 assert.ok(mail.body.includes("£347.25"));
 assert.ok(mail.subject.includes("ACME LTD"));
+
+// A charged monthly figure overrides the rate's own payment, and the total follows it.
+const charged = priceProposal({ cashPrice: 7794, deposit: 1948.5, commissionPct: 5, commission: 292.28, ratePct: 12, termMonths: 36, monthlyOverride: 209.77 });
+assert.equal(charged.monthly, 209.77);
+assert.equal(charged.totalRepayable, 7551.72);
+assert.equal(charged.profit, 1413.94);
+const calculated = priceProposal({ cashPrice: 7794, deposit: 1948.5, commissionPct: 5, commission: 292.28, ratePct: 12, termMonths: 36 });
+assert.equal(calculated.monthly, 203.86);
+assert.equal(calculated.totalRepayable, 7338.96);

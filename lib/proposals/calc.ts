@@ -47,6 +47,8 @@ export type ProposalTerms = {
   commission: number | null;
   ratePct: number;
   termMonths: number;
+  /** What is actually being charged each month, when it is not the rate's own annuity (e.g. a quoted figure). */
+  monthlyOverride?: number | null;
 };
 
 /**
@@ -61,7 +63,10 @@ export function priceProposal(t: ProposalTerms) {
       ? round2(t.commission)
       : round2(netLend * ((t.commissionPct ?? 0) / 100));
   const financed = round2(netLend + commission);
-  const monthly = round2(monthlyPayment(financed, t.ratePct, t.termMonths));
+  const monthly =
+    t.monthlyOverride != null && Number.isFinite(t.monthlyOverride) && t.monthlyOverride > 0
+      ? round2(t.monthlyOverride)
+      : round2(monthlyPayment(financed, t.ratePct, t.termMonths));
   const totalRepayable = round2(monthly * t.termMonths);
   return {
     netLend,

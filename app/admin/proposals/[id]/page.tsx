@@ -627,6 +627,19 @@ function RatePanel({ p, busy, onSave }: { p: P; busy: boolean; onSave: (v: Recor
   const [term, setTerm] = useState(String(p.agreed_term_months ?? p.term_months ?? ""));
   const [deposit, setDeposit] = useState(String(p.agreed_deposit ?? p.deposit ?? 0));
   const [commission, setCommission] = useState<string | null>(p.agreed_commission !== null ? String(p.agreed_commission) : null);
+  // A charged monthly figure that is not simply the rate's own payment (usually the quoted one). Blank = calculate from the rate.
+  const [monthlyFixed, setMonthlyFixed] = useState<string>(() => {
+    if (p.agreed_monthly === null || p.agreed_rate_pct === null || p.agreed_term_months === null || p.cash_price === null) return "";
+    const calc = priceProposal({
+      cashPrice: Number(p.cash_price),
+      deposit: Number(p.agreed_deposit ?? 0),
+      commissionPct: null,
+      commission: p.agreed_commission === null ? 0 : Number(p.agreed_commission),
+      ratePct: Number(p.agreed_rate_pct),
+      termMonths: Number(p.agreed_term_months),
+    });
+    return Math.abs(calc.monthly - Number(p.agreed_monthly)) > 0.01 ? String(p.agreed_monthly) : "";
+  });
 
   const priced = useMemo(() => {
     const r = numOrNull(rate), t = numOrNull(term), d = numOrNull(deposit) ?? 0;
@@ -638,8 +651,9 @@ function RatePanel({ p, busy, onSave }: { p: P; busy: boolean; onSave: (v: Recor
       commission: commission !== null ? numOrNull(commission) : p.commission_pct !== null ? null : p.commission === null ? null : Number(p.commission),
       ratePct: r,
       termMonths: t,
+      monthlyOverride: numOrNull(monthlyFixed),
     });
-  }, [rate, term, deposit, commission, p]);
+  }, [rate, term, deposit, commission, monthlyFixed, p]);
 
   const q = p.quoted_monthly === null ? null : Number(p.quoted_monthly);
   return (
@@ -655,6 +669,14 @@ function RatePanel({ p, busy, onSave }: { p: P; busy: boolean; onSave: (v: Recor
           <input value={commission ?? (priced ? String(priced.commission) : "")} onChange={(e) => setCommission(e.target.value)} inputMode="decimal" />
           <p className="admin-field-hint">{p.commission_pct !== null ? `Quoted at ${p.commission_pct}% of net lend.` : ""}</p>
         </div>
+        <div>
+          <label>Monthly payment charged (£)</label>
+          <input value={monthlyFixed} placeholder="Calculated from the rate" onChange={(e) => setMonthlyFixed(e.target.value)} inputMode="decimal" />
+          <p className="admin-field-hint">
+            Leave blank to calculate from the rate. Type the figure you are charging and the total repayable follows it.
+            {q !== null && String(q) !== monthlyFixed ? <> <a href="#" onClick={(e) => { e.preventDefault(); setMonthlyFixed(String(q)); }}>Use the quoted {gbp(q)}</a>.</> : null}
+          </p>
+        </div>
       </div>
       {priced && (
         <dl className="pp-kv" style={{ marginTop: 12 }}>
@@ -663,12 +685,12 @@ function RatePanel({ p, busy, onSave }: { p: P; busy: boolean; onSave: (v: Recor
           <dt>Amount financed</dt><dd>{gbp(priced.financed)}</dd>
           <dt className="hl">Monthly payment</dt>
           <dd className="hl">{gbp(priced.monthly)}{q !== null && Math.abs(priced.monthly - q) > 0.01 ? <span className="pp-diff"> (quoted {gbp(q)})</span> : ""}</dd>
-          <dt>Total repayable</dt><dd>{gbp(priced.totalRepayable)}</dd>
+          <dt>Total repayable</dt><dd>{gbp(priced.totalRepayable)}{numOrNull(monthlyFixed) ? <span className="pp-diff"> ({gbp(priced.monthly)} × {term})</span> : ""}</dd>
           <dt>Profit (repayable − net lend − commission)</dt><dd>{gbp(priced.profit)}</dd>
         </dl>
       )}
       <div className="pp-btns">
-        <button className="primary" disabled={busy || !priced} onClick={() => onSave({ rate_pct: rate, term_months: term, deposit, commission })}>
+        <button className="primary" disabled={busy || !priced} onClick={() => onSave({ rate_pct: rate, term_months: term, deposit, commission, monthly: monthlyFixed })}>
           {busy ? "Saving…" : p.agreed_monthly !== null ? "Update agreed rate" : "Agree this rate"}
         </button>
       </div>
