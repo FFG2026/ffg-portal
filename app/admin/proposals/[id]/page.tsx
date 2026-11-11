@@ -18,7 +18,10 @@ const gbp = (v: any) =>
   v === null || v === undefined || v === ""
     ? "–"
     : `£${Number(v).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const numOrNull = (v: string) => (v.trim() === "" || isNaN(Number(v)) ? null : Number(v));
+const numOrNull = (v: string) => {
+  const t = String(v ?? "").replace(/[£,\s]/g, "");
+  return t === "" || isNaN(Number(t)) ? null : Number(t);
+};
 
 const EVENT_TEXT: Record<string, string> = {
   received: "Proposal received",

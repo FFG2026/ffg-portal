@@ -24,7 +24,7 @@ export class ProposalError extends Error {
 
 const num = (v: unknown) => {
   if (v === null || v === undefined || v === "") return null;
-  const x = Number(v);
+  const x = typeof v === "number" ? v : Number(String(v).replace(/[£,\s]/g, ""));
   return Number.isFinite(x) ? x : null;
 };
 const str = (v: unknown) => {
