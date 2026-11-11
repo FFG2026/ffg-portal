@@ -95,6 +95,8 @@ export type PayoutFacts = {
   commission: CommissionInvoiceFacts | null;
   /** Names of documents that were found but could not be read. */
   unread: string[];
+  /** Set when the guarantee was found but could not be read (it does not block booking). */
+  guarantee_error?: string | null;
   files: { role: string; name: string; modified: string | null }[];
 };
 
@@ -202,7 +204,7 @@ function pushSign(
       id: `${idPrefix}-signed`, group, label: `${label} signed`, level: "issue",
       detail: `${facts.file}: the e-signature report says "${facts.audit_status}", not completed.`,
     });
-  } else if (names.length < expectedSigners) {
+  } else if (names.length < expectedSigners && !facts.audit_completed) {
     out.push({
       id: `${idPrefix}-signed`, group, label: `${label} signed`, level: "review",
       detail: `${facts.file}: marked completed${facts.audit_completed ? ` on ${dateOnly(facts.audit_completed)}` : ""}, but only ${names.length} of ${expectedSigners} signatures are listed (${names.join(", ") || "none"}).`,
@@ -210,7 +212,7 @@ function pushSign(
   } else {
     out.push({
       id: `${idPrefix}-signed`, group, label: `${label} signed`, level: "ok",
-      detail: `${facts.file}: fully signed${facts.audit_completed ? ` ${dateOnly(facts.audit_completed)}` : ""} by ${names.join(" and ")}.`,
+      detail: `${facts.file}: fully signed${facts.audit_completed ? ` ${dateOnly(facts.audit_completed)}` : ""} ${names.length ? ` by ${names.join(" and ")}` : ""}.`,
     });
   }
 }
@@ -443,7 +445,12 @@ export function buildPayoutItems(p: P, facts: PayoutFacts): PayoutItem[] {
 
   /* --- personal guarantee --- */
   const g = facts.guarantee;
-  if (!g) {
+  if (!g && facts.guarantee_error) {
+    out.push({
+      id: "g-found", group: "Guarantee", label: "Signed guarantee", level: "review",
+      detail: `A guarantee is in the folder but couldn't be read (${facts.guarantee_error}). Check it by eye – it doesn't block booking.`,
+    });
+  } else if (!g) {
     out.push({
       id: "g-found", group: "Guarantee", label: "Signed guarantee", level: "review",
       detail: "No signed personal guarantee was found in the Drive folder. If none is required on this deal, accept this with a reason.",

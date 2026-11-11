@@ -101,14 +101,21 @@ export async function runPayoutCheck(supabase: SupabaseClient, p: P, actor: stri
   const invoiceFile = pick(files, /invoice|inv[-_ ]?\d|pro[- ]?forma|proforma/i, /direct[_ ]commercial|\bdcf\b|commission|request/i);
 
   const unread: string[] = [];
-  const read = async <T,>(f: DriveFile | null, system: string, shape: (d: Record<string, unknown>, file: string) => T): Promise<T | null> => {
+  let guaranteeError: string | null = null;
+  const read = async <T,>(f: DriveFile | null, system: string, shape: (d: Record<string, unknown>, file: string) => T, soft = false): Promise<T | null> => {
     if (!f) return null;
-    try {
-      return shape(await gemini(system, f, token), f.name);
-    } catch (e: any) {
-      unread.push(`${f.name} (${String(e?.message || e).slice(0, 80)})`);
-      return null;
+    let last = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return shape(await gemini(system, f, token), f.name);
+      } catch (e: any) {
+        last = String(e?.message || e).slice(0, 80);
+        if (/abort|timeout/i.test(last)) break; // a retry would run past the function's time limit
+      }
     }
+    if (soft) guaranteeError = last;
+    else unread.push(`${f.name} (${last})`);
+    return null;
   };
 
   const [agreement, guarantee, invoice, commission] = await Promise.all([
@@ -145,7 +152,7 @@ export async function runPayoutCheck(supabase: SupabaseClient, p: P, actor: stri
       audit_status: str(d.audit_status, 40),
       audit_completed: str(d.audit_completed, 10),
       signers: signers(d),
-    })),
+    }), true),
     read<SupplierInvoiceFacts>(invoiceFile, SUPPLIER_SYSTEM, (d, file) => ({
       file,
       invoice_number: str(d.invoice_number, 40),
@@ -190,6 +197,7 @@ export async function runPayoutCheck(supabase: SupabaseClient, p: P, actor: stri
     invoice,
     commission,
     unread,
+    guarantee_error: guaranteeError,
     files: used.filter(([, f]) => f).map(([role, f]) => ({ role, name: (f as DriveFile).name, modified: modifiedOf(f as DriveFile) || null })),
   };
 
