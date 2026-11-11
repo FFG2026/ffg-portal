@@ -47,7 +47,7 @@ function dedupe(files: DriveFile[]) {
   return Array.from(byName.values());
 }
 
-async function gemini(system: string, file: DriveFile, token: string): Promise<Record<string, unknown>> {
+export async function gemini(system: string, file: DriveFile, token: string): Promise<Record<string, unknown>> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set on the FFG portal");
   if (Number(file.size || 0) > MAX_BYTES) throw new Error("file too large to read here");

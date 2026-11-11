@@ -10,6 +10,8 @@ import { readSupplierInvoice, folderIdFromLink } from "./documents/read-invoice"
 import { driveAccessToken, listDriveChildren } from "../google/drive";
 import { documentChecks } from "./documents/check-documents";
 import { saveApprovalRecord } from "./documents/approval-record";
+import { evaluatePayout, MANUAL_ITEMS, type PayoutState, type ManualKey } from "./payout-gate";
+import { runPayoutCheck, filesChangedSince } from "./documents/payout-read";
 import { documentsPrefill, raiseDocuments, reserveNumber, type RaiseInput } from "./documents/raise";
 
 export class ProposalError extends Error {
@@ -553,8 +555,100 @@ export async function applyAction(
       return {};
     }
 
+    case "payout_check_run": {
+      requireStatus(p, ["approved", "accepted"], "run the pre-payout check");
+      let state: PayoutState;
+      try {
+        state = await runPayoutCheck(supabase, p, who);
+      } catch (err: any) {
+        throw new ProposalError(err?.message || "Could not run the pre-payout check.", 502);
+      }
+      const extras = { ...(p.extras || {}), payout_check: state };
+      const { error } = await supabase.from("ffg_proposals").update(touch({ extras })).eq("id", id);
+      if (error) throw new ProposalError(error.message, 500);
+      const evaluated = evaluatePayout({ ...p, extras });
+      await logEvent(supabase, id, who, "payout_check_run", {
+        open: evaluated.items.filter((i) => i.state === "open").map((i) => `${i.label}: ${i.level}`),
+        cleared: evaluated.cleared,
+      });
+      return { cleared: evaluated.cleared };
+    }
+
+    case "payout_check_manual": {
+      requireStatus(p, ["approved", "accepted"], "tick off a pre-payout item");
+      const st: PayoutState | undefined = p.extras?.payout_check;
+      if (!st) throw new ProposalError("Run the pre-payout check first.");
+      const key = String(body.key || "") as ManualKey;
+      const def = MANUAL_ITEMS.find((m) => m.key === key);
+      if (!def) throw new ProposalError("Unknown item.");
+      const manual = { ...(st.manual || {}) };
+      if (body.done === false) {
+        delete manual[key];
+      } else {
+        const note = str(body.note);
+        if (def.noteRequired && !note) throw new ProposalError(`Add a note saying how you did it – ${def.label.toLowerCase()}.`);
+        manual[key] = {
+          by: who,
+          at: new Date().toISOString(),
+          note,
+          ...(key === "bank_verified"
+            ? {
+                sort_code: st.facts?.invoice?.sort_code ?? null,
+                account_number: st.facts?.invoice?.account_number ?? null,
+              }
+            : {}),
+        };
+      }
+      const extras = { ...(p.extras || {}), payout_check: { ...st, manual } };
+      const { error } = await supabase.from("ffg_proposals").update(touch({ extras })).eq("id", id);
+      if (error) throw new ProposalError(error.message, 500);
+      await logEvent(supabase, id, who, "payout_check_manual", { key, done: body.done !== false, note: str(body.note) });
+      return {};
+    }
+
+    case "payout_check_accept": {
+      requireStatus(p, ["approved", "accepted"], "accept a pre-payout item");
+      const st: PayoutState | undefined = p.extras?.payout_check;
+      if (!st) throw new ProposalError("Run the pre-payout check first.");
+      const itemId = String(body.item || "");
+      const item = st.items.find((i) => i.id === itemId);
+      if (!item) throw new ProposalError("That item isn't on the check any more – run it again.");
+      const overrides = { ...(st.overrides || {}) };
+      if (body.remove === true) {
+        delete overrides[itemId];
+      } else {
+        const reason = str(body.reason);
+        if (!reason) throw new ProposalError("Add a reason for accepting it.");
+        overrides[itemId] = { reason, by: who, at: new Date().toISOString(), detail: item.detail };
+      }
+      const extras = { ...(p.extras || {}), payout_check: { ...st, overrides } };
+      const { error } = await supabase.from("ffg_proposals").update(touch({ extras })).eq("id", id);
+      if (error) throw new ProposalError(error.message, 500);
+      await logEvent(supabase, id, who, "payout_check_accept", { item: item.label, level: item.level, removed: body.remove === true, reason: str(body.reason) });
+      return {};
+    }
+
     case "put_on_book": {
       requireStatus(p, ["approved", "accepted"], "put the deal on the book");
+      const gate = evaluatePayout(p);
+      if (!gate.cleared) {
+        throw new ProposalError(
+          `The pre-payout check isn't cleared: ${gate.blockers.slice(0, 4).join(" ")}${gate.blockers.length > 4 ? ` (+${gate.blockers.length - 4} more)` : ""}`,
+          409
+        );
+      }
+      try {
+        const changed = await Promise.race([
+          filesChangedSince(supabase, p, (p.extras.payout_check as PayoutState).run_at),
+          new Promise<string[]>((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000)),
+        ]);
+        if (changed.length) {
+          throw new ProposalError(`These documents changed after the pre-payout check ran: ${changed.slice(0, 4).join(", ")}. Run the check again.`, 409);
+        }
+      } catch (err: any) {
+        if (err instanceof ProposalError) throw err;
+        /* Drive unreachable: the check itself passed, so don't block on the freshness test. */
+      }
       const priorStatus = p.status === "approved" ? "approved" : "accepted";
       const startDate = String(body.start_date || "").slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new ProposalError("Enter the start date.");

@@ -7,6 +7,7 @@ import AdminShell, { adminHeaders } from "../../AdminShell";
 import PageHero from "../../PageHero";
 import { priceProposal } from "../../../../lib/proposals/calc";
 import { PRODUCT_NAME } from "../../../../lib/proposals/labels";
+import { evaluatePayout, type EvaluatedItem, type EvaluatedManual } from "../../../../lib/proposals/payout-gate";
 import "../proposals.css";
 
 type P = Record<string, any>;
@@ -28,6 +29,9 @@ const EVENT_TEXT: Record<string, string> = {
   rate_agreed: "Rate agreed",
   acceptance_sent: "Acceptance sent",
   put_on_book: "Put on the book",
+  payout_check_run: "Pre-payout check run",
+  payout_check_manual: "Pre-payout tick-off",
+  payout_check_accept: "Pre-payout item accepted",
   documents_raised: "Finance documents raised",
   declined: "Declined",
   reopened: "Reopened",
@@ -162,6 +166,9 @@ function ProposalInner() {
           <AcceptancePanel id={id} p={p} busy={busy === "send_acceptance"} onSend={(v) => act("send_acceptance", v, "Acceptance sent.")} setError={setError} />
         )}
         {["accepted", "on_book"].includes(status) && p.acceptance_sent_at && <SentAcceptance p={p} />}
+        {(status === "accepted" || (status === "approved" && p.agreed_monthly !== null && p.agreed_term_months)) && (
+          <PayoutPanel p={p} act={act} busy={busy} error={error} />
+        )}
         {(status === "accepted" || (status === "approved" && p.agreed_monthly !== null && p.agreed_term_months)) && (
           <BookPanel p={p} busy={busy === "put_on_book"} onBook={async (v) => {
             const r = await act("put_on_book", v);
@@ -787,7 +794,122 @@ function SentAcceptance({ p }: { p: P }) {
 
 /* ---------- 6. onto the book ---------- */
 
+function PayoutPanel({ p, act, busy, error }: { p: P; act: (action: string, extra?: Record<string, unknown>, success?: string) => Promise<any>; busy: string; error: string }) {
+  const ev = useMemo(() => evaluatePayout(p), [p]);
+  const st = p.extras?.payout_check;
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const working = busy.startsWith("payout_check");
+  const groups = Array.from(new Set(ev.items.map((i) => i.group)));
+  const dot = (i: EvaluatedItem) => (i.state === "accepted" ? "ok" : i.level);
+  const inv = st?.facts?.invoice;
+  return (
+    <div className="page-panel" style={{ borderLeft: `4px solid ${ev.cleared ? "#2E9E55" : "#E0A526"}` }}>
+      <div className="page-panel-head">
+        <div>
+          <h2>Last check before payout</h2>
+          <div className="panel-sub">
+            Reads the signed agreement, the signed guarantee, the supplier's invoice and our commission invoice from the deal folder and checks them against this proposal. Nothing is paid out or booked until it is cleared.
+            {st?.run_at ? ` Run ${new Date(st.run_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}${st.run_by ? ` by ${st.run_by}` : ""}.` : ""}
+          </div>
+        </div>
+        <div className="pp-btns" style={{ marginTop: 0 }}>
+          <button className={ev.ran ? "" : "primary"} disabled={!!busy} onClick={() => act("payout_check_run", {}, "Pre-payout check run.")}>
+            {busy === "payout_check_run" ? "Reading the documents…" : ev.ran ? "Re-run check" : "Run the check"}
+          </button>
+        </div>
+      </div>
+      {error && working === false && busy === "" && /pre-payout|documents|Drive|GEMINI/i.test(error) && <div className="admin-error">{error}</div>}
+
+      <div className="pp-warn" style={{ borderColor: ev.cleared ? "#2E9E55" : undefined }}>
+        {ev.cleared ? (
+          <strong>Cleared – safe to pay out and put on the book.</strong>
+        ) : (
+          <>
+            <strong>Not cleared yet.</strong>
+            <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
+              {ev.blockers.map((b) => <li key={b}>{b}</li>)}
+            </ul>
+          </>
+        )}
+      </div>
+
+      {ev.ran && groups.map((g) => (
+        <div key={g} style={{ marginTop: 14 }}>
+          <h3 style={{ fontSize: 14, margin: "0 0 4px", color: "var(--navy)" }}>{g}</h3>
+          <ul className="pp-checks">
+            {ev.items.filter((i) => i.group === g).map((i) => (
+              <li key={i.id}>
+                <span className={`pp-dot ${dot(i)}`} />
+                <span className="lbl">{i.label}</span>
+                <span className="txt">
+                  {i.detail}
+                  {i.state === "accepted" && i.override && (
+                    <div style={{ marginTop: 4, color: "#2E6B45" }}>
+                      Accepted by {i.override.by || "someone"}: “{i.override.reason}”{" "}
+                      <button style={{ marginLeft: 6 }} disabled={!!busy} onClick={() => act("payout_check_accept", { item: i.id, remove: true })}>Undo</button>
+                    </div>
+                  )}
+                  {i.state === "open" && (
+                    <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <input
+                        style={{ flex: "1 1 220px", minWidth: 160 }}
+                        placeholder="Fix it, or accept it with a reason…"
+                        value={reasons[i.id] || ""}
+                        onChange={(e) => setReasons({ ...reasons, [i.id]: e.target.value })}
+                      />
+                      <button disabled={!!busy || !(reasons[i.id] || "").trim()} onClick={() => act("payout_check_accept", { item: i.id, reason: reasons[i.id] })}>Accept anyway</button>
+                    </div>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {ev.ran && (
+        <div style={{ marginTop: 16 }}>
+          <h3 style={{ fontSize: 14, margin: "0 0 4px", color: "var(--navy)" }}>Tick off by hand</h3>
+          <ul className="pp-checks">
+            {ev.manual.map((m: EvaluatedManual) => (
+              <li key={m.key}>
+                <span className={`pp-dot ${m.done ? "ok" : "review"}`} />
+                <span className="lbl">{m.label}</span>
+                <span className="txt">
+                  {m.hint}
+                  {m.key === "bank_verified" && inv?.sort_code && (
+                    <div style={{ marginTop: 4 }}>Invoice says: <strong>{inv.payee_name || inv.supplier_name}</strong> · sort code <strong>{inv.sort_code}</strong> · account <strong>{inv.account_number}</strong></div>
+                  )}
+                  {m.reset_reason && <div style={{ marginTop: 4, color: "#B4232C" }}>{m.reset_reason}</div>}
+                  {m.done ? (
+                    <div style={{ marginTop: 4, color: "#2E6B45" }}>
+                      Done by {m.by || "someone"}{m.at ? `, ${new Date(m.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}{m.note ? ` – ${m.note}` : ""}{" "}
+                      <button style={{ marginLeft: 6 }} disabled={!!busy} onClick={() => act("payout_check_manual", { key: m.key, done: false })}>Undo</button>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <input
+                        style={{ flex: "1 1 220px", minWidth: 160 }}
+                        placeholder={m.noteRequired ? "How did you verify it? (required)" : "Note (optional)"}
+                        value={notes[m.key] || ""}
+                        onChange={(e) => setNotes({ ...notes, [m.key]: e.target.value })}
+                      />
+                      <button disabled={!!busy || (m.noteRequired && !(notes[m.key] || "").trim())} onClick={() => act("payout_check_manual", { key: m.key, done: true, note: notes[m.key] || "" })}>Tick off</button>
+                    </div>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BookPanel({ p, busy, onBook }: { p: P; busy: boolean; onBook: (v: Record<string, unknown>) => void }) {
+  const gate = useMemo(() => evaluatePayout(p), [p]);
   const today = new Date().toISOString().slice(0, 10);
   const [start, setStart] = useState("");
   const [written, setWritten] = useState(today);
@@ -818,9 +940,14 @@ function BookPanel({ p, busy, onBook }: { p: P; busy: boolean; onBook: (v: Recor
         <dt>Purchase price / deposit</dt><dd>{gbp(p.cash_price)} / {gbp(p.agreed_deposit)}</dd>
         <dt>Commission</dt><dd>{gbp(p.agreed_commission)}</dd>
       </dl>
+      {!gate.cleared && (
+        <p className="admin-field-hint" style={{ color: "#B4232C" }}>
+          Locked until the “Last check before payout” above is cleared{gate.blockers.length ? ` (${gate.blockers.length} thing${gate.blockers.length === 1 ? "" : "s"} open)` : ""}.
+        </p>
+      )}
       <div className="pp-btns">
         {!confirm ? (
-          <button className="primary" disabled={!start} onClick={() => setConfirm(true)}>Add to the book…</button>
+          <button className="primary" disabled={!start || !gate.cleared} onClick={() => setConfirm(true)}>Add to the book…</button>
         ) : (
           <>
             <button className="primary" disabled={busy} onClick={() => onBook({ start_date: start, written_date: written, documentation_fee: docFee, agreement_number: number, gocardless_mandate_id: mandate })}>
